@@ -143,15 +143,15 @@ func main() {
 	sem := make(chan bool, *concurrency)
 	entries := listEntries()
 	for _, entry := range entries {
-		//log.Println("dispatching", entry)
+		//log.Println("dispatching", entry.ID)
 		// try to get a slot in the semaphore
 		sem <- true
 		// we got it, fork off a thread
-		go func() {
+		go func(e wallabago.Item) {
 			// release the slot when finished
 			defer func() { <-sem }()
-			download(client, wallabago.Config.WallabagURL, entry)
-		}()
+			download(client, wallabago.Config.WallabagURL, e)
+		}(entry)
 	}
 	// refill all the semaphore slots to make sure we wait for everyone
 	for i := 0; i < cap(sem); i++ {
