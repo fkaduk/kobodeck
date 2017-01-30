@@ -9,7 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 
-	"github.com/anarcat/wallabago"
+	"github.com/Strubbl/wallabago"
 )
 
 func getConfig() (wallabago.WallabagConfig, error) {

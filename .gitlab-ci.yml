@@ -13,6 +13,7 @@ format:
 compile:
     stage: build
     script:
+        - go get github.com/Strubbl/wallabago
         - GOARM=7 GOARCH=arm make build
         - mv wallabako wallabako.arm7
         - make build
