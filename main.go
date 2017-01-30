@@ -20,7 +20,6 @@ import (
 	"path"
 	"regexp"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/Strubbl/wallabago"
@@ -32,17 +31,12 @@ var configJSON = flag.String("config", "config.json", "file name of config JSON 
 var outputDir = flag.String("output", ".", "output directory to save files into")
 var count = flag.Int("count", 10, "number of articles to fetch")
 
+// default is from web browsers, which are around 6-10: http://www.browserscope.org/?category=network
+var concurrency = flag.Int("concurrency", 6, "number of downloads to process in parallel")
+
 // this is a generic counter to safely count things across threads
 // we use it to count how many files we actually downloaded
 var counter = SafeCounter{v: make(map[string]int)}
-
-// wg is a WaitGroup, which counts the number of threads running and
-// waits for all of them to complete before stopping. without but
-// without this, the download threads get killed when the channel is
-// closed or, if we don't close it, it never finishes. cargo-culted
-// from:
-// http://stackoverflow.com/questions/18207772/how-to-wait-for-all-goroutines-to-finish-without-using-time-sleep
-var wg sync.WaitGroup
 
 // XXX: this is necessary because < 2.2 don't have a EPUB API
 func login(baseURL, username, password string) *http.Client {
@@ -77,40 +71,28 @@ func login(baseURL, username, password string) *http.Client {
 	return client
 }
 
-// Entry is a lightweight version of a wallabag entry with just what we need
-// XXX: premature optimization? i put that there because i had trouble
-// parsing JSON in the first place... not sure it's still necessary
-type Entry struct {
-	id      int
-	changed time.Time
-}
-
 // get the unread entries, most recent first, limited to the given count
-func listEntries(entries chan Entry) {
+func listEntries() []wallabago.Item {
 	e := wallabago.GetEntries(0, -1, "updated", "desc", -1, *count, "")
 	log.Printf("found %d unread entries", e.Total)
-	for _, entry := range e.Embedded.Items {
-		entries <- Entry{id: entry.ID, changed: entry.UpdatedAt.Time}
-	}
-	close(entries)
+	return e.Embedded.Items
 }
 
 // download a given entry in the right place
-func download(client *http.Client, baseURL string, entry Entry) {
+func download(client *http.Client, baseURL string, entry wallabago.Item) {
 	// XXX: proper way will be through the API, but for now we hardcode this URL
 	// https://github.com/wallabag/wallabag/pull/2372
 	// only in 2.2: /api/entries/123/export.epub
-	defer wg.Done()
 	counter.Inc("processed")
 	//log.Println("received entry", entry)
 	err := os.MkdirAll(*outputDir, os.ModePerm)
 	if err != nil {
 		log.Fatal("failed to create directory", *outputDir, err)
 	}
-	epubURL := baseURL + "/export/" + strconv.Itoa(entry.id) + ".epub"
+	epubURL := baseURL + "/export/" + strconv.Itoa(entry.ID) + ".epub"
 	output := path.Join(*outputDir, path.Base(epubURL))
 	info, err := os.Stat(output)
-	if err == nil && info.ModTime().After(entry.changed) && info.Size() > 0 {
+	if err == nil && info.ModTime().After(entry.UpdatedAt.Time) && info.Size() > 0 {
 		log.Printf("URL %s older than local file %s, skipped", epubURL, output)
 		return
 	} else if err != nil {
@@ -156,13 +138,24 @@ func main() {
 	}
 	log.Println("logging in to", wallabago.Config.WallabagURL)
 	client := login(wallabago.Config.WallabagURL, wallabago.Config.UserName, wallabago.Config.UserPassword)
-	entries := make(chan Entry)
-	go listEntries(entries)
-	for entry := range entries {
+	// this is a semaphore buffer that will limit the number of threads running
+	// http://jmoiron.net/blog/limiting-concurrency-in-go/
+	sem := make(chan bool, *concurrency)
+	entries := listEntries()
+	for _, entry := range entries {
 		//log.Println("dispatching", entry)
-		wg.Add(1)
-		go download(client, wallabago.Config.WallabagURL, entry)
+		// try to get a slot in the semaphore
+		sem <- true
+		// we got it, fork off a thread
+		go func() {
+			// release the slot when finished
+			defer func() { <-sem }()
+			download(client, wallabago.Config.WallabagURL, entry)
+		}()
 	}
-	wg.Wait()
+	// refill all the semaphore slots to make sure we wait for everyone
+	for i := 0; i < cap(sem); i++ {
+		sem <- true
+	}
 	log.Printf("processed: %d, downloaded: %d", counter.Value("processed"), counter.Value("downloaded"))
 }
