@@ -4,7 +4,14 @@ package main
  * This is my first go program. Forgive me, because I have probably sinned.
  *
  * Note that I partly blame the Wallabag API for not returning a clean
- *list of identifiers, and the wallabago API for not making it better.
+ * list of identifiers, and the wallabago API for not making it better.
+ *
+ * Next steps:
+ * - cross-compile to ARMel (v5?)
+ * - hook into wifi?
+ * - sleep and reload?
+ * - party?
+ * - port to v2.2 API
  */
 
 import (
