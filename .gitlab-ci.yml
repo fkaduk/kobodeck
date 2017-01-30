@@ -19,6 +19,5 @@ compile:
         - mv wallabako wallabako.arm7
         - make build
     artifacts:
-        paths:
-            untracked: true
-            when: always
+        untracked: true
+        when: always
