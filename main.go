@@ -1,17 +1,11 @@
 package main
 
-/*
+/* This program is designed to download Wallabag entries on to the
+ * local disk, and particularly Kobo ebook readers.
+ *
+ * More details in the README.md file that comes with this program.
+ *
  * This is my first go program. Forgive me, because I have probably sinned.
- *
- * Note that I partly blame the Wallabag API for not returning a clean
- * list of identifiers, and the wallabago API for not making it better.
- *
- * Next steps:
- * - cross-compile to ARMel (v5?)
- * - hook into wifi?
- * - sleep and reload?
- * - party?
- * - port to v2.2 API
  */
 
 import (
@@ -38,11 +32,12 @@ var configJSON = flag.String("config", "config.json", "file name of config JSON 
 var outputDir = flag.String("output", ".", "output directory to save files into")
 var count = flag.Int("count", 10, "number of articles to fetch")
 
-// cargo-culted from:
+// wg is a WaitGroup, which counts the number of threads running and
+// waits for all of them to complete before stopping. without but
+// without this, the download threads get killed when the channel is
+// closed or, if we don't close it, it never finishes. cargo-culted
+// from:
 // http://stackoverflow.com/questions/18207772/how-to-wait-for-all-goroutines-to-finish-without-using-time-sleep
-// XXX: probably unecessary? but without this, the download threads
-// get killed when the channel is closed or, if we don't close it, it
-// never finishes
 var wg sync.WaitGroup
 
 // XXX: this is necessary because < 2.2 don't have a EPUB API

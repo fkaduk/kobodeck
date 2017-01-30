@@ -66,6 +66,52 @@ Then to actually download the EPUB files:
 
 The program is very verbose. Sorry.
 
+Remaining issues
+----------------
+
+Those are known issues with the program. There are also `XXX` markers
+in the source code that show other issues that need to be checked.
+
+### Wifi trigger
+
+Right now, the program needs to be ran by hand. The sync script that
+is the main inspiration for this
+([kobo-wget-sync](https://github.com/wernerb/kobo-wget-sync/)) uses
+udev to trigger downloads, using those
+[rules](https://github.com/wernerb/kobo-wget-sync/blob/master/src/etc/udev/rules.d/98-wget-sync.rules):
+
+    KERNEL=="eth*", RUN+="/usr/local/wget-sync/udev_program.sh" 
+    KERNEL=="wlan*", RUN+="/usr/local/wget-sync/udev_program.sh" 
+    KERNEL=="usb_host", RUN+="/usr/local/wget-sync/udev_usb_program.sh"
+    KERNEL=="usb_plug", RUN+="/usr/local/wget-sync/udev_usb_program.sh"
+
+We should be able to reuse this fairly easily.
+
+### Autoreload
+
+When new files are downloaded, they are not automatically added to the
+library. There doesn't seem to be a clear way to do this on the Kobo
+reader, short of plugging/unplugging the USB key, doing some magic
+commands and tapping the screen, or rebooting. I have summarized my
+findings in
+[this post](https://www.mobileread.com/forums/showthread.php?p=3467503)
+in the hope that someone has a better idea.
+
+So far, the simplest solution would be to reboot when the filesystem
+is changed.
+
+### Autoconfiguration
+
+This requires a significant amount of work to work on a Kobo. Ideally,
+we would just ship a KoboRoot.tgz that would work everywhere.
+
+### Port to Wallabag 2.2 API changes
+
+The new Wallabag release (2.2) gives us a new API to download actual
+EPUBs directly, without having to login in a separate session. Before
+we do this, my friendly provider needs to update the instance so I can
+test this, which depends on the release stabilizing a little.
+
 Troubleshooting
 ---------------
 
