@@ -32,7 +32,7 @@ import (
 	"github.com/anarcat/wallabago"
 )
 
-// username required here, this is foolish:
+// XXX: we shouldn't need to write the password down in the config:
 // https://github.com/wallabag/wallabag/issues/2800
 var configJSON = flag.String("config", "config.json", "file name of config JSON file")
 var outputDir = flag.String("output", ".", "output directory to save files into")
@@ -40,10 +40,12 @@ var count = flag.Int("count", 10, "number of articles to fetch")
 
 // cargo-culted from:
 // http://stackoverflow.com/questions/18207772/how-to-wait-for-all-goroutines-to-finish-without-using-time-sleep
-// probably wrong.
+// XXX: probably unecessary? but without this, the download threads
+// get killed when the channel is closed or, if we don't close it, it
+// never finishes
 var wg sync.WaitGroup
 
-// this is necessary because < 2.2 don't have a EPUB API
+// XXX: this is necessary because < 2.2 don't have a EPUB API
 func login(baseUrl, username, password string) *http.Client {
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{
@@ -59,9 +61,9 @@ func login(baseUrl, username, password string) *http.Client {
 	re := regexp.MustCompile(`"_csrf_token" +value="([^"]*)"`)
 	matches := re.FindSubmatch(body)
 	if len(matches) > 0 {
-		log.Print("token found: ", string(matches[1]))
+		log.Print("CSRF token found")
 	} else {
-		log.Fatal("no CSRF token found. boom: " + string(body))
+		log.Fatal("no CSRF token found? is this a wallabag instance?")
 	}
 	form := url.Values{}
 	form.Set("_username", username)
@@ -75,6 +77,8 @@ func login(baseUrl, username, password string) *http.Client {
 }
 
 // lightweight version of a wallabag entry with just what we need
+// XXX: premature optimization? i put that there because i had trouble
+// parsing JSON in the first place... not sure it's still necessary
 type Entry struct {
 	id      int
 	changed time.Time
@@ -92,7 +96,7 @@ func listEntries(entries chan Entry) {
 
 // download a given entry in the right place
 func download(client *http.Client, base_url string, entry Entry) {
-	// proper way will be through the API, but for now we hardcode this URL
+	// XXX: proper way will be through the API, but for now we hardcode this URL
 	// https://github.com/wallabag/wallabag/pull/2372
 	// only in 2.2: /api/entries/123/export.epub
 	defer wg.Done()
@@ -115,6 +119,7 @@ func download(client *http.Client, base_url string, entry Entry) {
 		log.Fatal("failed to create output file: ", err)
 	}
 	defer out.Close()
+	// XXX: see above. doesn't work through API yet.
 	//body = wallabago.GetBodyOfAPIURL(epubUrl)
 	//out.Write(body)
 	resp, err := client.Get(epubUrl)
