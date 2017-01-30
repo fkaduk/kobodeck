@@ -13,7 +13,7 @@ format:
 compile:
     stage: build
     script:
-        - GOARM=7 GOARCH=arm make clean build
+        - GOARM=7 GOARCH=arm make build
         - mv wallabako wallabako.arm7
         - make build
     artifacts:
