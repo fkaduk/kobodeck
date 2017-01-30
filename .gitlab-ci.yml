@@ -18,4 +18,5 @@ compile:
         - make build
     artifacts:
         paths:
-            - wallabako
+            untracked: true
+            when: always
