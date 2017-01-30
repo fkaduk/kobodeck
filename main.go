@@ -17,6 +17,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"regexp"
 	"strconv"
@@ -33,6 +34,8 @@ var count = flag.Int("count", 10, "number of articles to fetch")
 
 // default is from web browsers, which are around 6-10: http://www.browserscope.org/?category=network
 var concurrency = flag.Int("concurrency", 6, "number of downloads to process in parallel")
+
+var notify = flag.String("exec", "", "execute the given command when files have changed")
 
 // this is a generic counter to safely count things across threads
 // we use it to count how many files we actually downloaded
@@ -158,4 +161,11 @@ func main() {
 		sem <- true
 	}
 	log.Printf("processed: %d, downloaded: %d", counter.Value("processed"), counter.Value("downloaded"))
+	if counter.Value("downloaded") > 0 {
+		out, err := exec.Command(*notify).Output()
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Println("command output:", string(out))
+	}
 }

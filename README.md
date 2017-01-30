@@ -106,7 +106,7 @@ findings in
 in the hope that someone has a better idea.
 
 So far, the simplest solution would be to reboot when the filesystem
-is changed.
+is changed. This can be done with the `-exec reboot` flag.
 
 ### Autoconfiguration
 
