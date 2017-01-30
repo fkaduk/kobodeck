@@ -32,6 +32,10 @@ var configJSON = flag.String("config", "config.json", "file name of config JSON 
 var outputDir = flag.String("output", ".", "output directory to save files into")
 var count = flag.Int("count", 10, "number of articles to fetch")
 
+// this is a generic counter to safely count things across threads
+// we use it to count how many files we actually downloaded
+var counter = SafeCounter{v: make(map[string]int)}
+
 // wg is a WaitGroup, which counts the number of threads running and
 // waits for all of them to complete before stopping. without but
 // without this, the download threads get killed when the channel is
@@ -97,6 +101,7 @@ func download(client *http.Client, baseURL string, entry Entry) {
 	// https://github.com/wallabag/wallabag/pull/2372
 	// only in 2.2: /api/entries/123/export.epub
 	defer wg.Done()
+	counter.Inc("processed")
 	//log.Println("received entry", entry)
 	err := os.MkdirAll(*outputDir, os.ModePerm)
 	if err != nil {
@@ -134,6 +139,7 @@ func download(client *http.Client, baseURL string, entry Entry) {
 		log.Println("can't write file:", err)
 		return
 	}
+	counter.Inc("downloaded")
 	log.Printf("wrote %d bytes in file %s", n, output)
 }
 
@@ -158,4 +164,5 @@ func main() {
 		go download(client, wallabago.Config.WallabagURL, entry)
 	}
 	wg.Wait()
+	log.Printf("processed: %d, downloaded: %d", counter.Value("processed"), counter.Value("downloaded"))
 }
