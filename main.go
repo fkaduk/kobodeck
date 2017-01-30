@@ -46,7 +46,7 @@ var count = flag.Int("count", 10, "number of articles to fetch")
 var wg sync.WaitGroup
 
 // XXX: this is necessary because < 2.2 don't have a EPUB API
-func login(baseUrl, username, password string) *http.Client {
+func login(baseURL, username, password string) *http.Client {
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{
 		Jar: jar,
@@ -54,7 +54,7 @@ func login(baseUrl, username, password string) *http.Client {
 			return http.ErrUseLastResponse
 		},
 	}
-	resp, err := client.Get(baseUrl + "/login")
+	resp, err := client.Get(baseURL + "/login")
 	log.Print(resp, err)
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
@@ -71,12 +71,12 @@ func login(baseUrl, username, password string) *http.Client {
 	form.Set("_csrf_token", string(matches[1]))
 	form.Set("_remember_me", "on")
 	form.Set("send", "")
-	resp, err = client.PostForm(baseUrl+"/login_check", form)
+	resp, err = client.PostForm(baseURL+"/login_check", form)
 	log.Print(resp, err)
 	return client
 }
 
-// lightweight version of a wallabag entry with just what we need
+// Entry is a lightweight version of a wallabag entry with just what we need
 // XXX: premature optimization? i put that there because i had trouble
 // parsing JSON in the first place... not sure it's still necessary
 type Entry struct {
@@ -95,34 +95,33 @@ func listEntries(entries chan Entry) {
 }
 
 // download a given entry in the right place
-func download(client *http.Client, base_url string, entry Entry) {
+func download(client *http.Client, baseURL string, entry Entry) {
 	// XXX: proper way will be through the API, but for now we hardcode this URL
 	// https://github.com/wallabag/wallabag/pull/2372
 	// only in 2.2: /api/entries/123/export.epub
 	defer wg.Done()
 	//log.Println("received entry", entry)
-	epubUrl := base_url + "/export/" + strconv.Itoa(entry.id) + ".epub"
-	epub := path.Base(epubUrl)
-	output := path.Join(*outputDir, epub)
+	epubURL := baseURL + "/export/" + strconv.Itoa(entry.id) + ".epub"
+	output := path.Join(*outputDir, path.Base(epubURL))
 	info, err := os.Stat(output)
 	if err == nil && info.ModTime().After(entry.changed) && info.Size() > 0 {
-		log.Printf("URL %s older than local file %s, skipped", epubUrl, output)
+		log.Printf("URL %s older than local file %s, skipped", epubURL, output)
 		return
 	} else if err != nil {
 		//log.Println("missing:", err)
 	} else {
 		//log.Printf("out of date: err: %s, modtime: %s, changed: %s, before? : %s", err, info.ModTime(), entry.changed, info.ModTime().Before(entry.changed))
 	}
-	log.Printf("downloading %s in %s", epubUrl, output)
+	log.Printf("downloading %s in %s", epubURL, output)
 	out, err := os.Create(output)
 	if err != nil {
 		log.Fatal("failed to create output file: ", err)
 	}
 	defer out.Close()
 	// XXX: see above. doesn't work through API yet.
-	//body = wallabago.GetBodyOfAPIURL(epubUrl)
+	//body = wallabago.GetBodyOfAPIURL(epubURL)
 	//out.Write(body)
-	resp, err := client.Get(epubUrl)
+	resp, err := client.Get(epubURL)
 	log.Println("received response:", resp, err)
 	defer resp.Body.Close()
 	n, err := io.Copy(out, resp.Body)
