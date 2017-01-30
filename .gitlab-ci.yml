@@ -7,9 +7,9 @@ image: golang:latest
 # the default GOPATH being /go, then you'd need to have your
 # repository in /go/src/mydomainperso.com/repos/projectname 
 # Thus, making a symbolic link corrects this.
-before_script:
-    - ln -s /builds /go/src/gitlab.com
-    - cd /go/src/gitlab.com/repos/projectname
+#before_script:
+#    - ln -s /builds /go/src/gitlab.com
+#    - cd /go/src/gitlab.com/repos/projectname
 
 stages:
     - test
