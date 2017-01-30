@@ -15,7 +15,6 @@ package main
  */
 
 import (
-	"encoding/json"
 	"flag"
 	"io"
 	"io/ioutil"
@@ -30,7 +29,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Strubbl/wallabago"
+	"github.com/anarcat/wallabago"
 )
 
 // username required here, this is foolish:
@@ -81,77 +80,12 @@ type Entry struct {
 	changed time.Time
 }
 
-/*
-the data format we receive from the API
-{
-  "page": 1,
-  "limit": 30,
-  "pages": 3,
-  "total": 64,
-  "_links": {
-    "self": {
-      "href": "https://example.net/wallabag/api/entries?archive=0&sort=created&order=desc&tags=&since=0&page=1&perPage=30"
-    },
-    "first": {
-      "href": "https://example.net/wallabag/api/entries?archive=0&sort=created&order=desc&tags=&since=0&page=1&perPage=30"
-    },
-    "last": {
-      "href": "https://example.net/wallabag/api/entries?archive=0&sort=created&order=desc&tags=&since=0&page=3&perPage=30"
-    },
-    "next": {
-      "href": "https://example.net/wallabag/api/entries?archive=0&sort=created&order=desc&tags=&since=0&page=2&perPage=30"
-    }
-  },
-  "_embedded": {
-    "items": [
-      {
-        "is_archived": 0,
-        "is_starred": 0,
-        "user_name": "joe",
-        "user_email": "joe@example.com",
-        "user_id": 3,
-        "tags": [],
-        "id": 23152
-        "created_at": "2014-06-13T12:18:34-0400",
-        "updated_at": "2016-11-29T20:02:16-0500",
-        "annotations": [],
-        "mimetype": "text/html",
-        "reading_time": 5,
-        "domain_name": "arstechnica.com",
-        "_links": {
-          "self": {
-            "href": "/api/entries/1579"
-          }
-        }
-      }
-    ]
-  }
-}
-
-*/
-
-// list entries and parse resulting JSON, sending them to the given channel
-func listEntries(base_url string, entries chan Entry) {
-	entriesURL := base_url + "/api/entries.json?archive=0&sort=updated&order=desc&perPage=" + strconv.Itoa(*count)
-	log.Println("fetching entries from", entriesURL)
-	body := wallabago.GetBodyOfAPIURL(entriesURL)
-	log.Printf("done. parsing %d bytes of JSON", len(body))
-	var parsed map[string]interface{}
-	if err := json.Unmarshal(body, &parsed); err != nil {
-		log.Fatal("failed to parse JSON from API: ", err)
-	}
-	data := parsed["_embedded"].(map[string]interface{})["items"].([]interface{})
-	//log.Print("parsed: ", data)
-	for _, v := range data {
-		d := v.(map[string]interface{})
-		changed, err := time.Parse("2006-01-02T15:04:05-0700", d["updated_at"].(string))
-		if err != nil {
-			log.Printf("can't parse date %s: %s", d["updated_at"], err)
-			changed = time.Now()
-		}
-		entry := Entry{id: int(d["id"].(float64)), changed: changed}
-		log.Printf("found entry %d modified on %s", entry.id, entry.changed)
-		entries <- entry
+// get the unread entries, most recent first, limited to the given count
+func listEntries(entries chan Entry) {
+	e := wallabago.GetEntries(0, -1, "updated", "desc", -1, *count, "")
+	log.Printf("found %d unread entries", e.Total)
+	for _, entry := range e.Embedded.Items {
+		entries <- Entry{id: entry.ID, changed: entry.UpdatedAt.Time}
 	}
 	close(entries)
 }
@@ -202,16 +136,10 @@ func main() {
 		log.Fatal(err.Error())
 	}
 	wallabago.Config = config
-	/* entries := wallabago.GetEntries(0, -1, "", "", -1, -1, "")
-	log.Printf("found %d unread entries", entries.Total)
-	log.Print(entries)*/
-	/* for entry := range entries {
-		log.Print(entry)
-	} */
 	log.Println("logging in to", config.WallabagURL)
 	client := login(config.WallabagURL, config.UserName, config.UserPassword)
 	entries := make(chan Entry)
-	go listEntries(config.WallabagURL, entries)
+	go listEntries(entries)
 	for entry := range entries {
 		//log.Println("dispatching", entry)
 		wg.Add(1)
