@@ -101,6 +101,10 @@ func download(client *http.Client, baseURL string, entry Entry) {
 	// only in 2.2: /api/entries/123/export.epub
 	defer wg.Done()
 	//log.Println("received entry", entry)
+	err := os.MkdirAll(*outputDir, os.ModePerm)
+	if err != nil {
+		log.Fatal("failed to create directory", *outputDir, err)
+	}
 	epubURL := baseURL + "/export/" + strconv.Itoa(entry.id) + ".epub"
 	output := path.Join(*outputDir, path.Base(epubURL))
 	info, err := os.Stat(output)
