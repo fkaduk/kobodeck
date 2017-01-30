@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/anarcat/wallabago"
+	"github.com/Strubbl/wallabago"
 )
 
 // XXX: we shouldn't need to write the password down in the config:
