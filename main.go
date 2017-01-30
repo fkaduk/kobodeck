@@ -50,13 +50,12 @@ func login(baseURL, username, password string) *http.Client {
 		},
 	}
 	resp, err := client.Get(baseURL + "/login")
-	log.Print(resp, err)
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	re := regexp.MustCompile(`"_csrf_token" +value="([^"]*)"`)
 	matches := re.FindSubmatch(body)
 	if len(matches) > 0 {
-		log.Print("CSRF token found")
+		log.Println("CSRF token found: ", resp.Status)
 	} else {
 		log.Fatal("no CSRF token found? is this a wallabag instance?")
 	}
@@ -67,7 +66,10 @@ func login(baseURL, username, password string) *http.Client {
 	form.Set("_remember_me", "on")
 	form.Set("send", "")
 	resp, err = client.PostForm(baseURL+"/login_check", form)
-	log.Print(resp, err)
+	if err != nil {
+		log.Fatal("login failed:", err)
+	}
+	log.Println("logged in successful:", resp.Status)
 	return client
 }
 
@@ -121,9 +123,17 @@ func download(client *http.Client, baseURL string, entry Entry) {
 	//body = wallabago.GetBodyOfAPIURL(epubURL)
 	//out.Write(body)
 	resp, err := client.Get(epubURL)
-	log.Println("received response:", resp, err)
+	if err != nil {
+		log.Println("download failed:", epubURL, err)
+		return
+	}
+	//log.Println("received response:", resp, err)
 	defer resp.Body.Close()
 	n, err := io.Copy(out, resp.Body)
+	if err != nil {
+		log.Println("can't write file:", err)
+		return
+	}
 	log.Printf("wrote %d bytes in file %s", n, output)
 }
 

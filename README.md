@@ -64,7 +64,15 @@ Then to actually download the EPUB files:
 
     wallabako -config /mnt/onboard/.wallabako.js -output /mnt/onboard/wallabako/
 
-The program is very verbose. Sorry.
+The program is pretty verbose, here's an example run:
+
+    $ go run main.go -config ~/.wallabako.js -output ~/tmp/epubs -count 1
+    2017/01/30 16:31:12 logging in to https://example.net/wallabag
+    2017/01/30 16:31:13 CSRF token found:  200 OK
+    2017/01/30 16:31:13 logged in successful: 302 Found
+    2017/01/30 16:31:13 found 65 unread entries
+    2017/01/30 16:31:13 URL https://example.net/wallabag/export/23160.epub older than local file /home/anarcat/tmp/epubs/1234.epub, skipped
+    2017/01/30 16:31:13 completed in 0.83s
 
 Remaining issues
 ----------------
