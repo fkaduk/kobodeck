@@ -16,7 +16,7 @@ wallabako: *.go
 	go build $(GFLAGS) -o $@
 
 clean:
-	rm wallabako
+	rm wallabako || true
 
 lint:
 	go vet ./...
