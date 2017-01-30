@@ -24,7 +24,10 @@ If you are unfamiliar with go, you may want to read up on the
 do not wish to install golang at all, you can also download the
 compiled binaries directly from the website:
 
-    https://gitlab.com/anarcat/wallabako/builds/artifacts/master/download?job=compile
+> <https://gitlab.com/anarcat/wallabako/builds/artifacts/master/download?job=compile>
+
+This will give you a ZIP file with standalone binaries for the
+supported architectures (currently `amd64`, AKA `x86_64` and `arm7`).
 
 Usage
 -----

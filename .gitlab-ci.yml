@@ -13,11 +13,11 @@ format:
 compile:
     stage: build
     script:
-        - go get github.com/Strubbl/wallabago
         - go get github.com/anarcat/wallabago
-        - GOARM=7 GOARCH=arm make build
-        - mv wallabako wallabako.arm7
+        - GOARCH=arm make build
+        - mv wallabako wallabako.arm
         - make build
+        - mv wallabako wallabako.$(arch)
     artifacts:
         untracked: true
         when: always
