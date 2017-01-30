@@ -29,7 +29,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Strubbl/wallabago"
+	"github.com/anarcat/wallabago"
 )
 
 // XXX: we shouldn't need to write the password down in the config:
@@ -135,19 +135,18 @@ func main() {
 		log.Printf("completed in %.2fs\n", time.Since(start).Seconds())
 	}()
 	flag.Parse()
-	config, err := getConfig()
+	err := wallabago.ReadConfig(*configJSON)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	wallabago.Config = config
-	log.Println("logging in to", config.WallabagURL)
-	client := login(config.WallabagURL, config.UserName, config.UserPassword)
+	log.Println("logging in to", wallabago.Config.WallabagURL)
+	client := login(wallabago.Config.WallabagURL, wallabago.Config.UserName, wallabago.Config.UserPassword)
 	entries := make(chan Entry)
 	go listEntries(entries)
 	for entry := range entries {
 		//log.Println("dispatching", entry)
 		wg.Add(1)
-		go download(client, config.WallabagURL, entry)
+		go download(client, wallabago.Config.WallabagURL, entry)
 	}
 	wg.Wait()
 }
