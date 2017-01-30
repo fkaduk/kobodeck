@@ -1,7 +1,8 @@
 package main
 
 // cargo-culted from wallabag-stats
-// should probably be moved into wallabago
+// XXX: should probably be moved into wallabago:
+// https://github.com/Strubbl/wallabag-stats/issues/1
 
 import (
 	"encoding/json"
