@@ -7,10 +7,28 @@ of individual unread articles from a Wallabag instance.
 It is designed to be fast and ran incrementally: subsequent runs
 should not redownload the files unless they have changed.
 
-I wrote this to sync unread articles to my Kobo reader. I wrote this
-in Go to get familiar with the language but also because it simplifies
-deployment: a single static binary can be shipped instead of having to
-ship a full interpreter in my normal language of choice (Python).
+Context
+-------
+
+I wrote this to sync unread articles to my Kobo ebook reader, but it
+should work everywhere you can compile a go program, which includes
+GNU/Linux, Mac OS X, Windows and FreeBSD systems.
+
+I wrote this in Go to get familiar with the language but also because
+it simplifies deployment: a single static binary can be shipped
+instead of having to ship a full interpreter in my normal language of
+choice (Python).
+
+The following instructions assume your are familiar with the
+commandline. To install this on your Kobo reader, you will need to
+first hack it. See the following tutorials for more information:
+
+ * [Hacking the Kobo Touch for Dummies](http://www.chauveau-central.net/pub/KoboTouch/)
+ * [Kobo Touch Hacking](https://wiki.mobileread.com/wiki/Kobo_Touch_Hacking)
+
+Those instructions are mostly for the Kobo Touch but may work for
+other platforms. I have tested this on a Debian GNU/Linux 9
+("stretch") system and a Kobo Glo HD.
 
 Installation
 ------------
