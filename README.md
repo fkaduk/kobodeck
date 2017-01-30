@@ -12,12 +12,35 @@ in Go to get familiar with the language but also because it simplifies
 deployment: a single static binary can be shipped instead of having to
 ship a full interpreter in my normal language of choice (Python).
 
-To use, fill in the fields in the `config.json` file. Make sure you
-don't commit changes to that file:
+Installation
+------------
 
-    git update-index --assume-unchanged config.json
+Simply do the usual:
 
-Then you can simply run the tool which will download files in the
-current directory:
+    go get gitlab.com/anarcat/wallabako
 
-    go run config.go main.go  --count 10
+If you are unfamiliar with go, you may want to read up on the
+[getting started](https://golang.org/doc/install) instructions. If you
+do not wish to install golang at all, you can also download the
+compiled binaries directly from the website:
+
+    https://gitlab.com/anarcat/wallabako/builds/artifacts/master/download?job=compile
+
+Usage
+-----
+
+To use, fill in the fields in the `config.json` file. You will need to
+create a "client" in the Wallabag interface first and copy those
+secrets in the configuration file, along with your username and
+password and the Wallabag URL, which should not have a trailing slash.
+
+You will probably want to save that file to another location, for
+example on your Kobo it should be in:
+
+    cp config.json /mnt/onboard/.wallabako.js
+
+Then to actually download the EPUB files:
+
+    wallabako -config /mnt/onboard/.wallabako.js -output /mnt/onboard/wallabako/
+
+The program is very verbose. Sorry.
