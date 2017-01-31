@@ -80,6 +80,12 @@ Remaining issues
 Those are known issues with the program. There are also `XXX` markers
 in the source code that show other issues that need to be checked.
 
+### Logging
+
+Debugging this script is hard. There are no logs and it's been mostly
+tested on the commandline so far. There are tips on how to debug
+`udev`, below, but we should have a more readily accessible logfile.
+
 ### Wifi trigger
 
 Right now, the program needs to be ran by hand. The sync script that
@@ -163,3 +169,31 @@ package in Debian in the machine.
 > [SystemRootsError](https://golang.org/pkg/crypto/x509/#SystemRootsError)
 > but I would advise against it, if only for obvious security
 > reasons...
+
+### Command not running
+
+If you notice that udev is not running your command, for some reason,
+you can restart it with `--debug` which is very helpful. Example:
+
+    [root@(none) ~]# ps ax | grep udev
+      621 root       0:00 /sbin/udevd -d
+     1242 root       0:00 grep udev
+    [root@(none) ~]# kill 621
+    [root@(none) ~]# /sbin/udevd --debug
+    [1256] parse_file: reading '/lib/udev/rules.d/50-firmware.rules' as rules file
+    [1256] parse_file: reading '/lib/udev/rules.d/50-udev-default.rules' as rules file
+    [1256] parse_file: reading '/lib/udev/rules.d/60-persistent-input.rules' as rules file
+    [1256] parse_file: reading '/lib/udev/rules.d/75-cd-aliases-generator.rules' as rules file
+    [1256] parse_file: reading '/etc/udev/rules.d/90-wallabako.rules' as rules file
+    [1256] parse_file: reading '/lib/udev/rules.d/95-udev-late.rules' as rules file
+    [1256] parse_file: reading '/lib/udev/rules.d/kobo.rules' as rules file
+    [...]
+    [1276] util_run_program: '/usr/local/wallabako/wallabako-run' (stdout) '2017/01/31 00:03:50 logging in to https://example.net/wallabag'
+    [1256] event_queue_insert: seq 859 queued, 'remove' 'module'
+    [1256] event_fork: seq 859 forked, pid [1289], 'remove' 'module', 0 seconds old
+    [1276] util_run_program: '/usr/local/wallabako/wallabako-run' (stdout) '2017/01/31 00:03:50 failed to get login page:Get https://example.net/wallabag/login: dial tcp: lookup example.net on 192.168.0.1:53: dial udp 192.168.0.1:53: connect: network is unreachable'
+
+In the above case, network is down, probably because the command ran
+too fast. You can adjust the delay in `wallabako-run`, but really this
+should be automated in the script (which should retry a few times
+before giving up).
