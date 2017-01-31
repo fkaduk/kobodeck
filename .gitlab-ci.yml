@@ -12,8 +12,10 @@ format:
 
 compile:
     stage: build
+    # XXX: those dependencies should be automatically fetched...
     script:
         - go get github.com/Strubbl/wallabago
+        - go get github.com/nightlyone/lockfile
         - make build GOARCH=arm BINARY=build/wallabako.arm
         - make build BINARY=build/wallabako.$(arch)
         - install -m 755 build/wallabako.arm root/usr/local/wallabako/wallabako
