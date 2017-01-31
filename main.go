@@ -19,8 +19,10 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Strubbl/wallabago"
@@ -31,6 +33,7 @@ import (
 var configJSON = flag.String("config", "config.json", "file name of config JSON file")
 var outputDir = flag.String("output", ".", "output directory to save files into")
 var count = flag.Int("count", 10, "number of articles to fetch")
+var del = flag.Bool("delete", false, "if we should delete EPUB files not found in feed")
 
 // default is from web browsers, which are around 6-10: http://www.browserscope.org/?category=network
 var concurrency = flag.Int("concurrency", 6, "number of downloads to process in parallel")
@@ -128,6 +131,25 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) {
 	log.Printf("wrote %d bytes in file %s", n, output)
 }
 
+func deleteMissing(outputDir string, valid map[int]bool) (err error) {
+	files, _ := filepath.Glob(outputDir + "/*.epub")
+	//log.Println("files:", files, outputDir+"/*.epub")
+	for _, file := range files {
+		id, err := strconv.Atoi(strings.TrimSuffix(path.Base(file), path.Ext(file)))
+		if err != nil {
+			log.Println("skipping irreglar file", file)
+			continue
+		}
+		if !valid[id] {
+			log.Print("removing old file:", file)
+			if err = os.Remove(file); err != nil {
+				log.Printf("warning: failed to remove file %s: %s", file, err)
+			}
+		}
+	}
+	return
+}
+
 func main() {
 	start := time.Now()
 	log.SetOutput(os.Stdout)
@@ -145,8 +167,10 @@ func main() {
 	// http://jmoiron.net/blog/limiting-concurrency-in-go/
 	sem := make(chan bool, *concurrency)
 	entries := listEntries()
+	valid := make(map[int]bool)
 	for _, entry := range entries {
 		//log.Println("dispatching", entry.ID)
+		valid[entry.ID] = true
 		// try to get a slot in the semaphore
 		sem <- true
 		// we got it, fork off a thread
@@ -161,6 +185,7 @@ func main() {
 		sem <- true
 	}
 	log.Printf("processed: %d, downloaded: %d", counter.Value("processed"), counter.Value("downloaded"))
+	deleteMissing(*outputDir, valid)
 	if len(*notify) > 0 && counter.Value("downloaded") > 0 {
 		log.Println("running command", *notify)
 		out, err := exec.Command(*notify).CombinedOutput()
