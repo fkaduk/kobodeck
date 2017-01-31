@@ -161,11 +161,12 @@ func main() {
 		sem <- true
 	}
 	log.Printf("processed: %d, downloaded: %d", counter.Value("processed"), counter.Value("downloaded"))
-	if counter.Value("downloaded") > 0 {
-		out, err := exec.Command(*notify).Output()
+	if len(*notify) > 0 && counter.Value("downloaded") > 0 {
+		log.Println("running command", *notify)
+		out, err := exec.Command(*notify).CombinedOutput()
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Println("command output:", string(out))
+		log.Println(string(out))
 	}
 }
