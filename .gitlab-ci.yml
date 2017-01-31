@@ -14,10 +14,8 @@ compile:
     stage: build
     script:
         - go get github.com/Strubbl/wallabago
-        - GOARCH=arm make build
-        - mv wallabako wallabako.arm
-        - make build
-        - mv wallabako wallabako.$(arch)
+        - make build GOARCH=arm BINARY=wallabako.arm
+        - make build BINARY=wallabako.$(arch)
     artifacts:
         untracked: true
         when: always

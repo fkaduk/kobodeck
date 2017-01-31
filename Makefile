@@ -6,17 +6,19 @@
 #GFLAGS+=--ldflags '-linkmode external -extldflags "-static"'
 
 # to build for the Kobo, use:
-# GOARM=7 GOARCH=arm make build
+# GOARCH=arm make build
 
 all: lint build
 
-build: wallabako
+BINARY?=wallabako
 
-wallabako: *.go
+build: $(BINARY)
+
+$(BINARY): *.go
 	go build $(GFLAGS) -o $@
 
 clean:
-	rm wallabako || true
+	rm $(BINARY) || true
 
 lint:
 	go vet ./...
