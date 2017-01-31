@@ -95,6 +95,9 @@ udev to trigger downloads, using those
 
 We should be able to reuse this fairly easily.
 
+Update: there are now sample config files for this that need to be
+tested. So far results are inconclusive.
+
 ### Autoreload
 
 When new files are downloaded, they are not automatically added to the
@@ -107,12 +110,17 @@ in the hope that someone has a better idea.
 
 <del>So far, the simplest solution would be to reboot when the filesystem
 is changed. This can be done with the `-exec /sbin/reboot` flag.</del>
-Unfortunately, even that doesn't trigger a refresh.
+Unfortunately, even that doesn't trigger a refresh. We have used the
+"tap to Connect confirm" approach until a better solution is found.
 
 ### Autoconfiguration
 
 This requires a significant amount of work to work on a Kobo. Ideally,
 we would just ship a KoboRoot.tgz that would work everywhere.
+
+There is work done here - the autobuilders on Gitlab should generate a
+`KoboRoot.tgz` that would deploy the binary, config files and
+everything, but it is not tested yet.
 
 ### Port to Wallabag 2.2 API changes
 
