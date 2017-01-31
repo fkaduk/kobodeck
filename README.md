@@ -56,19 +56,14 @@ was *not* tested, use at your own risk.
 Usage
 -----
 
-To use, fill in the fields in the `config.json` file. You will need to
+To use, fill in the fields in the `etc/wallabako.js` file. You will need to
 create a "client" in the Wallabag interface first and copy those
 secrets in the configuration file, along with your username and
 password and the Wallabag URL, which should not have a trailing slash.
 
-You will probably want to save that file to another location, for
-example on your Kobo it should be in:
-
-    cp config.json /mnt/onboard/.wallabako.js
-
 Then to actually download the EPUB files:
 
-    wallabako -config /mnt/onboard/.wallabako.js -output /mnt/onboard/wallabako/
+    wallabako -config /etc/wallabako.js -output /mnt/onboard/wallabako/
 
 The program is pretty verbose, here's an example run:
 
@@ -80,35 +75,47 @@ The program is pretty verbose, here's an example run:
     2017/01/30 16:31:13 URL https://example.net/wallabag/export/23160.epub older than local file /home/anarcat/tmp/epubs/1234.epub, skipped
     2017/01/30 16:31:13 completed in 0.83s
 
-Remaining issues
-----------------
+Automatic configuration can be performed with the `KoboRoot.tgz` file,
+otherwise you will need to deploy the files in the `root/` directory
+by hand somehow. This has not yet been tested in a deployment from
+scratch, but the test deployment has been working a few times.
 
-Those are known issues with the program. There are also `XXX` markers
-in the source code that show other issues that need to be checked.
+So this actually works!
 
-### Logging
+Design notes
+------------
 
-Debugging this script is hard. There are no logs and it's been mostly
-tested on the commandline so far. There are tips on how to debug
-`udev`, below, but we should have a more readily accessible logfile.
+### File deletion and synchronisation
+
+The script looks at the `updated_at` field in the entries API to
+determine if a local file needs to be overwritten. Empty and missing
+files are always downloaded.
+
+If there are more than `-count` entries, the program will start
+deleting old files if the `-delete` flag is given. It looks at the
+`id` listed in the API and removes any file that is not found in the
+listing, based purely on the filename.
 
 ### Wifi trigger
 
-Right now, the program needs to be ran by hand. The sync script that
-is the main inspiration for this
+The program can be ran by hand, but is also designed to run
+automatically. The sync script that is the main inspiration for this
 ([kobo-wget-sync](https://github.com/wernerb/kobo-wget-sync/)) uses
 udev to trigger downloads, using those
 [rules](https://github.com/wernerb/kobo-wget-sync/blob/master/src/etc/udev/rules.d/98-wget-sync.rules):
 
-    KERNEL=="eth*", RUN+="/usr/local/wget-sync/udev_program.sh" 
-    KERNEL=="wlan*", RUN+="/usr/local/wget-sync/udev_program.sh" 
-    KERNEL=="usb_host", RUN+="/usr/local/wget-sync/udev_usb_program.sh"
-    KERNEL=="usb_plug", RUN+="/usr/local/wget-sync/udev_usb_program.sh"
+    KERNEL=="eth*", RUN+="/usr/local/wallabako/wallabako-run" 
+    KERNEL=="wlan*", RUN+="/usr/local/wallabako/wallabako-run"
 
-We should be able to reuse this fairly easily.
+We reused the `eth*` and `wlan*` rules to kick the script when the
+network goes up or down. We haven't done that for the `usb*` rules as
+they do not provide network, but since that's actually another hack
+that can be done, it may be a useful addition as well.
 
-Update: there are now sample config files for this that need to be
-tested. So far results are inconclusive.
+The rules call the `/usr/local/wallabako/wallabako-run` shell script
+which acts as an intermediate configuration file for the main
+command. You can tweak some settings there, but this should all really
+be part of the main configuration file.
 
 ### Autoreload
 
@@ -120,10 +127,20 @@ findings in
 [this post](https://www.mobileread.com/forums/showthread.php?p=3467503)
 in the hope that someone has a better idea.
 
-<del>So far, the simplest solution would be to reboot when the filesystem
-is changed. This can be done with the `-exec /sbin/reboot` flag.</del>
-Unfortunately, even that doesn't trigger a refresh. We have used the
-"tap to Connect confirm" approach until a better solution is found.
+<del>So far, the simplest solution would be to reboot when the
+filesystem is changed. This can be done with the `-exec /sbin/reboot`
+flag.</del> Unfortunately, even that doesn't trigger a refresh. We
+have used the "tap to Connect confirm" approach until a better
+solution is found. This is done through the
+`usr/local/wallabako/fake-connect-usb` script, which in turns talks to
+the (mysterious and undocumented) `/tmp/nickel-hardware-status`
+socket.
+
+Remaining issues
+----------------
+
+Those are known issues with the program. There are also `XXX` markers
+in the source code that show other issues that need to be checked.
 
 ### Autoconfiguration
 
@@ -133,6 +150,12 @@ we would just ship a KoboRoot.tgz that would work everywhere.
 There is work done here - the autobuilders on Gitlab should generate a
 `KoboRoot.tgz` that would deploy the binary, config files and
 everything, but it is not tested yet.
+
+### Logging
+
+Debugging this script is hard. There are no logs and it's been mostly
+tested on the commandline so far. There are tips on how to debug
+`udev`, below, but we should have a more readily accessible logfile.
 
 ### Port to Wallabag 2.2 API changes
 
