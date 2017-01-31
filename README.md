@@ -135,6 +135,13 @@ EPUBs directly, without having to login in a separate session. Before
 we do this, my friendly provider needs to update the instance so I can
 test this, which depends on the release stabilizing a little.
 
+### Read status and other metadata
+
+The "read" status is not propagated: when an article is read on the
+e-reader, it's not propagated back to the Wallabag site. Similarly,
+annotations are not sent back either. We could probably read the
+sqlite database and send that data back, eventually.
+
 Troubleshooting
 ---------------
 
