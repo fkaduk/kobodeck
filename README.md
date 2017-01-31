@@ -38,11 +38,13 @@ Simply do the usual:
     go get gitlab.com/anarcat/wallabako
 
 If you are unfamiliar with go, you may want to read up on the
-[getting started](https://golang.org/doc/install) instructions. If you
-do not wish to install golang at all, you can also download the
-compiled binaries directly from the website:
+[getting started][] instructions. If you do not wish to install golang
+at all, you can also download the compiled binaries directly from the
+website:
 
 > <https://gitlab.com/anarcat/wallabako/builds/artifacts/master/download?job=compile>
+
+ [getting started]: https://golang.org/doc/install
 
 This will give you a ZIP file with standalone binaries for the
 supported architectures (currently `amd64`, AKA `x86_64` and
@@ -86,15 +88,14 @@ Support
 -------
 
 I will provide only limited free support for this tool. I wrote it,
-after all, for my own uses. People are welcome to
-[file issues](https://gitlab.com/anarcat/wallabako/issues) and
-[send patches](https://gitlab.com/anarcat/wallabako/merge_requests),
-of course, but I cannot cover for every possible use cases.
+after all, for my own uses. People are welcome to [file issues][] and
+[send patches][], of course, but I cannot cover for every possible use
+cases. There is also a [discussion on MobileRead.com][] if you prefer
+that format.
 
-There is also a [discussion on MobileRead.com][] if you prefer that
-format.
-
-[discussion on MobileRead.com]: https://www.mobileread.com/forums/showthread.php?p=3467945
+ [file issues]: https://gitlab.com/anarcat/wallabako/issues
+ [send patches]: https://gitlab.com/anarcat/wallabako/merge_requests
+ [discussion on MobileRead.com]: https://www.mobileread.com/forums/showthread.php?p=3467945
 
 Design notes
 ------------
@@ -112,27 +113,31 @@ listing, based purely on the filename.
 
 Files are downloaded in parallel, up to the limited defined by the
 `-concurrency` commandline flag, which defaults to 6, taken from the
-Firefox default. The original HTTP/1.1 RFC
-[RFC2616](https://tools.ietf.org/html/rfc2616) specified a
-[limit of two parallel connections](https://tools.ietf.org/html/rfc2616#section-8.1.4),
-but no one respects that anymore. The newer RFC about this
-([RFC7230](https://tools.ietf.org/html/rfc7230)) specifies
-[no explicit limit](https://tools.ietf.org/html/rfc7230#section-6.4)
-and web browsers usually stick to between 6 (Chrome, Firefox, IE9) and
-13 (IE11) parallel connections, see
-[this chart](http://www.browserscope.org/?category=network) for more
-details.
+Firefox default. The original HTTP/1.1 RFC [RFC2616][] specified a
+[limit of two parallel connections][], but no one respects that
+anymore. The newer RFC about this ([RFC7230][]) specifies
+[no explicit limit][] and web browsers usually stick to between 6
+(Chrome, Firefox, IE9) and 13 (IE11) parallel connections, see
+[this chart][] for more details.
+
+[RFC2616]: https://tools.ietf.org/html/rfc2616
+[limit of two parallel connections]: https://tools.ietf.org/html/rfc2616#section-8.1.4
+[RFC7230]: https://tools.ietf.org/html/rfc7230
+[no explicit limit]: https://tools.ietf.org/html/rfc7230#section-6.4
+[this chart]: http://www.browserscope.org/?category=network
 
 ### Wifi trigger
 
 The program can be ran by hand, but is also designed to run
 automatically. The sync script that is the main inspiration for this
-([kobo-wget-sync](https://github.com/wernerb/kobo-wget-sync/)) uses
-udev to trigger downloads, using those
-[rules](https://github.com/wernerb/kobo-wget-sync/blob/master/src/etc/udev/rules.d/98-wget-sync.rules):
+([kobo-wget-sync][]) uses udev to trigger downloads, using those
+[rules][]:
 
     KERNEL=="eth*", RUN+="/usr/local/wallabako/wallabako-run" 
     KERNEL=="wlan*", RUN+="/usr/local/wallabako/wallabako-run"
+
+[kobo-wget-sync]: https://github.com/wernerb/kobo-wget-sync/
+[rules]: https://github.com/wernerb/kobo-wget-sync/blob/master/src/etc/udev/rules.d/98-wget-sync.rules
 
 We reused the `eth*` and `wlan*` rules to kick the script when the
 network goes up or down. We haven't done that for the `usb*` rules as
@@ -150,14 +155,11 @@ When new files are downloaded, they are not automatically added to the
 library. There doesn't seem to be a clear way to do this on the Kobo
 reader, short of plugging/unplugging the USB key, doing some magic
 commands and tapping the screen, or rebooting. I have summarized my
-findings in
-[this post](https://www.mobileread.com/forums/showthread.php?p=3467503)
-in the hope that someone has a better idea.
+findings in [this post][] in the hope that someone has a better idea.
 
-<del>So far, the simplest solution would be to reboot when the
-filesystem is changed. This can be done with the `-exec /sbin/reboot`
-flag.</del> Unfortunately, even that doesn't trigger a refresh. We
-have used the "tap to Connect confirm" approach until a better
+[this post]: https://www.mobileread.com/forums/showthread.php?p=3467503
+
+We have used the "tap to Connect confirm" approach until a better
 solution is found. This is done through the
 `usr/local/wallabako/fake-connect-usb` script, which in turns talks to
 the (mysterious and undocumented) `/tmp/nickel-hardware-status`
@@ -175,9 +177,11 @@ This is probably all completely undecipherable to a normal user. We
 should make more documentation to help the user install this, even
 with the `KoboRoot.tgz` file in place. Help here is very welcome. The
 documentation is currently all in this README file and can be
-[edited online](https://gitlab.com/anarcat/wallabako/edit/master/README.md)
-once you register. The [discussion on MobileRead.com][] may also be a
-good place to get help if you need to.
+[edited online][] once you register. The
+[discussion on MobileRead.com][] may also be a good place to get help
+if you need to.
+
+[edited online]: https://gitlab.com/anarcat/wallabako/edit/master/README.md
 
 ### Autoconfiguration
 
@@ -190,8 +194,10 @@ this works correctly.
 Besides, even with everything perfectly aligned on our side, we still
 need the user to create an "app" on the Wallabag side, which is a
 painful and confusing step to follow for new users. I have started a
-[discussion about the username/password requirement of the API](https://github.com/wallabag/wallabag/issues/2800)
+[discussion about the username/password requirement of the API][]
 which touches on part of that issue.
+
+[discussion about the username/password requirement of the API]: https://github.com/wallabag/wallabag/issues/2800
 
 ### Logging
 
@@ -221,9 +227,10 @@ downloaded files, as mentionned in the design notes.
 
 However, the API listing is very heavy. For large number of articles
 (50+) it because a major slowdown in the script. I have reported this
-as a
-[performance issue in the entries API](https://github.com/wallabag/wallabag/issues/2817),
-so we'll see where this goes.
+as a [performance issue in the entries API][], so we'll see where this
+goes.
+
+[performance issue in the entries API]: https://github.com/wallabag/wallabag/issues/2817
 
 EPUB generation is also pretty slow, but I guess there's not much we
 can do about this, even in Wallabag: we need to build that EPUB
