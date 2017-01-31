@@ -186,8 +186,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// this is a semaphore buffer that will limit the number of threads running
-	// http://jmoiron.net/blog/limiting-concurrency-in-go/
+	// this is a semaphore buffer that will limit the number of
+	// threads running. taken from
+	// http://jmoiron.net/blog/limiting-concurrency-in-go/ an
+	// alternative is to use sync/errgroup:
+	// https://play.golang.org/p/hNaeTjLwdv we don't need toplevel
+	// error handling yet, so we stick with the semaphore channel
+	// pattern
 	sem := make(chan bool, *concurrency)
 	entries := listEntries()
 	valid := make(map[int]bool)
