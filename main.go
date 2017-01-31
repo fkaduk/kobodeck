@@ -61,6 +61,9 @@ func login(baseURL, username, password string) *http.Client {
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal("empty login page:", err)
+	}
 	re := regexp.MustCompile(`"_csrf_token" +value="([^"]*)"`)
 	matches := re.FindSubmatch(body)
 	if len(matches) > 0 {
