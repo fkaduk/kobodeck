@@ -176,6 +176,7 @@ func main() {
 	defer lock.Unlock()
 
 	log.Println("logging in to", wallabago.Config.WallabagURL)
+	//log.Println("username, password:", wallabago.Config.UserName, wallabago.Config.UserPassword)
 	client := login(wallabago.Config.WallabagURL, wallabago.Config.UserName, wallabago.Config.UserPassword)
 	// this is a semaphore buffer that will limit the number of threads running
 	// http://jmoiron.net/blog/limiting-concurrency-in-go/
