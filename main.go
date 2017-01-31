@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/Strubbl/wallabago"
+	"github.com/nightlyone/lockfile"
 )
 
 // XXX: we shouldn't need to write the password down in the config:
@@ -34,6 +35,7 @@ var configJSON = flag.String("config", "config.json", "file name of config JSON 
 var outputDir = flag.String("output", ".", "output directory to save files into")
 var count = flag.Int("count", 10, "number of articles to fetch")
 var del = flag.Bool("delete", false, "if we should delete EPUB files not found in feed")
+var pidFile = flag.String("pidfile", "/var/run/wallabako.pid", "pidfile to write to avoid multiple runs")
 
 // default is from web browsers, which are around 6-10: http://www.browserscope.org/?category=network
 var concurrency = flag.Int("concurrency", 6, "number of downloads to process in parallel")
@@ -161,6 +163,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+	lock, err := lockfile.New(*pidFile)
+	if err != nil {
+		log.Fatal("Cannot write PID file:", err)
+	}
+	if err = lock.TryLock(); err != nil {
+		log.Fatal("Cannot lock PID file:", err)
+	}
+	defer lock.Unlock()
+
 	log.Println("logging in to", wallabago.Config.WallabagURL)
 	client := login(wallabago.Config.WallabagURL, wallabago.Config.UserName, wallabago.Config.UserPassword)
 	// this is a semaphore buffer that will limit the number of threads running
