@@ -56,7 +56,7 @@ func login(baseURL, username, password string) *http.Client {
 	re := regexp.MustCompile(`"_csrf_token" +value="([^"]*)"`)
 	matches := re.FindSubmatch(body)
 	if len(matches) > 0 {
-		log.Println("CSRF token found: ", resp.Status)
+		log.Println("CSRF token found:", resp.Status)
 	} else {
 		log.Fatal("no CSRF token found? is this a wallabag instance?")
 	}
