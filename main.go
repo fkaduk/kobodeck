@@ -10,6 +10,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -31,23 +32,28 @@ import (
 
 // XXX: we shouldn't need to write the password down in the config:
 // https://github.com/wallabag/wallabag/issues/2800
-var configJSON = flag.String("config", "config.json", "file name of config JSON file")
-var outputDir = flag.String("output", ".", "output directory to save files into")
-var count = flag.Int("count", 10, "number of articles to fetch")
-var del = flag.Bool("delete", false, "if we should delete EPUB files not found in feed")
-var pidFile = flag.String("pidfile", "/var/run/wallabako.pid", "pidfile to write to avoid multiple runs")
+var (
+	configJSON = flag.String("config", "config.json", "file name of config JSON file")
+	outputDir  = flag.String("output", ".", "output directory to save files into")
+	count      = flag.Int("count", 10, "number of articles to fetch")
+	del        = flag.Bool("delete", false, "if we should delete EPUB files not found in feed")
+	pidFile    = flag.String("pidfile", "/var/run/wallabako.pid", "pidfile to write to avoid multiple runs")
 
-// default is from web browsers, which are around 6-10: http://www.browserscope.org/?category=network
-var concurrency = flag.Int("concurrency", 6, "number of downloads to process in parallel")
+	// default is from web browsers, which are around 6-10: http://www.browserscope.org/?category=network
+	concurrency = flag.Int("concurrency", 6, "number of downloads to process in parallel")
 
-var notify = flag.String("exec", "", "execute the given command when files have changed")
+	notify = flag.String("exec", "", "execute the given command when files have changed")
 
-// this is a generic counter to safely count things across threads
-// we use it to count how many files we actually downloaded
-var counter = SafeCounter{v: make(map[string]int)}
+	// this is a generic counter to safely count things across threads
+	// we use it to count how many files we actually downloaded
+	counter = SafeCounter{v: make(map[string]int)}
+
+	// the regex for the CSRF token in the login page
+	csrfRegexp = regexp.MustCompile(`"_csrf_token" +value="([^"]*)"`)
+)
 
 // XXX: this is necessary because < 2.2 don't have a EPUB API
-func login(baseURL, username, password string) *http.Client {
+func login(baseURL, username, password string) (*http.Client, error) {
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{
 		Jar: jar,
@@ -57,19 +63,18 @@ func login(baseURL, username, password string) *http.Client {
 	}
 	resp, err := client.Get(baseURL + "/login")
 	if err != nil {
-		log.Fatal("failed to get login page:", err)
+		return client, fmt.Errorf("failed to get login page: %v", err)
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal("empty login page:", err)
+		return client, fmt.Errorf("empty login page: %v", err)
 	}
-	re := regexp.MustCompile(`"_csrf_token" +value="([^"]*)"`)
-	matches := re.FindSubmatch(body)
+	matches := csrfRegexp.FindSubmatch(body)
 	if len(matches) > 0 {
 		log.Println("CSRF token found:", resp.Status)
 	} else {
-		log.Fatal("no CSRF token found? is this a wallabag instance?")
+		return client, fmt.Errorf("no CSRF token found? is this a wallabag instance?")
 	}
 	form := url.Values{}
 	form.Set("_username", username)
@@ -79,10 +84,10 @@ func login(baseURL, username, password string) *http.Client {
 	form.Set("send", "")
 	resp, err = client.PostForm(baseURL+"/login_check", form)
 	if err != nil {
-		log.Fatal("login failed:", err)
+		return client, fmt.Errorf("login failed: %v", err)
 	}
 	log.Println("logged in successful:", resp.Status)
-	return client
+	return client, nil
 }
 
 // get the unread entries, most recent first, limited to the given count
@@ -93,22 +98,23 @@ func listEntries() []wallabago.Item {
 }
 
 // download a given entry in the right place
-func download(client *http.Client, baseURL string, entry wallabago.Item) {
+func download(client *http.Client, baseURL string, entry wallabago.Item) (err error) {
 	// XXX: proper way will be through the API, but for now we hardcode this URL
 	// https://github.com/wallabag/wallabag/pull/2372
 	// only in 2.2: /api/entries/123/export.epub
 	counter.Inc("processed")
 	//log.Println("received entry", entry)
-	err := os.MkdirAll(*outputDir, os.ModePerm)
+	err = os.MkdirAll(*outputDir, os.ModePerm)
 	if err != nil {
-		log.Fatal("failed to create directory", *outputDir, err)
+		log.Println("failed to create directory", *outputDir, err)
+		return err
 	}
 	epubURL := baseURL + "/export/" + strconv.Itoa(entry.ID) + ".epub"
-	output := path.Join(*outputDir, path.Base(epubURL))
+	output := filepath.Join(*outputDir, path.Base(epubURL))
 	info, err := os.Stat(output)
 	if err == nil && info.ModTime().After(entry.UpdatedAt.Time) && info.Size() > 0 {
 		log.Printf("URL %s older than local file %s, skipped", epubURL, output)
-		return
+		return nil
 	} else if err != nil {
 		//log.Println("missing:", err)
 	} else {
@@ -117,7 +123,8 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) {
 	log.Printf("downloading %s in %s", epubURL, output)
 	out, err := os.Create(output)
 	if err != nil {
-		log.Fatal("failed to create output file: ", err)
+		log.Println("failed to create output file: ", err)
+		return err
 	}
 	defer out.Close()
 	// XXX: see above. doesn't work through API yet.
@@ -126,24 +133,25 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) {
 	resp, err := client.Get(epubURL)
 	if err != nil {
 		log.Println("download failed:", epubURL, err)
-		return
+		return err
 	}
 	//log.Println("received response:", resp, err)
 	defer resp.Body.Close()
 	n, err := io.Copy(out, resp.Body)
 	if err != nil {
 		log.Println("can't write file:", err)
-		return
+		return err
 	}
 	counter.Inc("downloaded")
 	log.Printf("wrote %d bytes in file %s", n, output)
+	return nil
 }
 
-func deleteMissing(outputDir string, valid map[int]bool) (err error) {
+func deleteMissing(outputDir string, valid map[int]bool) {
 	files, _ := filepath.Glob(outputDir + "/*.epub")
 	//log.Println("files:", files, outputDir+"/*.epub")
 	for _, file := range files {
-		id, err := strconv.Atoi(strings.TrimSuffix(path.Base(file), path.Ext(file)))
+		id, err := strconv.Atoi(strings.TrimSuffix(filepath.Base(file), filepath.Ext(file)))
 		if err != nil {
 			log.Println("skipping irreglar file", file)
 			continue
@@ -155,7 +163,6 @@ func deleteMissing(outputDir string, valid map[int]bool) (err error) {
 			}
 		}
 	}
-	return
 }
 
 func main() {
@@ -165,8 +172,7 @@ func main() {
 		log.Printf("completed in %.2fs\n", time.Since(start).Seconds())
 	}()
 	flag.Parse()
-	err := wallabago.ReadConfig(*configJSON)
-	if err != nil {
+	if err := wallabago.ReadConfig(*configJSON); err != nil {
 		log.Fatal(err.Error())
 	}
 	lock, err := lockfile.New(*pidFile)
@@ -180,7 +186,10 @@ func main() {
 
 	log.Println("logging in to", wallabago.Config.WallabagURL)
 	//log.Println("username, password:", wallabago.Config.UserName, wallabago.Config.UserPassword)
-	client := login(wallabago.Config.WallabagURL, wallabago.Config.UserName, wallabago.Config.UserPassword)
+	client, err := login(wallabago.Config.WallabagURL, wallabago.Config.UserName, wallabago.Config.UserPassword)
+	if err != nil {
+		log.Fatal(err)
+	}
 	// this is a semaphore buffer that will limit the number of threads running
 	// http://jmoiron.net/blog/limiting-concurrency-in-go/
 	sem := make(chan bool, *concurrency)
