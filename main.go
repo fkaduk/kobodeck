@@ -167,6 +167,8 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Println(string(out))
+		if len(out) > 0 {
+			log.Println(string(out))
+		}
 	}
 }
