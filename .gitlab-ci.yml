@@ -14,8 +14,10 @@ compile:
     stage: build
     script:
         - go get github.com/Strubbl/wallabago
-        - make build GOARCH=arm BINARY=wallabako.arm
-        - make build BINARY=wallabako.$(arch)
+        - make build GOARCH=arm BINARY=build/wallabako.arm
+        - make build BINARY=build/wallabako.$(arch)
+        - install -m 755 build/wallabako.arm root/usr/local/wallabako/wallabako
+        - tar -C root/ -c -z -f build/KoboRoot.tgz .
     artifacts:
         untracked: true
         when: always

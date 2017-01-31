@@ -10,11 +10,12 @@
 
 all: lint build
 
-BINARY?=wallabako
+BINARY?=build/wallabako
 
 build: $(BINARY)
 
 $(BINARY): *.go
+	mkdir -p $$(dirname $(BINARY))
 	go build $(GFLAGS) -o $@
 
 clean:
