@@ -9,7 +9,7 @@
 
 echo Simulating USB cable connect
 echo usb plug add >>/tmp/nickel-hardware-status
-echo Waiting 30 seconds for user to hit Connect
-sleep 30
+echo Waiting 10 seconds for user to hit Connect
+sleep 10
 echo Simulating USB cable disconnect
 echo usb plug remove >>/tmp/nickel-hardware-status
