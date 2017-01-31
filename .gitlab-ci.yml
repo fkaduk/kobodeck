@@ -21,5 +21,6 @@ compile:
         - install -m 755 build/wallabako.arm root/usr/local/wallabako/wallabako
         - tar -C root/ -c -z -f build/KoboRoot.tgz .
     artifacts:
-        untracked: true
+        paths:
+        - build/
         when: always
