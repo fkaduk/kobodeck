@@ -82,10 +82,24 @@ scratch, but the test deployment has been working a few times.
 
 So this actually works!
 
+Support
+-------
+
+I will provide only limited free support for this tool. I wrote it,
+after all, for my own uses. People are welcome to
+[file issues](https://gitlab.com/anarcat/wallabako/issues) and
+[send patches](https://gitlab.com/anarcat/wallabako/merge_requests),
+of course, but I cannot cover for every possible use cases.
+
+There is also a [discussion on MobileRead.com][] if you prefer that
+format.
+
+[discussion on MobileRead.com]: https://www.mobileread.com/forums/showthread.php?p=3467945
+
 Design notes
 ------------
 
-### File deletion and synchronisation
+### File synchronisation and deletion
 
 The script looks at the `updated_at` field in the entries API to
 determine if a local file needs to be overwritten. Empty and missing
@@ -95,6 +109,19 @@ If there are more than `-count` entries, the program will start
 deleting old files if the `-delete` flag is given. It looks at the
 `id` listed in the API and removes any file that is not found in the
 listing, based purely on the filename.
+
+Files are downloaded in parallel, up to the limited defined by the
+`-concurrency` commandline flag, which defaults to 6, taken from the
+Firefox default. The original HTTP/1.1 RFC
+[RFC2616](https://tools.ietf.org/html/rfc2616) specified a
+[limit of two parallel connections](https://tools.ietf.org/html/rfc2616#section-8.1.4),
+but no one respects that anymore. The newer RFC about this
+([RFC7230](https://tools.ietf.org/html/rfc7230)) specifies
+[no explicit limit](https://tools.ietf.org/html/rfc7230#section-6.4)
+and web browsers usually stick to between 6 (Chrome, Firefox, IE9) and
+13 (IE11) parallel connections, see
+[this chart](http://www.browserscope.org/?category=network) for more
+details.
 
 ### Wifi trigger
 
@@ -142,14 +169,29 @@ Remaining issues
 Those are known issues with the program. There are also `XXX` markers
 in the source code that show other issues that need to be checked.
 
+### Documentation
+
+This is probably all completely undecipherable to a normal user. We
+should make more documentation to help the user install this, even
+with the `KoboRoot.tgz` file in place. Help here is very welcome. The
+documentation is currently all in this README file and can be
+[edited online](https://gitlab.com/anarcat/wallabako/edit/master/README.md)
+once you register. The [discussion on MobileRead.com][] may also be a
+good place to get help if you need to.
+
 ### Autoconfiguration
 
-This requires a significant amount of work to work on a Kobo. Ideally,
-we would just ship a KoboRoot.tgz that would work everywhere.
+This requires a significant amount of work to work on a Kobo. Now, the
+autobuilders on Gitlab generate a `KoboRoot.tgz` that *should* deploy
+the binary, config files and everything. I have not tested this yet,
+and even if it works, the configuration file needs to be edited before
+this works correctly.
 
-There is work done here - the autobuilders on Gitlab should generate a
-`KoboRoot.tgz` that would deploy the binary, config files and
-everything, but it is not tested yet.
+Besides, even with everything perfectly aligned on our side, we still
+need the user to create an "app" on the Wallabag side, which is a
+painful and confusing step to follow for new users. I have started a
+[discussion about the username/password requirement of the API](https://github.com/wallabag/wallabag/issues/2800)
+which touches on part of that issue.
 
 ### Logging
 
@@ -170,6 +212,22 @@ The "read" status is not propagated: when an article is read on the
 e-reader, it's not propagated back to the Wallabag site. Similarly,
 annotations are not sent back either. We could probably read the
 sqlite database and send that data back, eventually.
+
+### Performance
+
+The program is generally very fast, or at least, as fast as Wallabag
+can be. It will download files in parallel and will avoid already
+downloaded files, as mentionned in the design notes.
+
+However, the API listing is very heavy. For large number of articles
+(50+) it because a major slowdown in the script. I have reported this
+as a
+[performance issue in the entries API](https://github.com/wallabag/wallabag/issues/2817),
+so we'll see where this goes.
+
+EPUB generation is also pretty slow, but I guess there's not much we
+can do about this, even in Wallabag: we need to build that EPUB
+somehow.
 
 Troubleshooting
 ---------------
