@@ -106,8 +106,7 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 	//log.Println("received entry", entry)
 	err = os.MkdirAll(*outputDir, os.ModePerm)
 	if err != nil {
-		log.Println("failed to create directory", *outputDir, err)
-		return err
+		return fmt.Errorf("failed to create directory: %v", err)
 	}
 	epubURL := baseURL + "/export/" + strconv.Itoa(entry.ID) + ".epub"
 	output := filepath.Join(*outputDir, path.Base(epubURL))
@@ -123,8 +122,7 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 	log.Printf("downloading %s in %s", epubURL, output)
 	out, err := os.Create(output)
 	if err != nil {
-		log.Println("failed to create output file: ", err)
-		return err
+		return fmt.Errorf("failed to create output file: %v", err)
 	}
 	defer out.Close()
 	// XXX: see above. doesn't work through API yet.
@@ -132,15 +130,13 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 	//out.Write(body)
 	resp, err := client.Get(epubURL)
 	if err != nil {
-		log.Println("download failed:", epubURL, err)
-		return err
+		return fmt.Errorf("download of %s failed: %v", epubURL, err)
 	}
 	//log.Println("received response:", resp, err)
 	defer resp.Body.Close()
 	n, err := io.Copy(out, resp.Body)
 	if err != nil {
-		log.Println("can't write file:", err)
-		return err
+		return fmt.Errorf("can't write file: %v", err)
 	}
 	counter.Inc("downloaded")
 	log.Printf("wrote %d bytes in file %s", n, output)
