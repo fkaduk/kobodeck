@@ -45,7 +45,13 @@ compiled binaries directly from the website:
 > <https://gitlab.com/anarcat/wallabako/builds/artifacts/master/download?job=compile>
 
 This will give you a ZIP file with standalone binaries for the
-supported architectures (currently `amd64`, AKA `x86_64` and `arm7`).
+supported architectures (currently `amd64`, AKA `x86_64` and
+`arm7`).
+
+In that archive, there is also a `KoboRoot.tgz` file that *may* allow
+you to automatically configure the system, although you will at least
+need to change the configuration file to add your credentials. This
+was *not* tested, use at your own risk.
 
 Usage
 -----
