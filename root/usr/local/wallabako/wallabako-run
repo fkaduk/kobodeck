@@ -1,5 +1,4 @@
 #!/bin/sh
 
 # wrapper script to avoid reloading udev to change this config
-
-exec /usr/local/wallabako/wallabako -config /etc/wallabako.js -output /mnt/onboard/wallabako/ -count 3 -exec /usr/local/wallabako/fake-connect-usb
+exec /usr/local/wallabako/wallabako -config /etc/wallabako.js -output /mnt/onboard/wallabako/ -exec /usr/local/wallabako/fake-connect-usb
