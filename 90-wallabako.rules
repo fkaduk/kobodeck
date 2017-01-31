@@ -1,0 +1,2 @@
+KERNEL=="eth*", RUN+="/usr/local/wallabako/wallabako-run" 
+KERNEL=="wlan*", RUN+="/usr/local/wallabako/wallabako-run" 
