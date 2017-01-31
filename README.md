@@ -105,8 +105,9 @@ findings in
 [this post](https://www.mobileread.com/forums/showthread.php?p=3467503)
 in the hope that someone has a better idea.
 
-So far, the simplest solution would be to reboot when the filesystem
-is changed. This can be done with the `-exec reboot` flag.
+<del>So far, the simplest solution would be to reboot when the filesystem
+is changed. This can be done with the `-exec /sbin/reboot` flag.</del>
+Unfortunately, even that doesn't trigger a refresh.
 
 ### Autoconfiguration
 
