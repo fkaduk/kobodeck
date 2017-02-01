@@ -77,14 +77,13 @@ var confPaths = []string{
 func findConfig(path string) (err error) {
 	if path != "" {
 		return wallabago.ReadConfig(path)
-	} else {
-		for _, path := range confPaths {
-			if err = wallabago.ReadConfig(path); err == nil {
-				break
-			}
-		}
-		return err
 	}
+	for _, path := range confPaths {
+		if err = wallabago.ReadConfig(path); err == nil {
+			break
+		}
+	}
+	return err
 }
 
 // XXX: this is necessary because < 2.2 don't have a EPUB API
@@ -222,23 +221,22 @@ func getLock(path string) (lock lockfile.Lockfile, err error) {
 		lock, _ = lockfile.New(path)
 		err = lock.TryLock()
 		return lock, err
-	} else {
-	OuterLoop:
-		for _, path := range pidPaths {
-			//log.Println("trying lockfile path", path)
-			lock, _ = lockfile.New(path)
-			err = lock.TryLock()
-			switch err.(type) {
-			case *os.PathError:
-				// permission denied, wrong path and so on
-				//log.Println(err)
-				continue OuterLoop
-			default:
-				break OuterLoop
-			}
-		}
-		return lock, err
 	}
+OuterLoop:
+	for _, path := range pidPaths {
+		//log.Println("trying lockfile path", path)
+		lock, _ = lockfile.New(path)
+		err = lock.TryLock()
+		switch err.(type) {
+		case *os.PathError:
+			// permission denied, wrong path and so on
+			//log.Println(err)
+			continue OuterLoop
+		default:
+			break OuterLoop
+		}
+	}
+	return lock, err
 }
 
 func main() {
