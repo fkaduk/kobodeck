@@ -1,12 +1,15 @@
 package main
 
-/* This program is designed to download Wallabag entries on to the
- * local disk, and particularly Kobo ebook readers.
- *
- * More details in the README.md file that comes with this program.
- *
- * This is my first go program. Forgive me, because I have probably sinned.
- */
+/*
+
+This program is designed to download Wallabag entries on to the
+local disk, and particularly Kobo ebook readers.
+
+More details in the README.md file that comes with this program.
+
+This is my first go program. Forgive me, because I have probably sinned.
+
+*/
 
 import (
 	"flag"
@@ -202,7 +205,10 @@ var pidPaths = []string{
 }
 
 // getLock creates a lock file with the given path or, if empty, in an
-// appropriate location in a series of predefined locations
+// appropriate location in a series of predefined locations.
+//
+// WARNING: this does *not* defer the Unlock method, since it's out of
+// scope - that should be done by the caller
 func getLock(path string) (lock lockfile.Lockfile, err error) {
 	if len(path) > 0 {
 		if path, err = filepath.Abs(path); err != nil {
