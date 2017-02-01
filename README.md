@@ -7,7 +7,7 @@ of individual unread articles from a Wallabag instance.
 It is designed to be fast and ran incrementally: subsequent runs
 should not redownload the files unless they have changed.
 
-<img src="assets/logo.svg" align="right" />
+![](assets/logo.svg)
 
 Table of contents:
 
