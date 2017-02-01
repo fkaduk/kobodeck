@@ -65,16 +65,16 @@ password and the Wallabag URL, which should not have a trailing slash.
 
 Then to actually download the EPUB files:
 
-    wallabako -config /etc/wallabako.js -output /mnt/onboard/wallabako/
+    wallabako -output /mnt/onboard/wallabako/
 
 The program is pretty verbose, here's an example run:
 
-    $ go run main.go -config ~/.wallabako.js -output ~/tmp/epubs -count 1
+    $ go run main.go -count 1
     2017/01/30 16:31:12 logging in to https://example.net/wallabag
     2017/01/30 16:31:13 CSRF token found:  200 OK
     2017/01/30 16:31:13 logged in successful: 302 Found
     2017/01/30 16:31:13 found 65 unread entries
-    2017/01/30 16:31:13 URL https://example.net/wallabag/export/23160.epub older than local file /home/anarcat/tmp/epubs/1234.epub, skipped
+    2017/01/30 16:31:13 URL https://example.net/wallabag/export/23160.epub older than local file /tmp/1234.epub, skipped
     2017/01/30 16:31:13 completed in 0.83s
 
 Automatic configuration can be performed with the `KoboRoot.tgz` file,
@@ -244,7 +244,6 @@ Troubleshooting
 You may see this error when running on weird environments;
 
 ```
-[root@(none) ~]# ./wallabako -config /mnt/onboard/.wallabako.js -output /mnt/onboard/wallabako/
 2017/01/30 14:45:46 logging in to https://example.net/wallabag
 2017/01/30 14:45:51 <nil> Get https://example.net/wallabag/login: x509: failed to load system roots and no roots provided
 2017/01/30 14:45:51 completed in 5.12s

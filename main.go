@@ -33,7 +33,7 @@ import (
 // XXX: we shouldn't need to write the password down in the config:
 // https://github.com/wallabag/wallabag/issues/2800
 var (
-	configJSON = flag.String("config", "config.json", "file name of config JSON file")
+	configJSON = flag.String("config", "", "file name of config JSON file")
 	outputDir  = flag.String("output", ".", "output directory to save files into")
 	count      = flag.Int("count", 10, "number of articles to fetch")
 	del        = flag.Bool("delete", false, "if we should delete EPUB files not found in feed")
@@ -50,7 +50,36 @@ var (
 
 	// the regex for the CSRF token in the login page
 	csrfRegexp = regexp.MustCompile(`"_csrf_token" +value="([^"]*)"`)
+
+	// the home directory
+	home = os.Getenv("HOME")
 )
+
+// confPath is the name of the default configuration file
+const confPath = "wallabako.js"
+
+// the actual list of config paths to check
+var confPaths = []string{
+	home + "/.config/" + confPath,
+	home + "/." + confPath,
+	"/etc/" + confPath,
+}
+
+// findConfig looks for and loads the configuration file. it is either
+// provided as `path` or, if that is empty, is searched for in a set
+// of standard directories
+func findConfig(path string) (err error) {
+	if path != "" {
+		return wallabago.ReadConfig(path)
+	} else {
+		for _, path := range confPaths {
+			if err = wallabago.ReadConfig(path); err == nil {
+				break
+			}
+		}
+		return err
+	}
+}
 
 // XXX: this is necessary because < 2.2 don't have a EPUB API
 func login(baseURL, username, password string) (*http.Client, error) {
@@ -168,8 +197,8 @@ func main() {
 		log.Printf("completed in %.2fs\n", time.Since(start).Seconds())
 	}()
 	flag.Parse()
-	if err := wallabago.ReadConfig(*configJSON); err != nil {
-		log.Fatal(err.Error())
+	if err := findConfig(*configJSON); err != nil {
+		log.Fatal("cannot load configuration file: ", err.Error())
 	}
 	if len(*pidFile) > 0 {
 		lock, err := lockfile.New(*pidFile)
