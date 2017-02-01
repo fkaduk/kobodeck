@@ -67,7 +67,7 @@ var confPaths = []string{
 	home + "/." + confPath,
 	// special: for Kobo readers, this is the user-visible directory,
 	// allow users to store the config file there
-	"/mnt/onboard/" + confPath,
+	"/mnt/onboard/." + confPath,
 	"/etc/" + confPath,
 }
 
