@@ -209,9 +209,8 @@ you shouldn't get those errors so please do file a bug if you can
 reproduce this issue.
 
 Also note that from 0.3, Wallabako logs debug information into
-`wallabako/wallabako.log` on the reader, so you can look into those
-files to see if it is running correctly when you plug your reader in a
-computer.
+`wallabako.log` on the reader, so you can look into those files to see
+if it is running correctly when you plug your reader in a computer.
 
 x509: failed to load system roots and no roots provided
 -------------------------------------------------------
