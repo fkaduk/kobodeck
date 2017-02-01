@@ -65,6 +65,9 @@ const confPath = "wallabako.js"
 var confPaths = []string{
 	home + "/.config/" + confPath,
 	home + "/." + confPath,
+	// special: for Kobo readers, this is the user-visible directory,
+	// allow users to store the config file there
+	"/mnt/onboard/" + confPath,
 	"/etc/" + confPath,
 }
 
