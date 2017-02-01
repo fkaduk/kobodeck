@@ -39,7 +39,7 @@ var (
 	configJSON = flag.String("config", "", "file name of config JSON file")
 	outputDir  = flag.String("output", ".", "output directory to save files into")
 	count      = flag.Int("count", 10, "number of articles to fetch")
-	del        = flag.Bool("delete", false, "if we should delete EPUB files not found in feed")
+	doDelete   = flag.Bool("delete", false, "if we should delete EPUB files not found in feed")
 	pidFile    = flag.String("pidfile", "", "pidfile to write to avoid multiple runs")
 
 	// default is from web browsers, which are around 6-10: http://www.browserscope.org/?category=network
@@ -177,7 +177,7 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 	return nil
 }
 
-func deleteMissing(outputDir string, valid map[int]bool) {
+func deleteMissing(outputDir string, valid map[int]bool) (deleted []string) {
 	files, _ := filepath.Glob(outputDir + "/*.epub")
 	//log.Println("files:", files, outputDir+"/*.epub")
 	for _, file := range files {
@@ -190,9 +190,12 @@ func deleteMissing(outputDir string, valid map[int]bool) {
 			log.Print("removing old file:", file)
 			if err = os.Remove(file); err != nil {
 				log.Printf("warning: failed to remove file %s: %s", file, err)
+			} else {
+				deleted = append(deleted, file)
 			}
 		}
 	}
+	return deleted
 }
 
 // the base name of the pidfile
@@ -287,9 +290,13 @@ func main() {
 	for i := 0; i < cap(sem); i++ {
 		sem <- true
 	}
-	log.Printf("processed: %d, downloaded: %d", counter.Value("processed"), counter.Value("downloaded"))
-	deleteMissing(*outputDir, valid)
-	if len(*notify) > 0 && counter.Value("downloaded") > 0 {
+	var deleted []string
+	if *doDelete {
+		deleted = deleteMissing(*outputDir, valid)
+	}
+	log.Printf("processed: %d, downloaded: %d, deleted: %d",
+		counter.Value("processed"), counter.Value("downloaded"), len(deleted))
+	if len(*notify) > 0 && (counter.Value("downloaded") > 0 || len(deleted) > 0) {
 		log.Println("running command", *notify)
 		out, err := exec.Command(*notify).CombinedOutput()
 		if err != nil {
