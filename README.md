@@ -56,7 +56,8 @@ device.
 
 Connect your Kobo reader to your computer and copy the file to the
 reader's top directory. You also need to create a `.wallabag.js` file
-in that directory. See the Usage section below for more information.
+in that directory. See the [configuration](#configuration) section
+below for more information.
 
 When you disconnect the reader, the content of the `KoboRoot.tgz`
 should be automatically deployed by the Kobo reader.
@@ -132,6 +133,12 @@ colons and commas (`{`, `}`, `"`, `:`, `,`).
  3. The fourth and fifth items are your username and passwords. We
     would prefer to not ask you your password, but unfortunately, that
     is [still required by the Wallabag API][password requirement of the API]
+
+Also note that some commandline flags are hardcoded in the
+`usr/local/wallabako/wallabag-run` script. To modify those, you will
+need to modify the file in the `KoboRoot.tgz` file or hack the kobo to
+get commandline access. See the [troubleshooting](#troubleshooting)
+section for more information.
 
 Usage
 =====
