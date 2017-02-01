@@ -8,7 +8,7 @@ It is designed to be fast and ran incrementally: subsequent runs
 should not redownload the files unless they have changed.
 
 Context
--------
+=======
 
 I wrote this to sync unread articles to my Kobo ebook reader, but it
 should work everywhere you can compile a go program, which includes
@@ -31,9 +31,34 @@ other platforms. I have tested this on a Debian GNU/Linux 9
 ("stretch") system and a Kobo Glo HD.
 
 Installation
-------------
+============
 
-Simply do the usual:
+Kobo
+----
+
+To install this software on your Kobo reader, you will want to use the
+`KoboRoot.tgz` file. This file contains various scripts, binaries and
+configuration files that will enable the program to work on your
+device.
+
+Connect your Kobo reader to your computer and copy the file to the
+reader's top directory. You also need to create a `.wallabag.js` file
+in that directory. See the Usage section below for more information.
+
+When you disconnect the reader, the content of the `KoboRoot.tgz`
+should be automatically deployed by the Kobo reader.
+
+Other devices
+-------------
+
+This program *may* also work on other devices, but that has never been
+tested. Feedback and testing is welcome.
+
+Other platforms
+---------------
+
+Wallabako can also be compiled installed on a regular computer,
+provided that you have the go suite installed. Simply do the usual:
 
     go get gitlab.com/anarcat/wallabako
 
@@ -50,42 +75,100 @@ This will give you a ZIP file with standalone binaries for the
 supported architectures (currently `amd64`, AKA `x86_64` and
 `arm7`).
 
-In that archive, there is also a `KoboRoot.tgz` file that *may* allow
-you to automatically configure the system, although you will at least
-need to change the configuration file to add your credentials. This
-was *not* tested, use at your own risk.
+You also need to create a configuration file.
+
+The program looks for the file in the following locations:
+
+1. `$HOME/.config/wallabako.js`
+2. `$HOME/.wallabako.js`
+3. `/mnt/onboard/.wallabako.js`
+4. `/etc/wallabako.js`
+
+You will probably want to choose the first option unless you are
+configuring this as a system-level daemon.
+
+Configuration
+=============
+
+Once the program is installed, you need to configure it by creating a
+`wallabako.js` file, with the following content:
+
+    {
+      "WallabagURL": "https://app.wallabag.it",
+      "ClientId": "14_2vun20ernfy880wgkk88gsoosk4csocs4ccw4sgwk84gc84o4k",
+      "ClientSecret": "69k0alx9bdcsc0c44o84wk04wkgw0c0g4wkww8c0wwok0sk4ok",
+      "UserName": "joelle",
+      "UserPassword": "ShahWinceIdlyTsarRinseYemen"
+    }
+
+Let's take this one step at a time. First, the weird curly braces
+syntax is because this is a [JSON](https://en.wikipedia.org/wiki/JSON)
+configuration file. Make sure you keep all the curly braces, quotes,
+colons and commas (`{`, `}`, `"`, `:`, `,`).
+
+ 1. The first item is the `WallabagURL`. This is the address of the
+    service you are using. In the above example, we use the official
+    [Wallabag.it](https://wallabag.it/) service, but this will change
+    depending on your provider. Make sure there is *no* trailing slash
+    (`/`).
+
+ 2. The second and third items are the "client tokens". Those are
+    tokens that you need to create in the Wallabag web interface, in
+    the `Developer` section. Simply copy paste those values in place.
+ 
+ 3. The fourth and fifth items are your username and passwords. We
+    would prefer to not ask you your password, but unfortunately, that
+    is [still required by the Wallabag API][password requirement of the API]
 
 Usage
------
+=====
 
-To use, fill in the fields in the `etc/wallabako.js` file. You will need to
-create a "client" in the Wallabag interface first and copy those
-secrets in the configuration file, along with your username and
-password and the Wallabag URL, which should not have a trailing slash.
+Kobo devices
+------------
 
-Then to actually download the EPUB files:
+If everything was deployed correctly, Wallabako should run the next
+time you activate the wireless connection on your device. You will
+notice it is running because after a while, the dialog that comes up
+when you connect your device with a cable will come up, even though
+the device is not connected! Simply tap the `Connect` button to
+continue the synchronisation and the library will find the new entries.
 
-    wallabako -output /mnt/onboard/wallabako/
+Note that the "read" status of articles is not yet propagated back to
+the Wallabag instance - you will need to do this by hand.
+
+Commandline
+-----------
+
+To run wallabako on a regular computer, you will need to use the
+commandline. For example, this will download your articles in the
+`epubs` directory in your home:
+
+    wallabako -output ~/epubs
+
+Use the `-h` flag for more information about the various flags you can
+use on the commandline.
 
 The program is pretty verbose, here's an example run:
 
-    $ go run main.go -count 1
-    2017/01/30 16:31:12 logging in to https://example.net/wallabag
-    2017/01/30 16:31:13 CSRF token found:  200 OK
-    2017/01/30 16:31:13 logged in successful: 302 Found
-    2017/01/30 16:31:13 found 65 unread entries
-    2017/01/30 16:31:13 URL https://example.net/wallabag/export/23160.epub older than local file /tmp/1234.epub, skipped
-    2017/01/30 16:31:13 completed in 0.83s
+    $ wallabako -output /tmp
+    2017/01/31 22:16:41 logging in to https://example.net/wallabag
+    2017/01/31 22:16:41 CSRF token found: 200 OK
+    2017/01/31 22:16:41 logged in successful: 302 Found
+    2017/01/31 22:16:42 found 65 unread entries
+    2017/01/31 22:16:42 URL https://example.net/wallabag/export/23152.epub older than local file /tmp/23152.epub, skipped
+    2017/01/31 22:16:42 URL https://example.net/wallabag/export/23179.epub older than local file /tmp/23179.epub, skipped
+    2017/01/31 22:16:42 URL https://example.net/wallabag/export/23170.epub older than local file /tmp/23170.epub, skipped
+    2017/01/31 22:16:42 URL https://example.net/wallabag/export/23180.epub older than local file /tmp/23180.epub, skipped
+    2017/01/31 22:16:42 URL https://example.net/wallabag/export/23160.epub older than local file /tmp/23160.epub, skipped
+    2017/01/31 22:16:42 processed: 5, downloaded: 0
+    2017/01/31 22:16:42 completed in 1.44s
 
-Automatic configuration can be performed with the `KoboRoot.tgz` file,
-otherwise you will need to deploy the files in the `root/` directory
-by hand somehow. This has not yet been tested in a deployment from
-scratch, but the test deployment has been working a few times.
+You can also run the program straight from source with:
 
-So this actually works!
+    go run *.go
 
 Support
--------
+=======
 
 I will provide only limited free support for this tool. I wrote it,
 after all, for my own uses. People are welcome to [file issues][] and
@@ -98,9 +181,14 @@ that format.
  [discussion on MobileRead.com]: https://www.mobileread.com/forums/showthread.php?p=3467945
 
 Design notes
-------------
+============
 
-### File synchronisation and deletion
+This section explains in more details how the program works
+internally. It shouldn't be necessary to read this to operate the
+program.
+
+File synchronisation and deletion
+---------------------------------
 
 The script looks at the `updated_at` field in the entries API to
 determine if a local file needs to be overwritten. Empty and missing
@@ -126,7 +214,8 @@ anymore. The newer RFC about this ([RFC7230][]) specifies
 [no explicit limit]: https://tools.ietf.org/html/rfc7230#section-6.4
 [this chart]: http://www.browserscope.org/?category=network
 
-### Wifi trigger
+Wifi trigger
+------------
 
 The program can be ran by hand, but is also designed to run
 automatically. The sync script that is the main inspiration for this
@@ -149,7 +238,8 @@ which acts as an intermediate configuration file for the main
 command. You can tweak some settings there, but this should all really
 be part of the main configuration file.
 
-### Autoreload
+Autoreload
+----------
 
 When new files are downloaded, they are not automatically added to the
 library. There doesn't seem to be a clear way to do this on the Kobo
@@ -166,24 +256,13 @@ the (mysterious and undocumented) `/tmp/nickel-hardware-status`
 socket.
 
 Remaining issues
-----------------
+================
 
 Those are known issues with the program. There are also `XXX` markers
 in the source code that show other issues that need to be checked.
 
-### Documentation
-
-This is probably all completely undecipherable to a normal user. We
-should make more documentation to help the user install this, even
-with the `KoboRoot.tgz` file in place. Help here is very welcome. The
-documentation is currently all in this README file and can be
-[edited online][] once you register. The
-[discussion on MobileRead.com][] may also be a good place to get help
-if you need to.
-
-[edited online]: https://gitlab.com/anarcat/wallabako/edit/master/README.md
-
-### Autoconfiguration
+Autoconfiguration
+-----------------
 
 This requires a significant amount of work to work on a Kobo. Now, the
 autobuilders on Gitlab generate a `KoboRoot.tgz` that *should* deploy
@@ -194,32 +273,36 @@ this works correctly.
 Besides, even with everything perfectly aligned on our side, we still
 need the user to create an "app" on the Wallabag side, which is a
 painful and confusing step to follow for new users. I have started a
-[discussion about the username/password requirement of the API][]
+discussion about the [password requirement of the API][]
 which touches on part of that issue.
 
-[discussion about the username/password requirement of the API]: https://github.com/wallabag/wallabag/issues/2800
+[password requirement of the API]: https://github.com/wallabag/wallabag/issues/2800
 
-### Logging
+Logging
+-------
 
 Debugging this script is hard. There are no logs and it's been mostly
 tested on the commandline so far. There are tips on how to debug
 `udev`, below, but we should have a more readily accessible logfile.
 
-### Port to Wallabag 2.2 API changes
+Port to Wallabag 2.2 API changes
+---------------------------------
 
 The new Wallabag release (2.2) gives us a new API to download actual
 EPUBs directly, without having to login in a separate session. Before
 we do this, my friendly provider needs to update the instance so I can
 test this, which depends on the release stabilizing a little.
 
-### Read status and other metadata
+Read status and other metadata
+------------------------------
 
 The "read" status is not propagated: when an article is read on the
 e-reader, it's not propagated back to the Wallabag site. Similarly,
 annotations are not sent back either. We could probably read the
 sqlite database and send that data back, eventually.
 
-### Performance
+Performance
+-----------
 
 The program is generally very fast, or at least, as fast as Wallabag
 can be. It will download files in parallel and will avoid already
@@ -237,9 +320,10 @@ can do about this, even in Wallabag: we need to build that EPUB
 somehow.
 
 Troubleshooting
----------------
+===============
 
-### x509: failed to load system roots and no roots provided
+x509: failed to load system roots and no roots provided
+-------------------------------------------------------
 
 You may see this error when running on weird environments;
 
@@ -270,7 +354,8 @@ package in Debian in the machine.
 > but I would advise against it, if only for obvious security
 > reasons...
 
-### Command not running
+Command not running
+-------------------
 
 If you notice that udev is not running your command, for some reason,
 you can restart it with `--debug` which is very helpful. Example:
@@ -297,3 +382,28 @@ In the above case, network is down, probably because the command ran
 too fast. You can adjust the delay in `wallabako-run`, but really this
 should be automated in the script (which should retry a few times
 before giving up).
+
+Contributing
+============
+
+Contributions are very welcome. Send merge requests, issues and bug
+reports on the [wallabako project on Gitlab][].
+
+[wallabako project on Gitlab]: https://gitlab.com/anarcat/wallabako/
+
+The documentation is currently all in this README file and can be
+[edited online][] once you register. The
+[discussion on MobileRead.com][] may also be a good place to get help
+if you need to.
+
+[edited online]: https://gitlab.com/anarcat/wallabako/edit/master/README.md
+
+Credits
+=======
+
+Wallabako was written by The Anarcat and reviewed by friendly Debian
+developers `juliank` and `stapelberg`. `smurf` also helped in
+reviewing the code and answering my million newbie questions about go.
+
+This program and documentation is distributed under the AGPLv3
+license, see the LICENSE file for more information.
