@@ -16,7 +16,7 @@ compile:
     script:
         - go get github.com/Strubbl/wallabago
         - go get github.com/nightlyone/lockfile
-        - make build BINARY=build/wallabako.$(arch)
+        - make build
         - make tarball
     artifacts:
         paths:

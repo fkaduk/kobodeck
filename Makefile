@@ -10,15 +10,21 @@
 
 all: lint build tarball
 
-BINARY?=build/wallabako
+GNUARCH?=$(shell arch)
+
+BINARY?=build/wallabako.$(GNUARCH)
 
 tarball:
 	@echo building Kobo tarball
+    # copy ARM build stuff in place, ignoring errors
+	if [ -r $(BINARY) ] && [ "$(GNUARCH)" = "arm" ] ; then \
+	    cp $(BINARY) root/usr/local/wallabako/wallabako ; \
+	fi
 	$(MAKE) build GOARCH=arm BINARY=root/usr/local/wallabako/wallabako
+    # make sure we ship a SSL certs file as the Kobo doesn't have any (!)
 	tar -C root/ -c -z -f build/KoboRoot.tgz etc /etc/ssl/certs/ca-certificates.crt usr
-    # fake arm build. this makes the tarball target more expensive,
-    # but is useful to avoid leaving stuff behind for gitlab CI
-	mv root/usr/local/wallabako/wallabako build/wallabako.arm
+    # remove temporary file
+	rm root/usr/local/wallabako/wallabako
 
 build: $(BINARY)
 
