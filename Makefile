@@ -16,11 +16,8 @@ BINARY?=build/wallabako.$(GNUARCH)
 
 tarball:
 	@echo building Kobo tarball
-    # copy ARM build stuff in place, ignoring errors
-	if [ -r $(BINARY) ] && [ "$(GNUARCH)" = "arm" ] ; then \
-	    cp $(BINARY) root/usr/local/wallabako/wallabako ; \
-	fi
-	$(MAKE) build GOARCH=arm BINARY=root/usr/local/wallabako/wallabako
+	$(MAKE) build GOARCH=arm BINARY=build/wallabako.arm
+	cp $(BINARY) root/usr/local/wallabako/wallabako
     # make sure we ship a SSL certs file as the Kobo doesn't have any (!)
 	tar -C root/ -c -z -f build/KoboRoot.tgz etc /etc/ssl/certs/ca-certificates.crt usr
     # remove temporary file
