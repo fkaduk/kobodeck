@@ -38,7 +38,7 @@ import (
 var (
 	configJSON = flag.String("config", "", "file name of config JSON file")
 	outputDir  = flag.String("output", ".", "output directory to save files into")
-	count      = flag.Int("count", 10, "number of articles to fetch")
+	count      = flag.Int("count", -1, "number of articles to fetch")
 	doDelete   = flag.Bool("delete", false, "if we should delete EPUB files not found in feed")
 	pidFile    = flag.String("pidfile", "", "pidfile to write to avoid multiple runs")
 
