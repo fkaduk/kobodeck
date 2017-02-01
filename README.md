@@ -1,7 +1,7 @@
 Wallabag downloader
 ===================
 
-<img src="assets/logo.png" align="right" style="float: right;" />
+<img alt="Logo" src="assets/logo.png" align="right" />
 
 This tool is designed to download EPUB (or eventually, other formats)
 of individual unread articles from a Wallabag instance.
@@ -47,7 +47,12 @@ Kobo devices
 To install this software on your Kobo reader, you will want to use the
 `KoboRoot.tgz` file. This file contains various scripts, binaries and
 configuration files that will enable the program to work on your
-device.
+device. Fetch the file from the latest release, or see below how to
+rebuild it yourself:
+
+> <https://gitlab.com/anarcat/wallabako/tags>
+
+<img alt="screenshot of a KoboRoot.tgz file in a Kobo reader" src="assets/kobotgz-screenshot.png" align="right" />
 
 Connect your Kobo reader to your computer and copy the file to the
 reader's top directory. You also need to create a `.wallabag.js` file
@@ -140,6 +145,8 @@ Usage
 
 Kobo devices
 ------------
+
+<img alt="screenshot of the connect dialog on a Kobo Glo HD reader" src="assets/connect-dialog.png" align="right" />
 
 If everything was deployed correctly, Wallabako should run the next
 time you activate the wireless connection on your device. You will
