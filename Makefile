@@ -17,11 +17,11 @@ BINARY?=build/wallabako.$(GNUARCH)
 tarball:
 	@echo building Kobo tarball
 	$(MAKE) build GOARCH=arm BINARY=build/wallabako.arm
-	cp $(BINARY) root/usr/local/wallabako/wallabako
+	cp $(BINARY) root/usr/local/bin/wallabako
     # make sure we ship a SSL certs file as the Kobo doesn't have any (!)
 	tar -C root/ -c -z -f build/KoboRoot.tgz etc /etc/ssl/certs/ca-certificates.crt usr
     # remove temporary file
-	rm root/usr/local/wallabako/wallabako
+	rm root/usr/local/bin/wallabako
 
 build: $(BINARY)
 
@@ -31,7 +31,7 @@ $(BINARY): *.go
 	go build $(GFLAGS) -o $@
 
 clean:
-	rm $(BINARY) root/usr/local/wallabako/wallabako || true
+	rm $(BINARY) || true
 
 lint:
 	@echo checking idioms and syntax

@@ -128,7 +128,7 @@ colons and commas (`{`, `}`, `"`, `:`, `,`).
     is [still required by the Wallabag API][password requirement of the API]
 
 Also note that some commandline flags are hardcoded in the
-`usr/local/wallabako/wallabag-run` script. To modify those, you will
+`wallabag-run` script. To modify those, you will
 need to modify the file in the `KoboRoot.tgz` file or hack the kobo to
 get commandline access. See the [troubleshooting](#troubleshooting)
 section for more information.
@@ -267,10 +267,10 @@ you can restart it with `--debug` which is very helpful. Example:
     [1256] parse_file: reading '/lib/udev/rules.d/95-udev-late.rules' as rules file
     [1256] parse_file: reading '/lib/udev/rules.d/kobo.rules' as rules file
     [...]
-    [1276] util_run_program: '/usr/local/wallabako/wallabako-run' (stdout) '2017/01/31 00:03:50 logging in to https://example.net/wallabag'
+    [1276] util_run_program: '/usr/local/bin/wallabako-run' (stdout) '2017/01/31 00:03:50 logging in to https://example.net/wallabag'
     [1256] event_queue_insert: seq 859 queued, 'remove' 'module'
     [1256] event_fork: seq 859 forked, pid [1289], 'remove' 'module', 0 seconds old
-    [1276] util_run_program: '/usr/local/wallabako/wallabako-run' (stdout) '2017/01/31 00:03:50 failed to get login page:Get https://example.net/wallabag/login: dial tcp: lookup example.net on 192.168.0.1:53: dial udp 192.168.0.1:53: connect: network is unreachable'
+    [1276] util_run_program: '/usr/local/bin/wallabako-run' (stdout) '2017/01/31 00:03:50 failed to get login page:Get https://example.net/wallabag/login: dial tcp: lookup example.net on 192.168.0.1:53: dial udp 192.168.0.1:53: connect: network is unreachable'
 
 In the above case, network is down, probably because the command ran
 too fast. You can adjust the delay in `wallabako-run`, but really this
@@ -344,8 +344,8 @@ automatically. The sync script that is the main inspiration for this
 ([kobo-wget-sync][]) uses udev to trigger downloads, using those
 [rules][]:
 
-    KERNEL=="eth*", RUN+="/usr/local/wallabako/wallabako-run" 
-    KERNEL=="wlan*", RUN+="/usr/local/wallabako/wallabako-run"
+    KERNEL=="eth*", RUN+="/usr/local/bin/wallabako-run"
+    KERNEL=="wlan*", RUN+="/usr/local/bin/wallabako-run"
 
 [kobo-wget-sync]: https://github.com/wernerb/kobo-wget-sync/
 [rules]: https://github.com/wernerb/kobo-wget-sync/blob/master/src/etc/udev/rules.d/98-wget-sync.rules
@@ -355,7 +355,7 @@ network goes up or down. We haven't done that for the `usb*` rules as
 they do not provide network, but since that's actually another hack
 that can be done, it may be a useful addition as well.
 
-The rules call the `/usr/local/wallabako/wallabako-run` shell script
+The rules call the `wallabako-run` shell script
 which acts as an intermediate configuration file for the main
 command. You can tweak some settings there, but this should all really
 be part of the main configuration file.
@@ -373,7 +373,7 @@ findings in [this post][] in the hope that someone has a better idea.
 
 We have used the "tap to Connect confirm" approach until a better
 solution is found. This is done through the
-`usr/local/wallabako/fake-connect-usb` script, which in turns talks to
+`fake-connect-usb` script, which in turns talks to
 the (mysterious and undocumented) `/tmp/nickel-hardware-status`
 socket.
 
