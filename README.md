@@ -38,6 +38,8 @@ The instructions below are mostly for the Kobo E-readers but may work
 for other platforms. I have tested this on a Debian GNU/Linux 9
 ("stretch") system and a Kobo Glo HD.
 
+<img alt="screenshot of a KoboRoot.tgz file in a Kobo reader" src="assets/kobotgz-screenshot.png" align="right" />
+
 Installation
 ============
 
@@ -51,8 +53,6 @@ device. Fetch the file from the latest release, or see below how to
 rebuild it yourself:
 
 > <https://gitlab.com/anarcat/wallabako/tags>
-
-<img alt="screenshot of a KoboRoot.tgz file in a Kobo reader" src="assets/kobotgz-screenshot.png" align="right" />
 
 Connect your Kobo reader to your computer and copy the file to the
 reader's top directory. You also need to create a `.wallabag.js` file
@@ -140,13 +140,13 @@ need to modify the file in the `KoboRoot.tgz` file or hack the kobo to
 get commandline access. See the [troubleshooting](#troubleshooting)
 section for more information.
 
+<img alt="screenshot of the connect dialog on a Kobo Glo HD reader" src="assets/connect-dialog.png" align="right" />
+
 Usage
 =====
 
 Kobo devices
 ------------
-
-<img alt="screenshot of the connect dialog on a Kobo Glo HD reader" src="assets/connect-dialog.png" align="right" />
 
 If everything was deployed correctly, Wallabako should run the next
 time you activate the wireless connection on your device. You will
