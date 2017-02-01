@@ -225,13 +225,13 @@ func getLock(path string) (lock lockfile.Lockfile, err error) {
 	} else {
 	OuterLoop:
 		for _, path := range pidPaths {
-			log.Println("trying lockfile path", path)
+			//log.Println("trying lockfile path", path)
 			lock, _ = lockfile.New(path)
 			err = lock.TryLock()
 			switch err.(type) {
 			case *os.PathError:
 				// permission denied, wrong path and so on
-				log.Println(err)
+				//log.Println(err)
 				continue OuterLoop
 			default:
 				break OuterLoop
