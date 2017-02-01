@@ -180,6 +180,95 @@ that format.
  [send patches]: https://gitlab.com/anarcat/wallabako/merge_requests
  [discussion on MobileRead.com]: https://www.mobileread.com/forums/showthread.php?p=3467945
 
+Troubleshooting
+===============
+
+x509: failed to load system roots and no roots provided
+-------------------------------------------------------
+
+You may see this error when running on weird environments;
+
+```
+2017/01/30 14:45:46 logging in to https://example.net/wallabag
+2017/01/30 14:45:51 <nil> Get https://example.net/wallabag/login: x509: failed to load system roots and no roots provided
+2017/01/30 14:45:51 completed in 5.12s
+panic: runtime error: invalid memory address or nil pointer dereference
+[signal SIGSEGV: segmentation violation code=0x1 addr=0x0 pc=0x11280]
+
+goroutine 1 [running]:
+panic(0x2558a0, 0x1061e008)
+	/usr/lib/go-1.7/src/runtime/panic.go:500 +0x33c
+main.login(0x1060ee20, 0x19, 0x1067d958, 0x7, 0x1060ee60, 0x14, 0x0)
+	/home/anarcat/go/src/gitlab.com/anarcat/wallabako/main.go:59 +0x280
+main.main()
+	/home/anarcat/go/src/gitlab.com/anarcat/wallabako/main.go:147 +0x280
+```
+
+This is because your operating system doesn't ship standard X509
+certificates in the location the program expects them to be. A
+workaround I have found is to copy the
+`/etc/ssl/certs/ca-certificates.crt` provided by the `ca-certificates`
+package in Debian in the machine.
+
+> Note: it *may* be possible to fix the program to ignore the
+> [SystemRootsError](https://golang.org/pkg/crypto/x509/#SystemRootsError)
+> but I would advise against it, if only for obvious security
+> reasons...
+
+Command not running
+-------------------
+
+If you notice that udev is not running your command, for some reason,
+you can restart it with `--debug` which is very helpful. Example:
+
+    [root@(none) ~]# ps ax | grep udev
+      621 root       0:00 /sbin/udevd -d
+     1242 root       0:00 grep udev
+    [root@(none) ~]# kill 621
+    [root@(none) ~]# /sbin/udevd --debug
+    [1256] parse_file: reading '/lib/udev/rules.d/50-firmware.rules' as rules file
+    [1256] parse_file: reading '/lib/udev/rules.d/50-udev-default.rules' as rules file
+    [1256] parse_file: reading '/lib/udev/rules.d/60-persistent-input.rules' as rules file
+    [1256] parse_file: reading '/lib/udev/rules.d/75-cd-aliases-generator.rules' as rules file
+    [1256] parse_file: reading '/etc/udev/rules.d/90-wallabako.rules' as rules file
+    [1256] parse_file: reading '/lib/udev/rules.d/95-udev-late.rules' as rules file
+    [1256] parse_file: reading '/lib/udev/rules.d/kobo.rules' as rules file
+    [...]
+    [1276] util_run_program: '/usr/local/wallabako/wallabako-run' (stdout) '2017/01/31 00:03:50 logging in to https://example.net/wallabag'
+    [1256] event_queue_insert: seq 859 queued, 'remove' 'module'
+    [1256] event_fork: seq 859 forked, pid [1289], 'remove' 'module', 0 seconds old
+    [1276] util_run_program: '/usr/local/wallabako/wallabako-run' (stdout) '2017/01/31 00:03:50 failed to get login page:Get https://example.net/wallabag/login: dial tcp: lookup example.net on 192.168.0.1:53: dial udp 192.168.0.1:53: connect: network is unreachable'
+
+In the above case, network is down, probably because the command ran
+too fast. You can adjust the delay in `wallabako-run`, but really this
+should be automated in the script (which should retry a few times
+before giving up).
+
+Contributing
+============
+
+Contributions are very welcome. Send merge requests, issues and bug
+reports on the [wallabako project on Gitlab][].
+
+[wallabako project on Gitlab]: https://gitlab.com/anarcat/wallabako/
+
+The documentation is currently all in this README file and can be
+[edited online][] once you register. The
+[discussion on MobileRead.com][] may also be a good place to get help
+if you need to.
+
+[edited online]: https://gitlab.com/anarcat/wallabako/edit/master/README.md
+
+Credits
+=======
+
+Wallabako was written by The Anarcat and reviewed by friendly Debian
+developers `juliank` and `stapelberg`. `smurf` also helped in
+reviewing the code and answering my million newbie questions about go.
+
+This program and documentation is distributed under the AGPLv3
+license, see the LICENSE file for more information.
+
 Design notes
 ============
 
@@ -318,92 +407,3 @@ goes.
 EPUB generation is also pretty slow, but I guess there's not much we
 can do about this, even in Wallabag: we need to build that EPUB
 somehow.
-
-Troubleshooting
-===============
-
-x509: failed to load system roots and no roots provided
--------------------------------------------------------
-
-You may see this error when running on weird environments;
-
-```
-2017/01/30 14:45:46 logging in to https://example.net/wallabag
-2017/01/30 14:45:51 <nil> Get https://example.net/wallabag/login: x509: failed to load system roots and no roots provided
-2017/01/30 14:45:51 completed in 5.12s
-panic: runtime error: invalid memory address or nil pointer dereference
-[signal SIGSEGV: segmentation violation code=0x1 addr=0x0 pc=0x11280]
-
-goroutine 1 [running]:
-panic(0x2558a0, 0x1061e008)
-	/usr/lib/go-1.7/src/runtime/panic.go:500 +0x33c
-main.login(0x1060ee20, 0x19, 0x1067d958, 0x7, 0x1060ee60, 0x14, 0x0)
-	/home/anarcat/go/src/gitlab.com/anarcat/wallabako/main.go:59 +0x280
-main.main()
-	/home/anarcat/go/src/gitlab.com/anarcat/wallabako/main.go:147 +0x280
-```
-
-This is because your operating system doesn't ship standard X509
-certificates in the location the program expects them to be. A
-workaround I have found is to copy the
-`/etc/ssl/certs/ca-certificates.crt` provided by the `ca-certificates`
-package in Debian in the machine.
-
-> Note: it *may* be possible to fix the program to ignore the
-> [SystemRootsError](https://golang.org/pkg/crypto/x509/#SystemRootsError)
-> but I would advise against it, if only for obvious security
-> reasons...
-
-Command not running
--------------------
-
-If you notice that udev is not running your command, for some reason,
-you can restart it with `--debug` which is very helpful. Example:
-
-    [root@(none) ~]# ps ax | grep udev
-      621 root       0:00 /sbin/udevd -d
-     1242 root       0:00 grep udev
-    [root@(none) ~]# kill 621
-    [root@(none) ~]# /sbin/udevd --debug
-    [1256] parse_file: reading '/lib/udev/rules.d/50-firmware.rules' as rules file
-    [1256] parse_file: reading '/lib/udev/rules.d/50-udev-default.rules' as rules file
-    [1256] parse_file: reading '/lib/udev/rules.d/60-persistent-input.rules' as rules file
-    [1256] parse_file: reading '/lib/udev/rules.d/75-cd-aliases-generator.rules' as rules file
-    [1256] parse_file: reading '/etc/udev/rules.d/90-wallabako.rules' as rules file
-    [1256] parse_file: reading '/lib/udev/rules.d/95-udev-late.rules' as rules file
-    [1256] parse_file: reading '/lib/udev/rules.d/kobo.rules' as rules file
-    [...]
-    [1276] util_run_program: '/usr/local/wallabako/wallabako-run' (stdout) '2017/01/31 00:03:50 logging in to https://example.net/wallabag'
-    [1256] event_queue_insert: seq 859 queued, 'remove' 'module'
-    [1256] event_fork: seq 859 forked, pid [1289], 'remove' 'module', 0 seconds old
-    [1276] util_run_program: '/usr/local/wallabako/wallabako-run' (stdout) '2017/01/31 00:03:50 failed to get login page:Get https://example.net/wallabag/login: dial tcp: lookup example.net on 192.168.0.1:53: dial udp 192.168.0.1:53: connect: network is unreachable'
-
-In the above case, network is down, probably because the command ran
-too fast. You can adjust the delay in `wallabako-run`, but really this
-should be automated in the script (which should retry a few times
-before giving up).
-
-Contributing
-============
-
-Contributions are very welcome. Send merge requests, issues and bug
-reports on the [wallabako project on Gitlab][].
-
-[wallabako project on Gitlab]: https://gitlab.com/anarcat/wallabako/
-
-The documentation is currently all in this README file and can be
-[edited online][] once you register. The
-[discussion on MobileRead.com][] may also be a good place to get help
-if you need to.
-
-[edited online]: https://gitlab.com/anarcat/wallabako/edit/master/README.md
-
-Credits
-=======
-
-Wallabako was written by The Anarcat and reviewed by friendly Debian
-developers `juliank` and `stapelberg`. `smurf` also helped in
-reviewing the code and answering my million newbie questions about go.
-
-This program and documentation is distributed under the AGPLv3
-license, see the LICENSE file for more information.
