@@ -37,7 +37,7 @@ var (
 	outputDir  = flag.String("output", ".", "output directory to save files into")
 	count      = flag.Int("count", 10, "number of articles to fetch")
 	del        = flag.Bool("delete", false, "if we should delete EPUB files not found in feed")
-	pidFile    = flag.String("pidfile", "/var/run/wallabako.pid", "pidfile to write to avoid multiple runs")
+	pidFile    = flag.String("pidfile", "", "pidfile to write to avoid multiple runs")
 
 	// default is from web browsers, which are around 6-10: http://www.browserscope.org/?category=network
 	concurrency = flag.Int("concurrency", 6, "number of downloads to process in parallel")
@@ -171,14 +171,16 @@ func main() {
 	if err := wallabago.ReadConfig(*configJSON); err != nil {
 		log.Fatal(err.Error())
 	}
-	lock, err := lockfile.New(*pidFile)
-	if err != nil {
-		log.Fatal("Cannot write PID file:", err)
+	if len(*pidFile) > 0 {
+		lock, err := lockfile.New(*pidFile)
+		if err != nil {
+			log.Fatal("Cannot write PID file:", err)
+		}
+		if err = lock.TryLock(); err != nil {
+			log.Fatal("Cannot lock PID file:", err)
+		}
+		defer lock.Unlock()
 	}
-	if err = lock.TryLock(); err != nil {
-		log.Fatal("Cannot lock PID file:", err)
-	}
-	defer lock.Unlock()
 
 	log.Println("logging in to", wallabago.Config.WallabagURL)
 	//log.Println("username, password:", wallabago.Config.UserName, wallabago.Config.UserPassword)
