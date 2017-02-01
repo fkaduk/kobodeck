@@ -222,6 +222,10 @@ workaround I have found is to copy the
 `/etc/ssl/certs/ca-certificates.crt` provided by the `ca-certificates`
 package in Debian in the machine.
 
+By default, the tarball creation script adds that magick file to the
+`KoboRoot.tgz` archive, which should work around this problem. But
+this was never tested from scratch.
+
 > Note: it *may* be possible to fix the program to ignore the
 > [SystemRootsError](https://golang.org/pkg/crypto/x509/#SystemRootsError)
 > but I would advise against it, if only for obvious security

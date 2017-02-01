@@ -8,20 +8,30 @@
 # to build for the Kobo, use:
 # GOARCH=arm make build
 
-all: lint build
+all: lint build tarball
 
 BINARY?=build/wallabako
+
+tarball:
+	@echo building Kobo tarball
+	$(MAKE) build GOARCH=arm BINARY=root/usr/local/wallabako/wallabako
+	tar -C root/ -c -z -f build/KoboRoot.tgz etc /etc/ssl/certs/ca-certificates.crt usr
+    # fake arm build. this makes the tarball target more expensive,
+    # but is useful to avoid leaving stuff behind for gitlab CI
+	mv root/usr/local/wallabako/wallabako build/wallabako.arm
 
 build: $(BINARY)
 
 $(BINARY): *.go
+	@echo building main program
 	mkdir -p $$(dirname $(BINARY))
 	go build $(GFLAGS) -o $@
 
 clean:
-	rm $(BINARY) || true
+	rm $(BINARY) root/usr/local/wallabako/wallabako || true
 
 lint:
+	@echo checking idioms and syntax
 	go vet ./...
 	golint ./...
 	gofmt  -s -l .
