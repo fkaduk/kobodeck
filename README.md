@@ -208,6 +208,11 @@ you may stumble upon. Normally, if you install the package correctly,
 you shouldn't get those errors so please do file a bug if you can
 reproduce this issue.
 
+Also note that from 0.3, Wallabako logs debug information into
+`wallabako/wallabako.log` on the reader, so you can look into those
+files to see if it is running correctly when you plug your reader in a
+computer.
+
 x509: failed to load system roots and no roots provided
 -------------------------------------------------------
 
@@ -395,13 +400,6 @@ discussion about the [password requirement of the API][]
 which touches on part of that issue.
 
 [password requirement of the API]: https://github.com/wallabag/wallabag/issues/2800
-
-Logging
--------
-
-Debugging this script is hard. There are no logs and it's been mostly
-tested on the commandline so far. There are tips on how to debug
-`udev`, below, but we should have a more readily accessible logfile.
 
 Port to Wallabag 2.2 API changes
 ---------------------------------
