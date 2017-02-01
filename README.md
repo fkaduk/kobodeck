@@ -8,6 +8,7 @@ It is designed to be fast and ran incrementally: subsequent runs
 should not redownload the files unless they have changed.
 
 Table of contents:
+
 - [Context](#context)
 - [Installation](#installation)
 - [Configuration](#configuration)
