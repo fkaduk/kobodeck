@@ -7,6 +7,18 @@ of individual unread articles from a Wallabag instance.
 It is designed to be fast and ran incrementally: subsequent runs
 should not redownload the files unless they have changed.
 
+Table of contents:
+- [Context](#context)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Support](#support)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [Credits](#credits)
+- [Design notes](#design-notes)
+- [Remaining issues](#remaining-issues)
+
 Context
 =======
 
@@ -33,8 +45,8 @@ other platforms. I have tested this on a Debian GNU/Linux 9
 Installation
 ============
 
-Kobo
-----
+Kobo devices
+------------
 
 To install this software on your Kobo reader, you will want to use the
 `KoboRoot.tgz` file. This file contains various scripts, binaries and
