@@ -32,15 +32,8 @@ it simplifies deployment: a single static binary can be shipped
 instead of having to ship a full interpreter in my normal language of
 choice (Python).
 
-The following instructions assume your are familiar with the
-commandline. To install this on your Kobo reader, you will need to
-first hack it. See the following tutorials for more information:
-
- * [Hacking the Kobo Touch for Dummies](http://www.chauveau-central.net/pub/KoboTouch/)
- * [Kobo Touch Hacking](https://wiki.mobileread.com/wiki/Kobo_Touch_Hacking)
-
-Those instructions are mostly for the Kobo Touch but may work for
-other platforms. I have tested this on a Debian GNU/Linux 9
+The instructions below are mostly for the Kobo E-readers but may work
+for other platforms. I have tested this on a Debian GNU/Linux 9
 ("stretch") system and a Kobo Glo HD.
 
 Installation
@@ -202,6 +195,18 @@ that format.
 
 Troubleshooting
 ===============
+
+To troubleshoot issues with the script, you will need to get
+commandline access into it, which is beyond the scope of this
+documentation. See the following tutorial for example.
+
+ * [Hacking the Kobo Touch for Dummies](http://www.chauveau-central.net/pub/KoboTouch/)
+ * [Kobo Touch Hacking](https://wiki.mobileread.com/wiki/Kobo_Touch_Hacking)
+
+Below are issues and solutions I have found during development that
+you may stumble upon. Normally, if you install the package correctly,
+you shouldn't get those errors so please do file a bug if you can
+reproduce this issue.
 
 x509: failed to load system roots and no roots provided
 -------------------------------------------------------
