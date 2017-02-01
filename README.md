@@ -1,13 +1,13 @@
 Wallabag downloader
 ===================
 
+<img src="assets/logo.png" align="right" style="float: right;" />
+
 This tool is designed to download EPUB (or eventually, other formats)
 of individual unread articles from a Wallabag instance.
 
 It is designed to be fast and ran incrementally: subsequent runs
 should not redownload the files unless they have changed.
-
-![](assets/logo.png)
 
 Table of contents:
 
