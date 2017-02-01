@@ -1,4 +1,4 @@
 #!/bin/sh
 
 # wrapper script to avoid reloading udev to change this config
-( sleep 5 ; /usr/local/wallabako/wallabako -pidfile /var/run/wallabako.pid -output /mnt/onboard/wallabako/ -exec /usr/local/wallabako/fake-connect-usb )&
+( sleep 5 ; /usr/local/wallabako/wallabako -output /mnt/onboard/wallabako/ -exec /usr/local/wallabako/fake-connect-usb )&

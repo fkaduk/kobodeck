@@ -190,6 +190,48 @@ func deleteMissing(outputDir string, valid map[int]bool) {
 	}
 }
 
+// the base name of the pidfile
+const pidPath = "wallabako.pid"
+
+// the actual pathnames to check
+var pidPaths = []string{
+	"/var/run/" + pidPath,
+	"/run/" + pidPath,
+	"/run/user/" + strconv.Itoa(os.Getuid()) + "/" + pidPath,
+	home + "/." + pidPath,
+}
+
+// getLock creates a lock file with the given path or, if empty, in an
+// appropriate location in a series of predefined locations
+func getLock(path string) (lock lockfile.Lockfile, err error) {
+	if len(path) > 0 {
+		if path, err = filepath.Abs(path); err != nil {
+			return lock, err
+		}
+		// only error possible is if we don't have an absolute path,
+		// already handled
+		lock, _ = lockfile.New(path)
+		err = lock.TryLock()
+		return lock, err
+	} else {
+	OuterLoop:
+		for _, path := range pidPaths {
+			log.Println("trying lockfile path", path)
+			lock, _ = lockfile.New(path)
+			err = lock.TryLock()
+			switch err.(type) {
+			case *os.PathError:
+				// permission denied, wrong path and so on
+				log.Println(err)
+				continue OuterLoop
+			default:
+				break OuterLoop
+			}
+		}
+		return lock, err
+	}
+}
+
 func main() {
 	start := time.Now()
 	log.SetOutput(os.Stdout)
@@ -200,16 +242,11 @@ func main() {
 	if err := findConfig(*configJSON); err != nil {
 		log.Fatal("cannot load configuration file: ", err.Error())
 	}
-	if len(*pidFile) > 0 {
-		lock, err := lockfile.New(*pidFile)
-		if err != nil {
-			log.Fatal("Cannot write PID file:", err)
-		}
-		if err = lock.TryLock(); err != nil {
-			log.Fatal("Cannot lock PID file:", err)
-		}
-		defer lock.Unlock()
+	lock, err := getLock(*pidFile)
+	if err != nil {
+		log.Fatal("Cannot lock PID file: ", err)
 	}
+	defer lock.Unlock()
 
 	log.Println("logging in to", wallabago.Config.WallabagURL)
 	//log.Println("username, password:", wallabago.Config.UserName, wallabago.Config.UserPassword)
