@@ -186,7 +186,9 @@ func deleteMissing(outputDir string, valid map[int]bool) (deleted []string) {
 			log.Println("skipping irreglar file", file)
 			continue
 		}
-		if !valid[id] {
+		if valid[id] {
+			//log.Println("keeping file with valid id:", file)
+		} else {
 			log.Print("removing old file:", file)
 			if err = os.Remove(file); err != nil {
 				log.Printf("warning: failed to remove file %s: %s", file, err)
