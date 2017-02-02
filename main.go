@@ -17,6 +17,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -100,10 +101,9 @@ func login(baseURL, username, password string) (*http.Client, error) {
 		return client, fmt.Errorf("failed to get login page: %v", err)
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return client, fmt.Errorf("empty login page: %v", err)
-	}
+	// error ignored: if this fails, the CSRF token will be missing
+	// and the error will be catched below
+	body, _ := ioutil.ReadAll(resp.Body)
 	matches := csrfRegexp.FindSubmatch(body)
 	if len(matches) > 0 {
 		log.Println("CSRF token found:", resp.Status)
@@ -117,8 +117,14 @@ func login(baseURL, username, password string) (*http.Client, error) {
 	form.Set("_remember_me", "on")
 	form.Set("send", "")
 	resp, err = client.PostForm(baseURL+"/login_check", form)
-	if err != nil {
-		return client, fmt.Errorf("login failed: %v", err)
+	if err == nil && resp.StatusCode == 302 {
+		loc, e := resp.Location()
+		if e != nil || strings.HasSuffix(loc.String(), "/login") {
+			return client, fmt.Errorf("login failed: wrong password?")
+		}
+	} else {
+		// we *always* get a 302, this shouldn't happen
+		return client, fmt.Errorf("login failed: %s (%v)", resp.Status, err)
 	}
 	log.Println("logged in successful:", resp.Status)
 	return client, nil
@@ -262,7 +268,33 @@ func main() {
 
 	log.Println("logging in to", wallabago.Config.WallabagURL)
 	//log.Println("username, password:", wallabago.Config.UserName, wallabago.Config.UserPassword)
-	client, err := login(wallabago.Config.WallabagURL, wallabago.Config.UserName, wallabago.Config.UserPassword)
+	// retryCount is the number of logins wallabako will attempt
+	// first attempt is 1 second and first attempt double the delay at each attempt
+	var client *http.Client
+	// used for exponential backoff below
+	rand.Seed(time.Now().UnixNano())
+	for retryCount := 1; retryCount <= 5; retryCount++ {
+		client, err = login(wallabago.Config.WallabagURL, wallabago.Config.UserName, wallabago.Config.UserPassword)
+		if err == nil {
+			break
+		} else {
+			str := err.Error()
+			switch {
+			case strings.Contains(str, "login failed"), strings.Contains(str, "CSRF token"):
+				log.Fatal(err)
+			case strings.Contains(str, "login page"):
+				// exponential backoff time
+				// at least one second, ensures we at least sleep retryCount seconds
+				min := 1 * time.Second
+				// max is the retry count squared
+				max := time.Duration(retryCount) * time.Second
+				// sleep a random amount of time in the range
+				delay := min + time.Duration(rand.Int63n(max.Nanoseconds()^2))
+				log.Printf("%s, sleeping %s", err, delay)
+				time.Sleep(delay)
+			}
+		}
+	}
 	if err != nil {
 		log.Fatal(err)
 	}

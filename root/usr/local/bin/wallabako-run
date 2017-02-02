@@ -1,9 +1,5 @@
 #!/bin/sh
 
 # wrapper script to avoid reloading udev to change this config
-(
-    echo waiting 5 for network to wakeup
-    sleep 5
-    echo starting wallabako
-    /usr/local/bin/wallabako -delete -output /mnt/onboard/wallabako/ -exec /usr/local/bin/fake-connect-usb >> /mnt/onboard/wallabako.log
-) &
+echo starting wallabako
+/usr/local/bin/wallabako -delete -output /mnt/onboard/wallabako/ -exec /usr/local/bin/fake-connect-usb >> /mnt/onboard/wallabako.log
