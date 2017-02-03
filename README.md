@@ -425,6 +425,25 @@ e-reader, it's not propagated back to the Wallabag site. Similarly,
 annotations are not sent back either. We could probably read the
 sqlite database and send that data back, eventually.
 
+Note that once we that working, we can also avoid deleting books that
+are in the "reading" state. Seems like the
+[mattn sqlite library](https://github.com/mattn/go-sqlite3) is the
+[recommended one](https://www.reddit.com/r/golang/comments/2tijbf/which_sqlite3_package_to_use_mattngosqlite3_or/),
+see the [golang wiki](https://github.com/golang/go/wiki/SQLInterface)
+for a tutorial as well.
+
+Timestamps and order
+--------------------
+
+The Kobo reader shows the articles in the wrong order. It *looks* like
+an alphabetical order, but I suspect it may due to the file
+modification dates.
+
+Because we download files in parallel, the file creation dates are not
+ordered. (Arguably, even if they were, they would technically be
+incorrect as well.) We could use the article modification date and set
+the file modification date to match that.
+
 Performance
 -----------
 
