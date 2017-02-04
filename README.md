@@ -474,11 +474,3 @@ script. We *could* abuse the init system's `respawn` flag (as there is
 no cron daemon) to fire up the program repeatedly (with a sleep in
 between, of course). But this could affect battery usage, so use with
 care...
-
-Improper network wait
----------------------
-
-We currently wait an arbitrary time (5 seconds) for the network to
-come up when we start. This should go away: we should just try to
-visit the website, and try again a few times (with exponential
-backoff?) until it works, and *then* fail.
