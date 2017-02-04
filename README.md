@@ -386,6 +386,16 @@ solution is found. This is done through the
 the (mysterious and undocumented) `/tmp/nickel-hardware-status`
 socket.
 
+This is not very reliable: sometimes the wifi sync doesn't start, or
+at least the dialog doesn't show up, or maybe I don't see it in time -
+anyways, the thing doesn't resync. The above forum may have new
+answers now. Also look for "sync" in `.kobo/Kobo/Kobo\ eReader.conf`,
+there's stuff there like:
+
+    LastSyncTime=@Variant(\0\0\0\x10\0%\x80\x3\0\xe9R \x2)
+    PeriodicAutoSync=false
+    syncOnNextBoot=false
+
 Remaining issues
 ================
 
@@ -423,14 +433,27 @@ Read status and other metadata
 The "read" status is not propagated: when an article is read on the
 e-reader, it's not propagated back to the Wallabag site. Similarly,
 annotations are not sent back either. We could probably read the
-sqlite database and send that data back, eventually.
+sqlite database and send that data back, eventually. Note that once we
+that working, we can also avoid deleting books that are in the
+"reading" state.
 
-Note that once we that working, we can also avoid deleting books that
-are in the "reading" state. Seems like the
+Seems like the
 [mattn sqlite library](https://github.com/mattn/go-sqlite3) is the
 [recommended one](https://www.reddit.com/r/golang/comments/2tijbf/which_sqlite3_package_to_use_mattngosqlite3_or/),
 see the [golang wiki](https://github.com/golang/go/wiki/SQLInterface)
-for a tutorial as well.
+for a tutorial as well. We'd need to look in the `content` table for
+the `ReadStatus` column, which seems to be `0` for unread, `1` for in
+progress and `2` for read. The file path is in the `ContentID` column,
+like `file:///mnt/onboard/wallabako/N.epub` where `N` is our entry ID,
+and we need to restrict ourselves to `ContentType` 6 otherwise we get
+many entries per book, which is odd - but it may be how the Kobo keeps
+track of chapters?
+
+On the Wallabag side, it's that API again. We need to do a `PATCH`
+(?!?) command on the API at `/api/entries/{entry}.{_format}` where
+`{entry}` is the integer and `{_format}` is `json`. Then we need to
+set `archive` to `1` as a parameter. Not sure how the Wallabago
+library would allow us to do arbitrary HTTP commands...
 
 Timestamps and order
 --------------------
