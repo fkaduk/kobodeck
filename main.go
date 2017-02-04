@@ -17,7 +17,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -271,9 +270,7 @@ func main() {
 	// retryCount is the number of logins wallabako will attempt
 	// first attempt is 1 second and first attempt double the delay at each attempt
 	var client *http.Client
-	// used for exponential backoff below
-	rand.Seed(time.Now().UnixNano())
-	for retryCount := 1; retryCount <= 5; retryCount++ {
+	for retryCount := 0; retryCount <= 4; retryCount++ {
 		client, err = login(wallabago.Config.WallabagURL, wallabago.Config.UserName, wallabago.Config.UserPassword)
 		if err == nil {
 			break
@@ -283,13 +280,22 @@ func main() {
 			case strings.Contains(str, "login failed"), strings.Contains(str, "CSRF token"):
 				log.Fatal(err)
 			case strings.Contains(str, "login page"):
-				// exponential backoff time
-				// at least one second, ensures we at least sleep retryCount seconds
-				min := 1 * time.Second
-				// max is the retry count squared
-				max := time.Duration(retryCount) * time.Second
-				// sleep a random amount of time in the range
-				delay := min + time.Duration(rand.Int63n(max.Nanoseconds()^2))
+				// "exponential backoff time", but not random
+				// this will sleep:
+				// 1s (total 1s)
+				// 2s (3s)
+				// 5s (8s)
+				// 10s (18s)
+				// 17s (35s)
+				// so 35 seconds max.
+				// linear would be:
+				// 1
+				// 3 4
+				// 5 9
+				// 7 16
+				// 9 25
+				// but second retry is one second later, we want that one faster.
+				delay := time.Duration((1 + retryCount ^ 2)) * time.Second
 				log.Printf("%s, sleeping %s", err, delay)
 				time.Sleep(delay)
 			}
