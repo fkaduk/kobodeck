@@ -451,6 +451,15 @@ similar, see:
 * https://www.atatus.com/blog/golang-auto-build-versioning/
 * http://stackoverflow.com/questions/11354518/golang-application-auto-build-versioning
 
+Shorter autoreload delay
+------------------------
+
+We may be able to read the input device to figure out when the
+confirmation tap happens to shorten the delay until the reload. See
+[this discussion](https://www.mobileread.com/forums/showthread.php?p=3350658#post3350658)
+for the idea and look at what happens in `/dev/input/event1` when a
+tap is made.
+
 Port to Wallabag 2.2 API changes
 ---------------------------------
 
