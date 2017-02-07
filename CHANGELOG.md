@@ -1,6 +1,12 @@
 This is a summary of changes in the published releases of
 Wallabako. The format of this change may change without prior notice.
 
+# 0.4: perfection is the ennemy of good
+
+This is a small bugfix and documentation improvements release. This
+release should deal better with variable connection delays, as it can
+wait up to about 30 seconds.
+
 # 0.3: practice makes perfect
 
 Important bugfix release to deploy the correct binary but also changes
