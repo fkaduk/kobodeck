@@ -369,6 +369,12 @@ which acts as an intermediate configuration file for the main
 command. You can tweak some settings there, but this should all really
 be part of the main configuration file.
 
+When the program starts, it tries to login to the Wallabag instance
+over the network. If that fails, it will sleep one second and try
+again. If that fails again, it will sleep an exponential number of
+seconds (2, 5, 10, 17, ...) per attempts, up to 5 attempts
+(configurable on the commandline) for a total of 35 seconds.
+
 Autoreload
 ----------
 
