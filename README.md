@@ -425,6 +425,32 @@ which touches on part of that issue.
 
 [password requirement of the API]: https://github.com/wallabag/wallabag/issues/2800
 
+Automatic upgrades
+------------------
+
+The first configuration is painful enough that we might want allow for
+automatic upgrades. We have automated builds, it should be possible
+for clients to download the new tarball and extract it on the fly as
+necessary.
+
+This gives the developer and build server remote code execution on the
+binary, so it should be handled carefully. We could use something like
+[signify](https://www.openbsd.org/papers/bsdcan-signify.html) (I don't
+want to depend on OpenPGP here) to sign packages so that the build
+server is trusted only once. This also requires builds to be
+reproducible. [sigtool](https://github.com/opencoff/sigtool) looks
+like a go version of signify that we could use.
+
+This should also be able to discriminate between snapshots and tagged
+releases *and* know which version it's running (it doesn't, right
+now). Version information can be embeded at compile-time with
+`-ldflags="-X main.version=$(git describe --always --long --dirty)" or
+similar, see:
+
+* https://www.reddit.com/r/golang/comments/4cpi2y/question_where_to_keep_the_version_number_of_a_go/
+* https://www.atatus.com/blog/golang-auto-build-versioning/
+* http://stackoverflow.com/questions/11354518/golang-application-auto-build-versioning
+
 Port to Wallabag 2.2 API changes
 ---------------------------------
 
