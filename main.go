@@ -47,6 +47,8 @@ var (
 
 	notify = flag.String("exec", "", "execute the given command when files have changed")
 
+	retryMax = flag.Int("retry", 4, "number of attempts to login the website, with exponential backoff delay")
+
 	// this is a generic counter to safely count things across threads
 	// we use it to count how many files we actually downloaded
 	counter = SafeCounter{v: make(map[string]int)}
@@ -270,7 +272,7 @@ func main() {
 	// retryCount is the number of logins wallabako will attempt
 	// first attempt is 1 second and first attempt double the delay at each attempt
 	var client *http.Client
-	for retryCount := 0; retryCount <= 4; retryCount++ {
+	for retryCount := 0; retryCount <= *retryMax; retryCount++ {
 		client, err = login(wallabago.Config.WallabagURL, wallabago.Config.UserName, wallabago.Config.UserPassword)
 		if err == nil {
 			break
