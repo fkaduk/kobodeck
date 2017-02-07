@@ -297,8 +297,8 @@ func main() {
 				// 7 16
 				// 9 25
 				// but second retry is one second later, we want that one faster.
-				delay := time.Duration((1 + retryCount ^ 2)) * time.Second
-				log.Printf("%s, sleeping %s", err, delay)
+				delay := time.Duration((1 + (retryCount * retryCount))) * time.Second
+				log.Printf("%s, sleeping %s (%d/%d)", err, delay, retryCount, *retryMax)
 				time.Sleep(delay)
 			}
 		}
