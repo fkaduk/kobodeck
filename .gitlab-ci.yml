@@ -9,6 +9,7 @@ image: debian:stretch
 before_script:
     - mkdir -p /go/src
     - ln -s /builds /go/src/gitlab.com
+    - apt-get update
     - apt-get install golang gcc-arm-linux-gnueabihf
     - go get github.com/golang/lint/golint
 
