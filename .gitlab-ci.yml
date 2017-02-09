@@ -10,7 +10,7 @@ before_script:
     - mkdir -p /go/src
     - ln -s /builds /go/src/gitlab.com
     - apt-get update
-    - apt-get install --no-install-recommends -y -q golang gcc-arm-linux-gnueabihf git
+    - apt-get install --no-install-recommends -y -q golang gcc-arm-linux-gnueabihf git ca-certificates
     - GOPATH=/go go get github.com/golang/lint/golint
 
 stages:
