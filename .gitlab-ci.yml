@@ -11,7 +11,7 @@ before_script:
     - ln -s /builds /go/src/gitlab.com
     - cd /go/src/gitlab.com/anarcat/wallabako
     - apt-get update
-    - apt-get install --no-install-recommends -y -q golang gcc-arm-linux-gnueabihf git ca-certificates make golint
+    - apt-get install -y -q golang gcc-arm-linux-gnueabihf git ca-certificates make golint gcc
     - GOPATH=/go go get github.com/golang/lint/golint
 
 stages:
