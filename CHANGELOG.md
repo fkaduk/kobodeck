@@ -1,6 +1,14 @@
 This is a summary of changes in the published releases of
 Wallabako. The format of this change may change without prior notice.
 
+# 0.5: safety and liberty
+
+This feature release starts looking into the Kobo database to see if a
+book is being read. If it is being read, it will not delete it.
+
+The next step is obviously to propagate the read status to the
+Wallabag instance, which is not done yet.
+
 # 0.4: perfection is the ennemy of good
 
 This is a small bugfix and documentation improvements release. This
