@@ -1,5 +1,8 @@
-# this is a mess - because we need the cross-compiler, we need stretch
-# this makes us go through all sorts of hoops to get go running properly (e.g. GOPATH everywhere..)
+# this is a mess - because we need the cross-compiler, we need
+# stretch...  this makes us go through all sorts of hoops to get go
+# running properly (e.g. GOPATH everywhere..). this could be fixed
+# simply by using a better image. documented in README, but also:
+# https://github.com/docker-library/official-images/issues/2639
 image: debian:stretch
 
 # The problem is that to be able to use go get, one needs to put
