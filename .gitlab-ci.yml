@@ -13,6 +13,7 @@ format:
 compile:
     stage: build
     script:
+        - apt-get install gcc-arm-linux-gnueabihf
         - go get
         - make build
         - make tarball

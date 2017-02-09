@@ -6,7 +6,12 @@
 #GFLAGS+=--ldflags '-linkmode external -extldflags "-static"'
 
 # to build for the Kobo, use:
+#
 # GOARCH=arm make build
+#
+# this will fail to connect to the database because the sqlite plugin
+# is a C extension. see the tarball target for how to build the
+# package correctly.
 
 all: lint build tarball
 
@@ -16,7 +21,7 @@ BINARY?=build/wallabako.$(GNUARCH)
 
 tarball:
 	@echo building Kobo tarball
-	$(MAKE) build GOARCH=arm BINARY=build/wallabako.arm
+	$(MAKE) build GOARCH=arm BINARY=build/wallabako.arm CGO_ENABLED=1 GOOS=linux GOARCH=arm CC="arm-linux-gnueabihf-gcc-6"
 	cp build/wallabako.arm root/usr/local/bin/wallabako
     # make sure we ship a SSL certs file as the Kobo doesn't have any (!)
 	tar -C root/ -c -z -f build/KoboRoot.tgz etc /etc/ssl/certs/ca-certificates.crt usr
