@@ -7,23 +7,18 @@ image: debian:stretch
 # repository in /go/src/mydomainperso.com/repos/projectname 
 # Thus, making a symbolic link corrects this.
 before_script:
+    - mkdir -p /go/src
     - ln -s /builds /go/src/gitlab.com
-    - apt-get install golang
+    - apt-get install golang gcc-arm-linux-gnueabihf
+    - go get github.com/golang/lint/golint
 
 stages:
-    - lint
     - build
-
-format:
-    stage: lint
-    script:
-        - go get github.com/golang/lint/golint
-        - make lint
 
 compile:
     stage: build
     script:
-        - apt-get install gcc-arm-linux-gnueabihf
+        - make lint
         - go get
         - make build
         - make tarball
