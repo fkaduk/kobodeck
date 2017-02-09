@@ -474,9 +474,8 @@ Read status and other metadata
 The "read" status is not propagated: when an article is read on the
 e-reader, it's not propagated back to the Wallabag site. Similarly,
 annotations are not sent back either. We could probably read the
-sqlite database and send that data back, eventually. Note that once we
-that working, we can also avoid deleting books that are in the
-"reading" state.
+sqlite database and send that data back, eventually. Note that we
+currently avoid deleting books that are in the "reading" state.
 
 Seems like the
 [mattn sqlite library](https://github.com/mattn/go-sqlite3) is the

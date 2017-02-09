@@ -12,6 +12,7 @@ This is my first go program. Forgive me, because I have probably sinned.
 */
 
 import (
+	"database/sql"
 	"flag"
 	"fmt"
 	"io"
@@ -30,6 +31,7 @@ import (
 	"time"
 
 	"github.com/Strubbl/wallabago"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/nightlyone/lockfile"
 )
 
@@ -49,6 +51,8 @@ var (
 
 	retryMax = flag.Int("retry", 4, "number of attempts to login the website, with exponential backoff delay")
 
+	koboDatabase = flag.String("database", "/mnt/onboard/.kobo/KoboReader.sqlite", "path to Kobo database")
+
 	// this is a generic counter to safely count things across threads
 	// we use it to count how many files we actually downloaded
 	counter = SafeCounter{v: make(map[string]int)}
@@ -59,6 +63,9 @@ var (
 	// the home directory
 	home = os.Getenv("HOME")
 )
+
+// db is the active database handle, if any
+var db *sql.DB
 
 // confPath is the name of the default configuration file
 const confPath = "wallabako.js"
@@ -184,6 +191,43 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 	return nil
 }
 
+// koboRealBook is the ContentID code for normal books in the Kobo sqlite database
+const koboRealBook = 6
+
+// koboBook* are the various book reading statuses in the Kobo sqlite database
+const (
+	koboBookUnread  = iota
+	koboBookReading = iota
+	koboBookRead    = iota
+)
+
+// readStatus will return the read status of the given ID book, which
+// should be either koboBookUnread, koboBookReading or koboBookRead,
+// unless the database format is unexpected.
+func readStatus(ID int) (res int, err error) {
+	path := fmt.Sprintf("file:///mnt/onboard/wallabako/%d.epub", ID)
+	rows, err := db.Query("SELECT ReadStatus FROM content WHERE ContentID = $1 AND ContentType = $2 LIMIT 1", path, koboRealBook)
+	if err != nil {
+		return res, err
+	}
+	var readStatus int
+	if rows.Next() {
+		if err := rows.Scan(&readStatus); err == nil {
+			//log.Println("found readStatus", readStatus)
+			res = readStatus
+		}
+	} else {
+		err = rows.Err()
+	}
+	return res, err
+}
+
+// isReading will tell if the given book ID is in the process of being read
+func isReading(ID int) (res bool, err error) {
+	tmp, err := readStatus(ID)
+	return tmp == koboBookReading, err
+}
+
 func deleteMissing(outputDir string, valid map[int]bool) (deleted []string) {
 	files, _ := filepath.Glob(outputDir + "/*.epub")
 	//log.Println("files:", files, outputDir+"/*.epub")
@@ -196,7 +240,18 @@ func deleteMissing(outputDir string, valid map[int]bool) (deleted []string) {
 		if valid[id] {
 			//log.Println("keeping file with valid id:", file)
 		} else {
-			log.Print("removing old file:", file)
+			if len(*koboDatabase) > 0 {
+				reading, err := isReading(id)
+				if err != nil {
+					log.Println("cannot read database for book status, skipping deletion:", file, err)
+					continue
+				}
+				if reading {
+					log.Println("book is in reading, skipping deletion:", file)
+					continue
+				}
+			}
+			log.Println("removing old file:", file)
 			if err = os.Remove(file); err != nil {
 				log.Printf("warning: failed to remove file %s: %s", file, err)
 			} else {
@@ -331,6 +386,13 @@ func main() {
 	// refill all the semaphore slots to make sure we wait for everyone
 	for i := 0; i < cap(sem); i++ {
 		sem <- true
+	}
+	if len(*koboDatabase) > 0 {
+		db, err = sql.Open("sqlite3", *koboDatabase)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer db.Close()
 	}
 	var deleted []string
 	if *doDelete {
