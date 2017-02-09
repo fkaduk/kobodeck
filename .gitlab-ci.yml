@@ -1,5 +1,14 @@
 image: golang:latest
 
+# The problem is that to be able to use go get, one needs to put
+# the repository in the $GOPATH. So for example if your gitlab domain
+# is mydomainperso.com, and that your repository is repos/projectname, and
+# the default GOPATH being /go, then you'd need to have your
+# repository in /go/src/mydomainperso.com/repos/projectname 
+# Thus, making a symbolic link corrects this.
+before_script:
+    - ln -s /builds /go/src/gitlab.com
+
 stages:
     - lint
     - build
