@@ -1,4 +1,4 @@
-image: golang:latest
+image: debian:stretch
 
 # The problem is that to be able to use go get, one needs to put
 # the repository in the $GOPATH. So for example if your gitlab domain
@@ -8,6 +8,7 @@ image: golang:latest
 # Thus, making a symbolic link corrects this.
 before_script:
     - ln -s /builds /go/src/gitlab.com
+    - apt-get install golang
 
 stages:
     - lint
