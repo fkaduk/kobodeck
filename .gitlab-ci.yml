@@ -11,7 +11,7 @@ before_script:
     - ln -s /builds /go/src/gitlab.com
     - apt-get update
     - apt-get install --no-install-recommends -y -q golang gcc-arm-linux-gnueabihf
-    - go get github.com/golang/lint/golint
+    - GOPATH=/go go get github.com/golang/lint/golint
 
 stages:
     - build
@@ -20,7 +20,7 @@ compile:
     stage: build
     script:
         - make lint
-        - go get
+        - GOPATH=/go go get
         - make build
         - make tarball
     artifacts:
