@@ -537,3 +537,19 @@ script. We *could* abuse the init system's `respawn` flag (as there is
 no cron daemon) to fire up the program repeatedly (with a sleep in
 between, of course). But this could affect battery usage, so use with
 care...
+
+Slow builds
+-----------
+
+Because we add stuff on top of the base docker images, our CI builds
+are slow. Maybe we could setup our own docker image to speed up the
+build process. See the [container registry][] documentation along with
+the [Gitlab docker documentation][].
+
+Alternatively, we could just wait for the official image to
+[fix itself][]. In the meantime, the [container registry][] is enabled
+and has simple usage instructions that we could follow.
+
+[fix itself]: https://github.com/docker-library/official-images/issues/2639
+[container registry]: https://gitlab.com/help/user/project/container_registry
+[Gitlab docker documentation]: https://docs.gitlab.com/ce/ci/docker/using_docker_images.html
