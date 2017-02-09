@@ -12,10 +12,8 @@ format:
 
 compile:
     stage: build
-    # XXX: those dependencies should be automatically fetched...
     script:
-        - go get github.com/Strubbl/wallabago
-        - go get github.com/nightlyone/lockfile
+        - go get
         - make build
         - make tarball
     artifacts:
