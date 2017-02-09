@@ -20,10 +20,10 @@ stages:
 compile:
     stage: build
     script:
-        - make lint
+        - GOPATH=/go make lint
         - GOPATH=/go go get
-        - make build
-        - make tarball
+        - GOPATH=/go make build
+        - GOPATH=/go make tarball
     artifacts:
         paths:
         - build/
