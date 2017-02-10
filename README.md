@@ -8,14 +8,14 @@ your local computer or Kobo ebook reader.
 
 Features:
 
-* fast: downloads only files that have changed, in parallel
-* unattended: runs in the background, when the wifi is turned on, only
+* **fast**: downloads only files that have changed, in parallel
+* **unattended**: runs in the background, when the wifi is turned on, only
   requires you to tap the fake USB connection screen for the Kobo to
   rescan its database
-* read status synchronization: read books are deleted from the Kobo (keep
-  them as "in reading" to avoid deletion) and read books are marked as
+* **status synchronization**: read books are deleted from the Kobo (keep
+  them as "in reading" to avoid deletion) and marked as
   read in the Wallabag instance
-* easy install: just drop the magic file in your kobo reader like any
+* **easy install**: just drop the magic file in your kobo reader like any
   other book, edit one configuration file and you're done
 
 Table of contents:
