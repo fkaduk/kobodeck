@@ -1,6 +1,16 @@
 This is a summary of changes in the published releases of
 Wallabako. The format of this change may change without prior notice.
 
+# 0.6: Look out honey, cause I'm using technology!
+
+This feature release now will propagate read status to the Wallabag
+instance: your books marked as read on the e-reader will be marked as
+read on Wallabag as well! We also improve on the CI build time by
+using the [new upstream stretch images][] which also means we're now
+running with the cutting-edge Go 1.8 version.
+
+[new upstream stretch images]: https://github.com/docker-library/official-images/issues/2639
+
 # 0.5: safety and liberty
 
 This feature release starts looking into the Kobo database to see if a
