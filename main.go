@@ -228,7 +228,27 @@ func isReading(ID int) (res bool, err error) {
 	return tmp == koboBookReading, err
 }
 
-func deleteMissing(outputDir string, valid map[int]bool) (deleted []string) {
+func maybeDeleteFile(id int, file string) (err error) {
+	if len(*koboDatabase) > 0 {
+		reading, err := isReading(id)
+		if err != nil {
+			return fmt.Errorf("cannot read database for book status, skipping deletion:", file, err)
+		} else if reading {
+			return fmt.Errorf("book is in reading, skipping deletion:", file)
+		}
+	}
+	if err = os.Remove(file); err != nil {
+		err = fmt.Errorf("warning: failed to remove file %s: %s", file, err)
+	} else {
+		err = nil
+	}
+	return err
+}
+
+// inspectLocalFiles looks into the given outputDir for files matching
+// the N.epub pattern where N is a Wallabag content ID, and processes
+// every entry according to the rules defined in maybeDeleteFile
+func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string) {
 	files, _ := filepath.Glob(outputDir + "/*.epub")
 	//log.Println("files:", files, outputDir+"/*.epub")
 	for _, file := range files {
@@ -239,24 +259,10 @@ func deleteMissing(outputDir string, valid map[int]bool) (deleted []string) {
 		}
 		if valid[id] {
 			//log.Println("keeping file with valid id:", file)
+		} else if err := maybeDeleteFile(id, file, valid); err != nil {
+			log.Println(err)
 		} else {
-			if len(*koboDatabase) > 0 {
-				reading, err := isReading(id)
-				if err != nil {
-					log.Println("cannot read database for book status, skipping deletion:", file, err)
-					continue
-				}
-				if reading {
-					log.Println("book is in reading, skipping deletion:", file)
-					continue
-				}
-			}
-			log.Println("removing old file:", file)
-			if err = os.Remove(file); err != nil {
-				log.Printf("warning: failed to remove file %s: %s", file, err)
-			} else {
-				deleted = append(deleted, file)
-			}
+			deleted = append(deleted, file)
 		}
 	}
 	return deleted
@@ -396,7 +402,7 @@ func main() {
 	}
 	var deleted []string
 	if *doDelete {
-		deleted = deleteMissing(*outputDir, valid)
+		deleted = inspectLocalFiles(*outputDir, valid)
 	}
 	log.Printf("processed: %d, downloaded: %d, deleted: %d",
 		counter.Value("processed"), counter.Value("downloaded"), len(deleted))
