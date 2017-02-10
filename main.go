@@ -165,11 +165,11 @@ func doAPI(method string, url string, body io.Reader) (data []byte, err error) {
 	//}
 	//log.Printf("sending request: %q", dump)
 	resp, err := client.Do(req)
-	defer resp.Body.Close()
 	if err != nil {
 		//log.Println("data, err", data, err)
 		return data, err
 	}
+	defer resp.Body.Close()
 	data, err = ioutil.ReadAll(resp.Body)
 	if resp.StatusCode != 200 {
 		//log.Println(resp, data)
