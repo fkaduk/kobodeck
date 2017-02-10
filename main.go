@@ -141,6 +141,10 @@ func login(baseURL, username, password string) (*http.Client, error) {
 	return client, nil
 }
 
+// doAPI sends an arbitrary API call to the Wallabag API, getting a
+// new token in the process. it returns the body of the response in
+// bytes and any possible errors returned by the API, particularly if
+// the returned status code is not 200.
 func doAPI(method string, url string, body io.Reader) (data []byte, err error) {
 	// this is copied from getBodyOfAPIURL(), should probably be
 	// factored out
@@ -174,6 +178,7 @@ func doAPI(method string, url string, body io.Reader) (data []byte, err error) {
 	return data, err
 }
 
+// markAsRead marks the given wallabag article ID as read through the API
 func markAsRead(id int) (err error) {
 	log.Printf("marking entry %d as read", id)
 	tmp := map[string]string{"archive": "1"}
