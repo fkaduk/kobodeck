@@ -3,11 +3,20 @@ Wallabag downloader
 
 <img alt="Logo" src="assets/logo.png" align="right" />
 
-This tool is designed to download EPUB (or eventually, other formats)
-of individual unread articles from a Wallabag instance.
+This tool is designed to automatically download Wallabag articles into
+your local computer or Kobo ebook reader.
 
-It is designed to be fast and ran incrementally: subsequent runs
-should not redownload the files unless they have changed.
+Features:
+
+* fast: downloads only files that have changed, in parallel
+* unattended: runs in the background, when the wifi is turned on, only
+  requires you to tap the fake USB connection screen for the Kobo to
+  rescan its database
+* read status synchronization: read books are deleted from the Kobo (keep
+  them as "in reading" to avoid deletion) and read books are marked as
+  read in the Wallabag instance
+* easy install: just drop the magic file in your kobo reader like any
+  other book, edit one configuration file and you're done
 
 Table of contents:
 
