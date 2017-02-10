@@ -297,16 +297,14 @@ func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, 
 				read = append(read, file)
 			}
 		}
-		if valid[id] {
-			//log.Println("keeping file with valid id:", file)
-		} else {
-			if *doDelete && status != koboBookReading {
-				if err = os.Remove(file); err != nil {
-					log.Printf("warning: failed to remove file %s: %s", file, err)
-				} else {
-					log.Println("deleted file", file)
-					deleted = append(deleted, file)
-				}
+		if *doDelete && !valid[id] {
+			if status == koboBookReading {
+				log.Printf("not deleting book currently being read: %s", file)
+			} else if err = os.Remove(file); err != nil {
+				log.Printf("warning: failed to remove file %s: %s", file, err)
+			} else {
+				log.Println("deleted file", file)
+				deleted = append(deleted, file)
 			}
 		}
 	}
