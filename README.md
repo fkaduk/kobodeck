@@ -402,6 +402,38 @@ there's stuff there like:
     PeriodicAutoSync=false
     syncOnNextBoot=false
 
+Read status and other metadata
+------------------------------
+
+The "read" status is now propagated by API calls to the Wallabag
+API. When an article is marked as read on the e-reader it will be
+marked as read on the API and if that succeeds, will be *deleted*
+locally. If the API calls fails for some reason, the file is not
+deleted. This is to avoid getting into a delete/download loop as the
+next call would download the file and then delete it again.
+
+Articles that are currently in the "reading" state are never
+deleted.
+
+We use the
+[mattn sqlite library](https://github.com/mattn/go-sqlite3), which is
+the
+[recommended one](https://www.reddit.com/r/golang/comments/2tijbf/which_sqlite3_package_to_use_mattngosqlite3_or/). I
+followed the basic
+[golang wiki](https://github.com/golang/go/wiki/SQLInterface) tutorial
+. In the `.kobo/KoboReader.sqlite` database, we look for the book
+status in the `content` table for the `ReadStatus` column, which seems
+to be `0` for unread, `1` for in progress and `2` for read. The file
+path is in the `ContentID` column, like
+`file:///mnt/onboard/wallabako/N.epub` where `N` is our entry ID, and
+we need to restrict ourselves to `ContentType` 6 otherwise we get many
+entries per book (maybe it's how the Kobo keeps track of chapters).
+
+On the Wallabag side, we do a `PATCH` request on the API at
+`/api/entries/{entry}.{_format}` where `{entry}` is the article entry
+(a number that is taken from the filename) and `{_format}` is
+`json`. Then we need to set `archive` to `1` as a parameter.
+
 Remaining issues
 ================
 
@@ -468,33 +500,6 @@ EPUBs directly, without having to login in a separate session. Before
 we do this, my friendly provider needs to update the instance so I can
 test this, which depends on the release stabilizing a little.
 
-Read status and other metadata
-------------------------------
-
-The "read" status is not propagated: when an article is read on the
-e-reader, it's not propagated back to the Wallabag site. Similarly,
-annotations are not sent back either. We could probably read the
-sqlite database and send that data back, eventually. Note that we
-currently avoid deleting books that are in the "reading" state.
-
-Seems like the
-[mattn sqlite library](https://github.com/mattn/go-sqlite3) is the
-[recommended one](https://www.reddit.com/r/golang/comments/2tijbf/which_sqlite3_package_to_use_mattngosqlite3_or/),
-see the [golang wiki](https://github.com/golang/go/wiki/SQLInterface)
-for a tutorial as well. We'd need to look in the `content` table for
-the `ReadStatus` column, which seems to be `0` for unread, `1` for in
-progress and `2` for read. The file path is in the `ContentID` column,
-like `file:///mnt/onboard/wallabako/N.epub` where `N` is our entry ID,
-and we need to restrict ourselves to `ContentType` 6 otherwise we get
-many entries per book, which is odd - but it may be how the Kobo keeps
-track of chapters?
-
-On the Wallabag side, it's that API again. We need to do a `PATCH`
-(?!?) command on the API at `/api/entries/{entry}.{_format}` where
-`{entry}` is the integer and `{_format}` is `json`. Then we need to
-set `archive` to `1` as a parameter. Not sure how the Wallabago
-library would allow us to do arbitrary HTTP commands...
-
 Timestamps and order
 --------------------
 
@@ -524,6 +529,25 @@ goes.
 EPUB generation is also pretty slow, but I guess there's not much we
 can do about this, even in Wallabag: we need to build that EPUB
 somehow.
+
+It is also possible that the `read` status propagation fails and that
+the program repeatedly downloads the same file over and over
+again. The pattern would look like this:
+
+ 1. notice file is read
+ 2. fail set it as read in Wallabag, but do not notice the failure
+ 3. delete the file anyways
+ 4. on the next run, download the file
+ 5. go to 1
+
+This could only happen if, for some reason the Wallabag API returns a
+200 error code when submitting the [`PATCH` API request][] for the
+entry, which would probably an error on the API side, although it
+doesn't clearly [document how to discover error conditions][].
+
+[document how to discover error conditions]: https://github.com/wallabag/wallabag/issues/2859
+
+[`PATCH` API request]: http://v2.wallabag.org/api/doc#patch--api-entries-{entry}.{_format}
 
 Spurious triggers
 -----------------
@@ -568,3 +592,12 @@ unit tests. But it's never too late to write tests! Some references:
   [tutorial](https://elithrar.github.io/article/testing-http-handlers-go/)
   which also includes database mocking
 * see also [those slides](https://talks.golang.org/2014/testing.slide)
+
+Annotations and read progress support
+-------------------------------------
+
+Annotations and read position are not propagated back. We could
+probably read the sqlite database and send that data back, eventually.
+
+All this stuff is not part of the Wallabago Go API, which could be
+[extended to support more operations](https://github.com/Strubbl/wallabago/issues/5).
