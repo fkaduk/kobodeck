@@ -46,3 +46,10 @@ lint:
 
 test:
 	echo 'no tests implemented yet, but if i would, i would do that with -race as well'
+
+sign:
+	@echo signing all binaries
+	rm -f build/*.asc
+	for bin in build/* ; do \
+		gpg --detach-sign -a "$$bin"; \
+	done
