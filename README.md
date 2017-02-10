@@ -553,3 +553,18 @@ and has simple usage instructions that we could follow.
 [fix itself]: https://github.com/docker-library/official-images/issues/2639
 [container registry]: https://gitlab.com/help/user/project/container_registry
 [Gitlab docker documentation]: https://docs.gitlab.com/ce/ci/docker/using_docker_images.html
+
+Unit tests
+----------
+
+Since this was my first go program, I figured I would reduce the
+learning curve by just writing code instead of also learning to write
+unit tests. But it's never too late to write tests! Some references:
+
+* [testing package](https://golang.org/pkg/testing/) - the
+  basic package, and the [official tutorial](https://golang.org/doc/code.html#Testing)
+* [httptest](https://golang.org/pkg/net/http/httptest/) - to test HTTP
+  requests specifically, see also this
+  [tutorial](https://elithrar.github.io/article/testing-http-handlers-go/)
+  which also includes database mocking
+* see also [those slides](https://talks.golang.org/2014/testing.slide)
