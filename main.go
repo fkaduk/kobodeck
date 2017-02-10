@@ -12,7 +12,9 @@ This is my first go program. Forgive me, because I have probably sinned.
 */
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -30,7 +32,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Strubbl/wallabago"
+	// because of https://github.com/Strubbl/wallabago/pull/4
+	"github.com/anarcat/wallabago"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/nightlyone/lockfile"
 )
@@ -138,6 +141,48 @@ func login(baseURL, username, password string) (*http.Client, error) {
 	return client, nil
 }
 
+func doAPI(method string, url string, body io.Reader) (data []byte, err error) {
+	// this is copied from getBodyOfAPIURL(), should probably be
+	// factored out
+
+	// XXX: this is silly - we shouldn't need to get a new token. but
+	// the module's token is global and that would be too much
+	// refactoring for now
+	token := wallabago.GetToken()
+	client := &http.Client{}
+	req, err := http.NewRequest(method, url, body)
+	authString := strings.ToUpper(string(token.TokenType[0])) + token.TokenType[1:len(token.TokenType)] + " " + token.AccessToken
+	//log.Println("getBodyOfAPIURL: authString=", authString)
+	req.Header.Add("Authorization", authString)
+	//log.Println("method, url, body:", method, url, body)
+	//dump, err := httputil.DumpRequestOut(req, true)
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//log.Printf("sending request: %q", dump)
+	resp, err := client.Do(req)
+	defer resp.Body.Close()
+	if err != nil {
+		//log.Println("data, err", data, err)
+		return data, err
+	}
+	data, err = ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != 200 {
+		//log.Println(resp, data)
+		return data, fmt.Errorf("error from the API: %s", resp.Status)
+	}
+	return data, err
+}
+
+func markAsRead(id int) (err error) {
+	log.Printf("marking entry %d as read", id)
+	tmp := map[string]string{"archive": "1"}
+	body, _ := json.Marshal(tmp)
+	_, err = doAPI("PATCH", wallabago.Config.WallabagURL+"/api/entries/"+strconv.Itoa(id)+".json", bytes.NewBuffer(body))
+	//log.Println("data, err", string(data), err)
+	return err
+}
+
 // get the unread entries, most recent first, limited to the given count
 func listEntries() []wallabago.Item {
 	e := wallabago.GetEntries(0, -1, "updated", "desc", -1, *count, "")
@@ -222,32 +267,10 @@ func readStatus(ID int) (res int, err error) {
 	return res, err
 }
 
-// isReading will tell if the given book ID is in the process of being read
-func isReading(ID int) (res bool, err error) {
-	tmp, err := readStatus(ID)
-	return tmp == koboBookReading, err
-}
-
-func maybeDeleteFile(id int, file string) (err error) {
-	if len(*koboDatabase) > 0 {
-		reading, err := isReading(id)
-		if err != nil {
-			return fmt.Errorf("cannot read database for book status, skipping deletion:", file, err)
-		} else if reading {
-			return fmt.Errorf("book is in reading, skipping deletion:", file)
-		}
-	}
-	if err = os.Remove(file); err != nil {
-		err = fmt.Errorf("warning: failed to remove file %s: %s", file, err)
-	} else {
-		err = nil
-	}
-	return err
-}
-
 // inspectLocalFiles looks into the given outputDir for files matching
 // the N.epub pattern where N is a Wallabag content ID, and processes
-// every entry according to the rules defined in maybeDeleteFile
+// every entry to mark it as read on the wallabag site and delete it
+// (if it's read)
 func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string) {
 	files, _ := filepath.Glob(outputDir + "/*.epub")
 	//log.Println("files:", files, outputDir+"/*.epub")
@@ -257,12 +280,28 @@ func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string) 
 			log.Println("skipping irreglar file", file)
 			continue
 		}
+		status, err := readStatus(id)
+		if status == koboBookRead {
+			err := markAsRead(id)
+			if err != nil {
+				log.Println("failed to mark as read:", err)
+			} else {
+				// read books are now up for deletion on next check
+				// anyways, speed that up so we can remove them now
+				valid[id] = false
+			}
+		}
 		if valid[id] {
 			//log.Println("keeping file with valid id:", file)
-		} else if err := maybeDeleteFile(id, file, valid); err != nil {
-			log.Println(err)
 		} else {
-			deleted = append(deleted, file)
+			if *doDelete && status != koboBookReading {
+				if err = os.Remove(file); err != nil {
+					log.Printf("warning: failed to remove file %s: %s", file, err)
+				} else {
+					log.Println("deleted file", file)
+					deleted = append(deleted, file)
+				}
+			}
 		}
 	}
 	return deleted
@@ -400,10 +439,7 @@ func main() {
 		}
 		defer db.Close()
 	}
-	var deleted []string
-	if *doDelete {
-		deleted = inspectLocalFiles(*outputDir, valid)
-	}
+	deleted := inspectLocalFiles(*outputDir, valid)
 	log.Printf("processed: %d, downloaded: %d, deleted: %d",
 		counter.Value("processed"), counter.Value("downloaded"), len(deleted))
 	if len(*notify) > 0 && (counter.Value("downloaded") > 0 || len(deleted) > 0) {
