@@ -271,7 +271,7 @@ func readStatus(ID int) (res int, err error) {
 // the N.epub pattern where N is a Wallabag content ID, and processes
 // every entry to mark it as read on the wallabag site and delete it
 // (if it's read)
-func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string) {
+func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, read []string) {
 	files, _ := filepath.Glob(outputDir + "/*.epub")
 	//log.Println("files:", files, outputDir+"/*.epub")
 	for _, file := range files {
@@ -289,6 +289,7 @@ func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string) 
 				// read books are now up for deletion on next check
 				// anyways, speed that up so we can remove them now
 				valid[id] = false
+				read = append(read, file)
 			}
 		}
 		if valid[id] {
@@ -304,7 +305,7 @@ func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string) 
 			}
 		}
 	}
-	return deleted
+	return deleted, read
 }
 
 // the base name of the pidfile
@@ -439,9 +440,9 @@ func main() {
 		}
 		defer db.Close()
 	}
-	deleted := inspectLocalFiles(*outputDir, valid)
-	log.Printf("processed: %d, downloaded: %d, deleted: %d",
-		counter.Value("processed"), counter.Value("downloaded"), len(deleted))
+	deleted, read := inspectLocalFiles(*outputDir, valid)
+	log.Printf("processed: %d, downloaded: %d, deleted: %d, read: %d",
+		counter.Value("processed"), counter.Value("downloaded"), len(deleted), len(read))
 	if len(*notify) > 0 && (counter.Value("downloaded") > 0 || len(deleted) > 0) {
 		log.Println("running command", *notify)
 		out, err := exec.Command(*notify).CombinedOutput()
