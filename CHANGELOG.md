@@ -5,7 +5,7 @@ Wallabako. The format of this change may change without prior notice.
 
  * add the `.txt` extension to logfiles so that they are
 visible from the e-reader to improve debugging
- * improve documentation with direct download links
+ * improve documentation significantly
  * deal with corrupt JSON files better
 
 This release is the direct result of hands-on usability testing with a
