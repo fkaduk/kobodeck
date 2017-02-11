@@ -74,7 +74,7 @@ automatically deployed. If you connect the reader again, the
 `KoboRoot.tgz` file should have disappeared.
 
 When you connec the wifi, the wallabako program should run, which
-should create a `wallabako.log` file at the top directory of the
+should create a `wallabako.log.txt` file at the top directory of the
 reader.
 
 Other devices
@@ -233,7 +233,7 @@ you shouldn't get those errors so please do file a bug if you can
 reproduce this issue.
 
 Also note that from 0.3, Wallabako logs debug information into
-`wallabako.log` on the reader, so you can look into those files to see
+`wallabako.log.txt` on the reader, so you can look into those files to see
 if it is running correctly when you plug your reader in a computer.
 
 x509: failed to load system roots and no roots provided
@@ -489,6 +489,9 @@ installing and using Wallabako. Here are the issues we found.
  6. the user had to be told to connect the reader back to see what was
     happening - they didn't find the logfile on their own.
 
+ 7. user attempted to tap the "Sync" button on the homepage to sync
+    articles, which fails because that doesn't trigger wallabako
+
 Proposed solutions:
 
  1. file a bug against Gitlab to allow hotlinking to latest
@@ -512,7 +515,10 @@ Proposed solutions:
     (instead of copy-pasting) might be a good workaround as well.
 
  6. make the logfile visible from the e-reader, by using a `.txt`
-    (works!) or `.html` (to be tested) extension
+    (works, and done!) or `.html` (to be tested) extension
+
+ 7. research the "Sync" button to see if it triggers something we can
+    hook into
 
 Autoconfiguration
 -----------------
