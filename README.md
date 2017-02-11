@@ -205,7 +205,7 @@ that format.
 Troubleshooting
 ===============
 
-To troubleshoot issues with the script, you will need to get
+To troubleshoot issues with the script, you may need to get
 commandline access into it, which is beyond the scope of this
 documentation. See the following tutorial for example.
 
