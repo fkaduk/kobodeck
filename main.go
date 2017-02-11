@@ -41,11 +41,12 @@ import (
 // XXX: we shouldn't need to write the password down in the config:
 // https://github.com/wallabag/wallabag/issues/2800
 var (
-	configJSON = flag.String("config", "", "file name of config JSON file")
-	outputDir  = flag.String("output", ".", "output directory to save files into")
-	count      = flag.Int("count", -1, "number of articles to fetch")
-	doDelete   = flag.Bool("delete", false, "if we should delete EPUB files not found in feed")
-	pidFile    = flag.String("pidfile", "", "pidfile to write to avoid multiple runs")
+	showVersion = flag.Bool("version", false, "show program version and exit")
+	configJSON  = flag.String("config", "", "file name of config JSON file")
+	outputDir   = flag.String("output", ".", "output directory to save files into")
+	count       = flag.Int("count", -1, "number of articles to fetch")
+	doDelete    = flag.Bool("delete", false, "if we should delete EPUB files not found in feed")
+	pidFile     = flag.String("pidfile", "", "pidfile to write to avoid multiple runs")
 
 	// default is from web browsers, which are around 6-10: http://www.browserscope.org/?category=network
 	concurrency = flag.Int("concurrency", 6, "number of downloads to process in parallel")
@@ -66,6 +67,9 @@ var (
 	// the home directory
 	home = os.Getenv("HOME")
 )
+
+// version is the program's version
+var version = "undefined"
 
 // db is the active database handle, if any
 var db *sql.DB
@@ -352,12 +356,16 @@ OuterLoop:
 }
 
 func main() {
-	start := time.Now()
-	log.SetOutput(os.Stdout)
-	defer func() {
-		log.Printf("completed in %.2fs\n", time.Since(start).Seconds())
-	}()
 	flag.Parse()
+	if *showVersion {
+		fmt.Println(version)
+		return
+	}
+	log.SetOutput(os.Stdout)
+	start := time.Now()
+	defer func() {
+		log.Printf("version %s completed in %.2fs\n", version, time.Since(start).Seconds())
+	}()
 	if err := findConfig(*configJSON); err != nil {
 		log.Fatal("cannot load configuration file: ", err.Error())
 	}

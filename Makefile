@@ -5,6 +5,8 @@
 # https://dominik.honnef.co/posts/2015/06/go-musl/?
 #GFLAGS+=--ldflags '-linkmode external -extldflags "-static"'
 
+GFLAGS+=-ldflags="$(LDFLAGS) -X main.version=$(shell git describe --always --long --dirty)"
+
 # to build for the Kobo, use:
 #
 # GOARCH=arm make build
@@ -21,7 +23,7 @@ BINARY?=build/wallabako.$(GNUARCH)
 
 tarball:
 	@echo building Kobo tarball
-	$(MAKE) build GOARCH=arm BINARY=build/wallabako.arm CGO_ENABLED=1 GOOS=linux GOARCH=arm CC="arm-linux-gnueabihf-gcc-6"
+	$(MAKE) build $(GFLAGS) GOARCH=arm BINARY=build/wallabako.arm CGO_ENABLED=1 GOOS=linux GOARCH=arm CC="arm-linux-gnueabihf-gcc-6"
 	cp build/wallabako.arm root/usr/local/bin/wallabako
     # make sure we ship a SSL certs file as the Kobo doesn't have any (!)
 	tar -C root/ -c -z -f build/KoboRoot.tgz etc /etc/ssl/certs/ca-certificates.crt usr

@@ -7,6 +7,8 @@ Wallabako. The format of this change may change without prior notice.
 visible from the e-reader to improve debugging
  * improve documentation significantly
  * deal with corrupt JSON files better
+ * add -version flag to show version
+ * show version when we exit normally as well
 
 This release is the direct result of hands-on usability testing with a
 non-technical user that gave great feedback. Thanks!

@@ -558,10 +558,9 @@ reproducible. [sigtool](https://github.com/opencoff/sigtool) looks
 like a go version of signify that we could use.
 
 This should also be able to discriminate between snapshots and tagged
-releases *and* know which version it's running (it doesn't, right
-now). Version information can be embeded at compile-time with
-`-ldflags="-X main.version=$(git describe --always --long --dirty)" or
-similar, see:
+releases. Since 0.7, wallabako knows which version it's
+running. Version information is embedded at compile-time with
+compile flags. This was inspired by:
 
 * https://www.reddit.com/r/golang/comments/4cpi2y/question_where_to_keep_the_version_number_of_a_go/
 * https://www.atatus.com/blog/golang-auto-build-versioning/
