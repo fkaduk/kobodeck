@@ -49,39 +49,36 @@ for other platforms. I have tested this on a Debian GNU/Linux 9
 
 <img alt="screenshot of a KoboRoot.tgz file in a Kobo reader" src="assets/kobotgz-screenshot.png" align="right" />
 
-Installation
-============
+Download and install
+====================
 
-Kobo devices
-------------
+Quick start for Kobo devices:
 
-To install this software on your Kobo reader, you will want to use the
-`KoboRoot.tgz` file. This file contains various scripts, binaries and
-configuration files that will enable the program to work on your
-device. Fetch the file from the latest release, or see below how to
-rebuild it yourself:
+ 1. connect your reader to your computer with a USB cable
+ 2. [download][] the [latest `KoboRoot.tgz`][]
+ 3. save the file in the `.kobo` directory of your e-reader
+ 4. create the configuration file as explained in the [configuration](#configuration)
+section
+ 5. disconnect the reader
 
-> <https://gitlab.com/anarcat/wallabako/tags>
-
-Connect your Kobo reader to your computer and copy the file to the
-reader's `.kobo` directory. You also need to create a `.wallabag.js` file
-in the top-level directory. See the [configuration](#configuration) section
-below for more information.
+[latest `KoboRoot.tgz`]: https://gitlab.com/anarcat/wallabako/builds/artifacts/master/file/build/KoboRoot.tgz?job=compile
+[download]: https://gitlab.com/anarcat/wallabako/builds/artifacts/master/file/build/KoboRoot.tgz?job=compile
 
 When you disconnect the reader, it will perform what looks like an
 upgrade, but it's just the content of the `KoboRoot.tgz` being
 automatically deployed. If you connect the reader again, the
 `KoboRoot.tgz` file should have disappeared.
 
-When you connec the wifi, the wallabako program should run, which
-should create a `wallabako.log.txt` file at the top directory of the
-reader.
+When you connect your reader to a Wifi access point, the wallabako
+program should run, which should create a `wallabako.log.txt` file at
+the top directory of the reader which you can use to diagnose
+problems, see also the [troubleshooting](#troubleshooting) section.
 
 Other devices
 -------------
 
-This program *may* also work on other devices, but that has never been
-tested. Feedback and testing is welcome.
+This program *may* also work on other, non-Kobo, devices, but that has
+never been tested. Feedback and testing is welcome.
 
 Other platforms
 ---------------
@@ -93,16 +90,13 @@ provided that you have the go suite installed. Simply do the usual:
 
 If you are unfamiliar with go, you may want to read up on the
 [getting started][] instructions. If you do not wish to install golang
-at all, you can also download the compiled binaries directly from the
-website:
+at all, you can also [download the standalone binaries][x86_64] for
+[64 bits][x86_64] (aka `amd64` or `x86_64`) or [ARM][arm]
+(e.g. Raspberry PI).
 
-> <https://gitlab.com/anarcat/wallabako/builds/artifacts/master/download?job=compile>
-
+ [x86_64]: https://gitlab.com/anarcat/wallabako/builds/artifacts/master/file/build/wallabako.x86_64?job=compile
+ [arm]: https://gitlab.com/anarcat/wallabako/builds/artifacts/master/file/build/wallabako.arm?job=compile
  [getting started]: https://golang.org/doc/install
-
-This will give you a ZIP file with standalone binaries for the
-supported architectures (currently `amd64`, AKA `x86_64` and
-`arm7`).
 
 You also need to create a configuration file.
 
@@ -170,8 +164,18 @@ when you connect your device with a cable will come up, even though
 the device is not connected! Simply tap the `Connect` button to
 continue the synchronisation and the library will find the new entries.
 
-Note that the "read" status of articles is not yet propagated back to
-the Wallabag instance - you will need to do this by hand.
+When an article downloaded with Wallabako is finished on your reader,
+it will be marked as read in Wallabag and will be *deleted from your
+reader*. This is because it is only a copy: you can always go back in
+Wallabag and mark the article as unread and Wallabako will download it
+again.
+
+Wallabako also downloads a limited numbers of articles from Wallabag,
+and it *will* remove extra articles (for example if they are too old
+or were marked as read in Wallabag).
+
+Wallabako will never delete articles you are currently reading, even
+if they are marked as read in Wallabag.
 
 Commandline
 -----------
@@ -494,8 +498,13 @@ installing and using Wallabako. Here are the issues we found.
 
 Proposed solutions:
 
- 1. file a bug against Gitlab to allow hotlinking to latest
-    release. workaround: make a website with a hand-crafted link
+ 1. <del>file a bug against Gitlab to allow hotlinking to latest
+    release. workaround: make a website with a hand-crafted link</del>
+    there is such a link already, and it works great:
+    
+    <https://gitlab.com/anarcat/wallabako/builds/artifacts/master/file/build/KoboRoot.tgz?job=compile>
+
+    `master` can be replaced by a tag name and that also works.
 
  2. make a separate website on Gitlab pages or Readthedocs with a
     simple splash page and step-by-step instructions, hard-linking to
