@@ -5,7 +5,7 @@
 # https://dominik.honnef.co/posts/2015/06/go-musl/?
 #GFLAGS+=--ldflags '-linkmode external -extldflags "-static"'
 
-GFLAGS+=-ldflags="$(LDFLAGS) -X main.version=$(shell git describe --always --long --dirty)"
+GFLAGS+=-ldflags="$(LDFLAGS) -X main.version=$(shell git describe --always --dirty)"
 
 # to build for the Kobo, use:
 #
