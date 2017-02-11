@@ -93,6 +93,8 @@ func findConfig(path string) (err error) {
 	for _, path := range confPaths {
 		if err = wallabago.ReadConfig(path); err == nil {
 			break
+		} else {
+			log.Println(err)
 		}
 	}
 	return err
