@@ -61,42 +61,6 @@ program should run, which should create a `wallabako.log.txt` file at
 the top directory of the reader which you can use to diagnose
 problems, see also the [troubleshooting](#troubleshooting) section.
 
-Other devices
--------------
-
-This program *may* also work on other, non-Kobo, devices, but that has
-never been tested. Feedback and testing is welcome.
-
-Other platforms
----------------
-
-Wallabako can also be compiled installed on a regular computer,
-provided that you have the go suite installed. Simply do the usual:
-
-    go get gitlab.com/anarcat/wallabako
-
-If you are unfamiliar with go, you may want to read up on the
-[getting started][] instructions. If you do not wish to install golang
-at all, you can also [download the standalone binaries][x86_64] for
-[64 bits][x86_64] (aka `amd64` or `x86_64`) or [ARM][arm]
-(e.g. Raspberry PI).
-
- [x86_64]: https://gitlab.com/anarcat/wallabako/builds/artifacts/master/file/build/wallabako.x86_64?job=compile
- [arm]: https://gitlab.com/anarcat/wallabako/builds/artifacts/master/file/build/wallabako.arm?job=compile
- [getting started]: https://golang.org/doc/install
-
-You also need to create a configuration file.
-
-The program looks for the file in the following locations:
-
-1. `$HOME/.config/wallabako.js`
-2. `$HOME/.wallabako.js`
-3. `/mnt/onboard/.wallabako.js`
-4. `/etc/wallabako.js`
-
-You will probably want to choose the first option unless you are
-configuring this as a system-level daemon.
-
 Configuration
 =============
 
@@ -167,9 +131,36 @@ if they are marked as read in Wallabag.
 Commandline
 -----------
 
-To run wallabako on a regular computer, you will need to use the
-commandline. For example, this will download your articles in the
-`epubs` directory in your home:
+Wallabako can also be compiled installed on a regular computer,
+provided that you have the go suite installed. Simply do the usual:
+
+    go get gitlab.com/anarcat/wallabako
+
+If you are unfamiliar with go, you may want to read up on the
+[getting started][] instructions. If you do not wish to install golang
+at all, you can also [download the standalone binaries][x86_64] for
+[64 bits][x86_64] (aka `amd64` or `x86_64`) or [ARM][arm]
+(e.g. Raspberry PI).
+
+ [x86_64]: https://gitlab.com/anarcat/wallabako/builds/artifacts/master/file/build/wallabako.x86_64?job=compile
+ [arm]: https://gitlab.com/anarcat/wallabako/builds/artifacts/master/file/build/wallabako.arm?job=compile
+ [getting started]: https://golang.org/doc/install
+
+You also need to create a [configuration](#configuration) file as
+detailed above.
+
+The program looks for the file in the following locations:
+
+1. `$HOME/.config/wallabako.js`
+2. `$HOME/.wallabako.js`
+3. `/mnt/onboard/.wallabako.js`
+4. `/etc/wallabako.js`
+
+You will probably want to choose the first option unless you are
+configuring this as a system-level daemon.
+
+Then you can just run wallabako on the commandline. For example, this
+will download your articles in the `epubs` directory in your home:
 
     wallabako -output ~/epubs
 
