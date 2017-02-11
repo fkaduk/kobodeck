@@ -1,6 +1,15 @@
 This is a summary of changes in the published releases of
 Wallabako. The format of this change may change without prior notice.
 
+# 0.7: Call of Chtulu
+
+ * add the `.txt` extension to logfiles so that they are
+visible from the e-reader to improve debugging
+ * improve documentation with direct download links
+
+This release is the direct result of hands-on usability testing with a
+non-technical user that gave great feedback. Thanks!
+
 # 0.6: Look out honey, cause I'm using technology!
 
 This feature release now will propagate read status to the Wallabag
