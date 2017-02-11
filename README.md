@@ -518,7 +518,10 @@ Proposed solutions:
     (works, and done!) or `.html` (to be tested) extension
 
  7. research the "Sync" button to see if it triggers something we can
-    hook into
+    hook into, see if there's answers to [this post][post57] or post a
+    new question elsewhere...
+    
+ [post57]: https://www.mobileread.com/forums/showpost.php?p=3473914&postcount=57
 
 Autoconfiguration
 -----------------
