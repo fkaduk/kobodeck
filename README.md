@@ -18,6 +18,10 @@ Features:
 * **easy install**: just drop the magic file in your kobo reader like any
   other book, edit one configuration file and you're done
 
+The instructions here are mostly for the Kobo E-readers but may work
+for other platforms. I have tested this on a Debian GNU/Linux 9
+("stretch") system, a Kobo Glo HD and a Kobo Touch.
+
 Table of contents:
 
 - [Context](#context)
@@ -30,22 +34,6 @@ Table of contents:
 - [Credits](#credits)
 - [Design notes](#design-notes)
 - [Remaining issues](#remaining-issues)
-
-Context
-=======
-
-I wrote this to sync unread articles to my Kobo ebook reader, but it
-should work everywhere you can compile a go program, which includes
-GNU/Linux, Mac OS X, Windows and FreeBSD systems.
-
-I wrote this in Go to get familiar with the language but also because
-it simplifies deployment: a single static binary can be shipped
-instead of having to ship a full interpreter in my normal language of
-choice (Python).
-
-The instructions below are mostly for the Kobo E-readers but may work
-for other platforms. I have tested this on a Debian GNU/Linux 9
-("stretch") system and a Kobo Glo HD.
 
 <img alt="screenshot of a KoboRoot.tgz file in a Kobo reader" src="assets/kobotgz-screenshot.png" align="right" />
 
@@ -336,6 +324,15 @@ Design notes
 This section explains in more details how the program works
 internally. It shouldn't be necessary to read this to operate the
 program.
+
+I wrote this to sync unread articles to my Kobo ebook reader, but it
+should work everywhere you can compile a go program, which includes
+GNU/Linux, Mac OS X, Windows and FreeBSD systems.
+
+I wrote this in Go to get familiar with the language but also because
+it simplifies deployment: a single static binary can be shipped
+instead of having to ship a full interpreter in my normal language of
+choice (Python).
 
 File synchronisation and deletion
 ---------------------------------
