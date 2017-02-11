@@ -449,6 +449,33 @@ Remaining issues
 Those are known issues with the program. There are also `XXX` markers
 in the source code that show other issues that need to be checked.
 
+Usability
+---------
+
+Usability tests with a friendly user have revealed severe issues with
+installing and using Wallabako. First, there's no clear "Download"
+button that the user can just follow to get the software. Worse, they
+are served with a wall of text they need to parse. We need a simple
+step-by-step procedure to help people deploy that thing on their
+devices.
+
+Second, the instructions for copying the file were actually
+incorrect - the file needs to be dropped in `.kobo` and not the root
+of the reader. The instructions to edit the file also didn't work
+because the user used their usual text editor (LibreOffice) to create
+the `.wallabako.js` file and, when the `.txt` format was chosen, the
+file created was actually `.wallabako.js.txt`, even though the user
+properly entered the filename. This is arguably a bug in LibreOffice,
+but we can't expect users to workaround that on their own. Besides,
+the whole procedure is really obscure and complicated: it may be worth
+using a simple (even if commandline) question/answer dialog to
+download relevant files, create config files, copy it in place and so
+on.
+
+Finally, there is too little visbility in what is going on. Having a
+visible (from the reader) logfile (see logging, below) would help a
+lot in showing the program is running correctly.
+
 Autoconfiguration
 -----------------
 
@@ -610,3 +637,21 @@ probably read the sqlite database and send that data back, eventually.
 
 All this stuff is not part of the Wallabago Go API, which could be
 [extended to support more operations](https://github.com/Strubbl/wallabago/issues/5).
+
+Better logging
+--------------
+
+Logs are currently written in a single logfile that is never rotated
+and is quite verbose. After 10 days of more or less continuous
+operation, the logfile here had grown to around 400KB and is still
+growing.
+
+We will need to implement log rotation, at the very least. This will
+probably involve rolling our own mechanism for this, as we can't
+assume there's a logrotate in the Kobo reader.
+
+Furthermore, it would be neat if we could have those logs readable
+*inside the device*. That would bring much more visibility to what's
+going on in Wallabako to the user. Even though it would still be quite
+obscure, it would be more convenient than having to plug the device in
+or login over SSH.
