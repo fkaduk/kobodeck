@@ -459,28 +459,60 @@ Usability
 ---------
 
 Usability tests with a friendly user have revealed severe issues with
-installing and using Wallabako. First, there's no clear "Download"
-button that the user can just follow to get the software. Worse, they
-are served with a wall of text they need to parse. We need a simple
-step-by-step procedure to help people deploy that thing on their
-devices.
+installing and using Wallabako. Here are the issues we found.
 
-Second, the instructions for copying the file were actually
-incorrect - the file needs to be dropped in `.kobo` and not the root
-of the reader. The instructions to edit the file also didn't work
-because the user used their usual text editor (LibreOffice) to create
-the `.wallabako.js` file and, when the `.txt` format was chosen, the
-file created was actually `.wallabako.js.txt`, even though the user
-properly entered the filename. This is arguably a bug in LibreOffice,
-but we can't expect users to workaround that on their own. Besides,
-the whole procedure is really obscure and complicated: it may be worth
-using a simple (even if commandline) question/answer dialog to
-download relevant files, create config files, copy it in place and so
-on.
+ 1. there's *no "Download" button* that the user can just follow to
+    get the software.
+ 
+ 2. users do not read the documentation, because it's a wall of
+    text. We need a simple step-by-step procedure to help people
+    deploy that thing on their devices.
 
-Finally, there is too little visbility in what is going on. Having a
-visible (from the reader) logfile (see logging, below) would help a
-lot in showing the program is running correctly.
+ 3. instructions for copying the file in place were incorrectly
+    telling the user to put the file at the toplevel directory when
+    the file needs to be in the `.kobo` subdirectory. the screenshot
+    provided still shows that mistake.
+
+ 4. the instructions to edit the file also didn't work because the
+    user used their usual text editor (LibreOffice) to create the
+    `.wallabako.js` file and, when the `.txt` format was chosen, the
+    file created was actually `.wallabako.js.txt`, even though the
+    user properly entered the filename. This is arguably a bug in
+    LibreOffice, but we can't expect users to workaround that on their
+    own.
+
+ 5. the configuration file written by LibreOffice was not recognized
+    as the JSON parser would crash on the
+    [BOM](http://www.unicode.org/faq/utf_bom.html#BOM) marker inserted
+    at the beginning of the file.
+
+ 6. the user had to be told to connect the reader back to see what was
+    happening - they didn't find the logfile on their own.
+
+Proposed solutions:
+
+ 1. file a bug against Gitlab to allow hotlinking to latest
+    release. workaround: make a website with a hand-crafted link
+
+ 2. make a separate website on Gitlab pages or Readthedocs with a
+    simple splash page and step-by-step instructions, hard-linking to
+    the released version if necessary.
+
+ 3. instructions already fixed to mention the `.kobo` directory, need
+    to fix screenshot as well.
+
+ 4. possibly write an installer that will generate the config file for
+    the user, using a simple (even if commandline) question/answer
+    dialog to download relevant files, create config files, copy it in
+    place and so on.
+
+ 5. what the fuck, seriously. fix the parser to ignore BOM
+    markers. telling users to "use a proper editor" sounds more like
+    evangelism than a usability fix. providing a template file
+    (instead of copy-pasting) might be a good workaround as well.
+
+ 6. make the logfile visible from the e-reader, by using a `.txt`
+    (works!) or `.html` (to be tested) extension
 
 Autoconfiguration
 -----------------
@@ -650,14 +682,52 @@ Better logging
 Logs are currently written in a single logfile that is never rotated
 and is quite verbose. After 10 days of more or less continuous
 operation, the logfile here had grown to around 400KB and is still
-growing.
-
-We will need to implement log rotation, at the very least. This will
-probably involve rolling our own mechanism for this, as we can't
-assume there's a logrotate in the Kobo reader.
+growing. We will need to implement log rotation, or, at the very
+least, log level filtering to limit the amount of data in the
+logfile. This will probably involve rolling our own mechanisms for
+this, as we can't assume there's a logrotate in the Kobo reader. We
+could also send debugging logs to syslog.
 
 Furthermore, it would be neat if we could have those logs readable
 *inside the device*. That would bring much more visibility to what's
 going on in Wallabako to the user. Even though it would still be quite
 obscure, it would be more convenient than having to plug the device in
 or login over SSH.
+
+There are a *lot* of [logging libraries][] for Go, which is probably a
+result of the limited functionality available in the standard
+library. Of those, I should mention:
+
+* [mlog](https://github.com/jbrodriguez/mlog) - supports log rotation
+* [logutils](https://github.com/hashicorp/logutils) - wraps the
+  standard library to filter based on strings
+* [logging](https://github.com/op/go-logging) - multi-backend support
+  with differenciated level filtering, colors, seems well-designed and
+  self-contained
+* [rlog](https://github.com/romana/rlog) - log level filtering and
+  file output configurable through config file or environment,
+  standlone
+* [glog](https://godoc.org/github.com/golang/glog) - level filtering,
+  hooks into the flags package for output control, Google's simple
+  implementation, can hook into the builtin log package
+* [lumberjack](https://github.com/natefinch/lumberjack) - rotation for
+  the builtin logger
+* [logger](https://github.com/azer/logger) - timers, env-based log
+  selection, JSON output
+
+Probably shouldn't considered, but may be interesting in other
+projects:
+
+* [logrus](https://github.com/Sirupsen/logrus) - level filtering, *lots*
+  of backends supported, environments, formatters, *no* log rotation,
+  thread-safe, structured, colors, oh my... 
+* [log4go](https://github.com/Kissaki/log4go) - level filtering,
+  rotation, XML, drop-in compatible with log, multi-backend support
+  with differenciated levels, 
+  [unmaintained](https://github.com/alecthomas/log4go)?
+* [seelog](https://github.com/cihub/seelog) - lots of features, but
+  XML config.
+* [zap](https://github.com/uber-go/zap) - really fast, but weird
+  calling sequence
+
+[logging libraries]: https://github.com/avelino/awesome-go#logging
