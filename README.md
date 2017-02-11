@@ -24,7 +24,6 @@ for other platforms. I have tested this on a Debian GNU/Linux 9
 
 Table of contents:
 
-- [Context](#context)
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Usage](#usage)
@@ -754,3 +753,5 @@ projects:
 * [logrotate](https://github.com/NYTimes/logrotate) - if we *would*
   use a logrotate daemon or cronjob, this would allow use to
   gracefully handle signals
+* [logxi](https://github.com/mgutz/logxi) - colors, env-triggered
+  levels, simpler interface than logrus, fast, structured
