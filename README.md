@@ -713,7 +713,10 @@ or login over SSH.
 
 There are a *lot* of [logging libraries][] for Go, which is probably a
 result of the limited functionality available in the standard
-library. Of those, I should mention:
+library. See also this [rated list][]. Of those, I should mention:
+
+[logging libraries]: https://github.com/avelino/awesome-go#logging
+[rated list]: https://golanglibs.com/category/logging
 
 * [mlog](https://github.com/jbrodriguez/mlog) - supports log rotation
 * [logutils](https://github.com/hashicorp/logutils) - wraps the
@@ -731,6 +734,8 @@ library. Of those, I should mention:
   the builtin logger
 * [logger](https://github.com/azer/logger) - timers, env-based log
   selection, JSON output
+* [clog](https://github.com/go-clog/clog) - parallelized logger, can
+  log to slack, files, console, level filtering, poor documentation
 
 Probably shouldn't considered, but may be interesting in other
 projects:
@@ -746,5 +751,6 @@ projects:
   XML config.
 * [zap](https://github.com/uber-go/zap) - really fast, but weird
   calling sequence
-
-[logging libraries]: https://github.com/avelino/awesome-go#logging
+* [logrotate](https://github.com/NYTimes/logrotate) - if we *would*
+  use a logrotate daemon or cronjob, this would allow use to
+  gracefully handle signals
