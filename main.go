@@ -149,15 +149,9 @@ func doAPI(method string, url string, body io.Reader) (data []byte, err error) {
 	// this is copied from getBodyOfAPIURL(), should probably be
 	// factored out
 
-	// XXX: this is silly - we shouldn't need to get a new token. but
-	// the module's token is global and that would be too much
-	// refactoring for now
-	token := wallabago.GetToken()
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, body)
-	authString := strings.ToUpper(string(token.TokenType[0])) + token.TokenType[1:len(token.TokenType)] + " " + token.AccessToken
-	//log.Println("getBodyOfAPIURL: authString=", authString)
-	req.Header.Add("Authorization", authString)
+	req.Header.Add("Authorization", wallabago.GetAuthTokenHeader())
 	//log.Println("method, url, body:", method, url, body)
 	//dump, err := httputil.DumpRequestOut(req, true)
 	//if err != nil {
