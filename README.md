@@ -64,12 +64,18 @@ rebuild it yourself:
 > <https://gitlab.com/anarcat/wallabako/tags>
 
 Connect your Kobo reader to your computer and copy the file to the
-reader's top directory. You also need to create a `.wallabag.js` file
-in that directory. See the [configuration](#configuration) section
+reader's `.kobo` directory. You also need to create a `.wallabag.js` file
+in the top-level directory. See the [configuration](#configuration) section
 below for more information.
 
-When you disconnect the reader, the content of the `KoboRoot.tgz`
-should be automatically deployed by the Kobo reader.
+When you disconnect the reader, it will perform what looks like an
+upgrade, but it's just the content of the `KoboRoot.tgz` being
+automatically deployed. If you connect the reader again, the
+`KoboRoot.tgz` file should have disappeared.
+
+When you connec the wifi, the wallabako program should run, which
+should create a `wallabako.log` file at the top directory of the
+reader.
 
 Other devices
 -------------
