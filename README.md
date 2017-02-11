@@ -501,7 +501,8 @@ Proposed solutions:
     
     <https://gitlab.com/anarcat/wallabako/builds/artifacts/master/file/build/KoboRoot.tgz?job=compile>
 
-    `master` can be replaced by a tag name and that also works.
+    `master` can be replaced by a tag name and that also works. filed
+    a [MR to document this][]
 
  2. make a separate website on Gitlab pages or Readthedocs with a
     simple splash page and step-by-step instructions, hard-linking to
@@ -528,6 +529,7 @@ Proposed solutions:
     new question elsewhere...
     
  [post57]: https://www.mobileread.com/forums/showpost.php?p=3473914&postcount=57
+ [MR to document this]: https://gitlab.com/gitlab-org/gitlab-ce/merge_requests/9161
 
 Autoconfiguration
 -----------------
