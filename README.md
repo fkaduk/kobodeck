@@ -64,16 +64,19 @@ problems, see also the [troubleshooting](#troubleshooting) section.
 Configuration
 =============
 
-Once the program is installed, you need to configure it by creating a
-`wallabako.js` file, with the following content:
+The next step is to configure Wallabako by creating a `.wallabako.js`
+file in the top directory of the reader, with the following content:
 
     {
       "WallabagURL": "https://app.wallabag.it",
       "ClientId": "14_2vun20ernfy880wgkk88gsoosk4csocs4ccw4sgwk84gc84o4k",
       "ClientSecret": "69k0alx9bdcsc0c44o84wk04wkgw0c0g4wkww8c0wwok0sk4ok",
       "UserName": "joelle",
-      "UserPassword": "ShahWinceIdlyTsarRinseYemen"
+      "UserPassword": "your super password goes here"
     }
+
+Make sure you use a plain text editor like `Gedit` or `Notepad`, as
+LibreOffice will cause you trouble!
 
 Let's take this one step at a time. First, the weird curly braces
 syntax is because this is a [JSON](https://en.wikipedia.org/wiki/JSON)
