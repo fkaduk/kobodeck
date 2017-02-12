@@ -1,6 +1,13 @@
 This is a summary of changes in the published releases of
 Wallabako. The format of this change may change without prior notice.
 
+# 0.8: Stop don't do it
+
+ * trigger wallabako only when the interface goes back up
+ * make version number less verbose for released versions
+ * make sizes human-readable
+ * handle download errors better
+
 # 0.7: Call of Chtulu
 
  * add the `.txt` extension to logfiles so that they are
