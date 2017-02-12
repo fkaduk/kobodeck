@@ -216,7 +216,7 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 	} else if os.IsNotExist(err) {
 		//log.Println("missing:", err)
 	} else if err != nil {
-		return fmt.Errorf("unexpected error checking existing file:", err)
+		return fmt.Errorf("unexpected error checking existing file: %v", err)
 	} else {
 		//log.Printf("out of date: err: %s, modtime: %s, changed: %s, before? : %s", err, info.ModTime(), entry.changed, info.ModTime().Before(entry.changed))
 	}
