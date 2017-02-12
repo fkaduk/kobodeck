@@ -239,6 +239,7 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 		return fmt.Errorf("can't write file: %v", err)
 	}
 	counter.Inc("downloaded")
+	counter.Add("bytes")
 	log.Printf("wrote %d bytes in file %s", n, output)
 	return nil
 }
@@ -452,8 +453,8 @@ func main() {
 		defer db.Close()
 	}
 	deleted, read := inspectLocalFiles(*outputDir, valid)
-	log.Printf("processed: %d, downloaded: %d, deleted: %d, read: %d",
-		counter.Value("processed"), counter.Value("downloaded"), len(deleted), len(read))
+	log.Printf("processed: %d, downloaded: %d, bytes: %d, deleted: %d, read: %d",
+		counter.Value("processed"), counter.Value("downloaded"), counter.Value("bytes"), len(deleted), len(read))
 	if len(*notify) > 0 && (counter.Value("downloaded") > 0 || len(deleted) > 0) {
 		log.Println("running command", *notify)
 		out, err := exec.Command(*notify).CombinedOutput()
