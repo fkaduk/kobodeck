@@ -645,6 +645,13 @@ no cron daemon) to fire up the program repeatedly (with a sleep in
 between, of course). But this could affect battery usage, so use with
 care...
 
+Even worse, the sync gets triggered then the emulated disconnect
+happens: the nickel environment resumes, reconnects the wifi, and then
+... starts the sync again. In some cases, it starts up so fast that
+the drive is mount mounted yet - or at least the drive fails to mount,
+somehow. Maybe we should keep the lock a little longer in the end? Not
+sure.
+
 Slow builds
 -----------
 
