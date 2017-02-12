@@ -652,6 +652,15 @@ the drive is mount mounted yet - or at least the drive fails to mount,
 somehow. Maybe we should keep the lock a little longer in the end? Not
 sure.
 
+It is unclear how to solve this - we don't have many options because
+the Linux distribution Kobo is running is so ... alien. We could
+restrict the udev rules to `ACTION=="add"` (being tested). Another
+option would be to try and hook into DBUS, wpa-supplicant, dhcpcd or
+some other existing daemon. Finally, the kernel has the netlink(7)
+socket interface to get notifications for interface changes since
+Linux 2.2, but that would require starting as a daemon which is
+trickier.
+
 Slow builds
 -----------
 
