@@ -55,3 +55,9 @@ sign:
 	for bin in build/* ; do \
 		gpg --detach-sign -a "$$bin"; \
 	done
+
+HOST?=localhost
+
+deploy: tarball
+	@echo deploying to $(HOST)
+	pv build/KoboRoot.tgz | ssh root@$(HOST) 'cd / ; tar zxf -'
