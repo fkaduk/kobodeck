@@ -18,6 +18,13 @@ func (c *SafeCounter) Inc(key string) {
 	c.v[key]++
 }
 
+// Add adds the value to the given key.
+func (c *SafeCounter) Add(key string, value int) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	c.v[key] += value
+}
+
 // Value returns the current value of the counter for the given key.
 func (c *SafeCounter) Value(key string) int {
 	c.mux.Lock()

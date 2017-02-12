@@ -34,6 +34,7 @@ import (
 
 	// because of https://github.com/Strubbl/wallabago/pull/4
 	"github.com/anarcat/wallabago"
+	"github.com/dustin/go-humanize"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/nightlyone/lockfile"
 )
@@ -238,9 +239,11 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 	if err != nil {
 		return fmt.Errorf("can't write file: %v", err)
 	}
-	counter.Inc("downloaded")
-	counter.Add("bytes")
-	log.Printf("wrote %d bytes in file %s", n, output)
+	if n >= 0 {
+		counter.Inc("downloaded")
+		counter.Add("bytes", int(n))
+		log.Printf("wrote %d bytes (%s) in file %s", n, humanize.IBytes(uint64(n)), output)
+	}
 	return nil
 }
 
@@ -453,8 +456,8 @@ func main() {
 		defer db.Close()
 	}
 	deleted, read := inspectLocalFiles(*outputDir, valid)
-	log.Printf("processed: %d, downloaded: %d, bytes: %d, deleted: %d, read: %d",
-		counter.Value("processed"), counter.Value("downloaded"), counter.Value("bytes"), len(deleted), len(read))
+	log.Printf("processed: %d, downloaded: %d, size: %s, deleted: %d, read: %d",
+		counter.Value("processed"), counter.Value("downloaded"), humanize.IBytes(uint64(counter.Value("bytes"))), len(deleted), len(read))
 	if len(*notify) > 0 && (counter.Value("downloaded") > 0 || len(deleted) > 0) {
 		log.Println("running command", *notify)
 		out, err := exec.Command(*notify).CombinedOutput()
