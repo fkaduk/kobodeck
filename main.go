@@ -212,8 +212,10 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 	if err == nil && info.ModTime().After(entry.UpdatedAt.Time) && info.Size() > 0 {
 		log.Printf("URL %s older than local file %s, skipped", epubURL, output)
 		return nil
-	} else if err != nil {
+	} else if os.IsNotExist(err) {
 		//log.Println("missing:", err)
+	} else if err != nil {
+		return fmt.Errorf("unexpected error checking existing file:", err)
 	} else {
 		//log.Printf("out of date: err: %s, modtime: %s, changed: %s, before? : %s", err, info.ModTime(), entry.changed, info.ModTime().Before(entry.changed))
 	}
