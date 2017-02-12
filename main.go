@@ -433,7 +433,9 @@ func main() {
 		go func(e wallabago.Item) {
 			// release the slot when finished
 			defer func() { <-sem }()
-			download(client, wallabago.Config.WallabagURL, e)
+			if err = download(client, wallabago.Config.WallabagURL, e); err != nil {
+				log.Println("error downloading entry", entry.ID)
+			}
 		}(entry)
 	}
 	// refill all the semaphore slots to make sure we wait for everyone
