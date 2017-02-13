@@ -7,9 +7,11 @@
 # complete discussion here:
 # https://www.mobileread.com/forums/showthread.php?p=3467503
 
+delay=15
+
 echo Simulating USB cable connect
 echo usb plug add >>/tmp/nickel-hardware-status
-echo Waiting 10 seconds for user to hit Connect
-sleep 10
+echo Waiting $delay seconds for user to hit Connect
+sleep $delay
 echo Simulating USB cable disconnect
 echo usb plug remove >>/tmp/nickel-hardware-status
