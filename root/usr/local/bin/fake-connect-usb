@@ -16,7 +16,7 @@ sleep $delay
 echo Simulating USB cable disconnect
 echo usb plug remove >>/tmp/nickel-hardware-status
 sleep 3
-if ! mount | grep onboard; then
+if ! mount | grep -q /mnt/onboard; then
     echo disk not mounted, force-mounting
     mount /dev/mmcblk0p3 /mnt/onboard
 fi
