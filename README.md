@@ -354,17 +354,6 @@ anymore. The newer RFC about this ([RFC7230][]) specifies
 [no explicit limit]: https://tools.ietf.org/html/rfc7230#section-6.4
 [this chart]: http://www.browserscope.org/?category=network
 
-Timestamps and order
---------------------
-
-The Kobo reader shows the articles in some time-related order. It
-may be alphabetical order, modification time or access time, unclear.
-
-Because we download files in parallel, the file creation dates are not
-ordered. (Arguably, even if they were, they would technically be
-incorrect as well.) We therefore set the file modification and access
-to the the article modification date.
-
 Wifi trigger
 ------------
 
@@ -593,6 +582,19 @@ The new Wallabag release (2.2) gives us a new API to download actual
 EPUBs directly, without having to login in a separate session. Before
 we do this, my friendly provider needs to update the instance so I can
 test this, which depends on the release stabilizing a little.
+
+Timestamps and order
+--------------------
+
+The Kobo reader shows the articles in some time-related order. It
+may be alphabetical order, modification time or access time, unclear.
+
+Because we download files in parallel, the file creation dates are not
+ordered. (Arguably, even if they were, they would technically be
+incorrect as well.) We therefore set the file modification and access
+to the the article modification date. Unfortunately, it seems that the
+Kobo application promptly ignores that completely and bases its own
+internal timestamp on the discovery date.
 
 Performance
 -----------
