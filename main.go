@@ -427,6 +427,7 @@ func readStatus(ID int) (res int, err error) {
 	if err != nil {
 		return res, err
 	}
+	defer rows.Close()
 	var readStatus int
 	if rows.Next() {
 		if err := rows.Scan(&readStatus); err == nil {
