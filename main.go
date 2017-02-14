@@ -39,27 +39,28 @@ import (
 	"github.com/nightlyone/lockfile"
 )
 
-// XXX: we shouldn't need to write the password down in the config:
-// https://github.com/wallabag/wallabag/issues/2800
+// commandline flags
 var (
-	showVersion = flag.Bool("version", false, "show program version and exit")
-	configJSON  = flag.String("config", "", "file name of config JSON file")
-	outputDir   = flag.String("output", ".", "output directory to save files into")
-	count       = flag.Int("count", -1, "number of articles to fetch")
-	doDelete    = flag.Bool("delete", false, "if we should delete EPUB files not found in feed")
-	pidFile     = flag.String("pidfile", "", "pidfile to write to avoid multiple runs")
-
+	// XXX: we shouldn't need to write the password down in the config:
+	// https://github.com/wallabag/wallabag/issues/2800
+	configJSON = flag.String("config", "", "file name of config JSON file")
 	// default is from web browsers, which are around 6-10: http://www.browserscope.org/?category=network
-	concurrency = flag.Int("concurrency", 6, "number of downloads to process in parallel")
-
-	notify = flag.String("exec", "", "execute the given command when files have changed")
-
-	retryMax = flag.Int("retry", 4, "number of attempts to login the website, with exponential backoff delay")
-
+	concurrency  = flag.Int("concurrency", 6, "number of downloads to process in parallel")
+	count        = flag.Int("count", -1, "number of articles to fetch")
+	doDelete     = flag.Bool("delete", false, "if we should delete EPUB files not found in feed")
 	koboDatabase = flag.String("database", "/mnt/onboard/.kobo/KoboReader.sqlite", "path to Kobo database")
+	notify       = flag.String("exec", "", "execute the given command when files have changed")
+	outputDir    = flag.String("output", ".", "output directory to save files into")
+	pidFile      = flag.String("pidfile", "", "pidfile to write to avoid multiple runs")
+	retryMax     = flag.Int("retry", 4, "number of attempts to login the website, with exponential backoff delay")
+	showVersion  = flag.Bool("version", false, "show program version and exit")
+)
 
+// various global variables
+var (
 	// this is a generic counter to safely count things across threads
-	// we use it to count how many files we actually downloaded
+	// we use it to count how many files we actually downloaded and
+	// other statistics
 	counter = SafeCounter{v: make(map[string]int)}
 
 	// the regex for the CSRF token in the login page
@@ -67,13 +68,13 @@ var (
 
 	// the home directory
 	home = os.Getenv("HOME")
+
+	// version is the program's version
+	version = "undefined"
+
+	// db is the active database handle, if any
+	db *sql.DB
 )
-
-// version is the program's version
-var version = "undefined"
-
-// db is the active database handle, if any
-var db *sql.DB
 
 // confPath is the name of the default configuration file
 const confPath = "wallabako.js"
