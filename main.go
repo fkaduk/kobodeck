@@ -106,6 +106,50 @@ func findConfig(path string) (err error) {
 	return err
 }
 
+// the base name of the pidfile
+const pidPath = "wallabako.pid"
+
+// the actual pathnames to check
+var pidPaths = []string{
+	"/var/run/" + pidPath,
+	"/run/" + pidPath,
+	"/run/user/" + strconv.Itoa(os.Getuid()) + "/" + pidPath,
+	home + "/." + pidPath,
+}
+
+// getLock creates a lock file with the given path or, if empty, in an
+// appropriate location in a series of predefined locations.
+//
+// WARNING: this does *not* defer the Unlock method, since it's out of
+// scope - that should be done by the caller
+func getLock(path string) (lock lockfile.Lockfile, err error) {
+	if len(path) > 0 {
+		if path, err = filepath.Abs(path); err != nil {
+			return lock, err
+		}
+		// only error possible is if we don't have an absolute path,
+		// already handled
+		lock, _ = lockfile.New(path)
+		err = lock.TryLock()
+		return lock, err
+	}
+OuterLoop:
+	for _, path := range pidPaths {
+		//log.Println("trying lockfile path", path)
+		lock, _ = lockfile.New(path)
+		err = lock.TryLock()
+		switch err.(type) {
+		case *os.PathError:
+			// permission denied, wrong path and so on
+			//log.Println(err)
+			continue OuterLoop
+		default:
+			break OuterLoop
+		}
+	}
+	return lock, err
+}
+
 // XXX: this is necessary because < 2.2 don't have a EPUB API
 func login(baseURL, username, password string) (*http.Client, error) {
 	jar, _ := cookiejar.New(nil)
@@ -319,50 +363,6 @@ func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, 
 		}
 	}
 	return deleted, read
-}
-
-// the base name of the pidfile
-const pidPath = "wallabako.pid"
-
-// the actual pathnames to check
-var pidPaths = []string{
-	"/var/run/" + pidPath,
-	"/run/" + pidPath,
-	"/run/user/" + strconv.Itoa(os.Getuid()) + "/" + pidPath,
-	home + "/." + pidPath,
-}
-
-// getLock creates a lock file with the given path or, if empty, in an
-// appropriate location in a series of predefined locations.
-//
-// WARNING: this does *not* defer the Unlock method, since it's out of
-// scope - that should be done by the caller
-func getLock(path string) (lock lockfile.Lockfile, err error) {
-	if len(path) > 0 {
-		if path, err = filepath.Abs(path); err != nil {
-			return lock, err
-		}
-		// only error possible is if we don't have an absolute path,
-		// already handled
-		lock, _ = lockfile.New(path)
-		err = lock.TryLock()
-		return lock, err
-	}
-OuterLoop:
-	for _, path := range pidPaths {
-		//log.Println("trying lockfile path", path)
-		lock, _ = lockfile.New(path)
-		err = lock.TryLock()
-		switch err.(type) {
-		case *os.PathError:
-			// permission denied, wrong path and so on
-			//log.Println(err)
-			continue OuterLoop
-		default:
-			break OuterLoop
-		}
-	}
-	return lock, err
 }
 
 func main() {
