@@ -32,7 +32,7 @@ tarball:
 
 build: $(BINARY)
 
-$(BINARY): lint *.go
+$(BINARY): *.go
 	@echo building main program
 	mkdir -p $$(dirname $(BINARY))
 	go build $(GFLAGS) -o $@
@@ -49,7 +49,7 @@ lint:
 test:
 	echo 'no tests implemented yet, but if i would, i would do that with -race as well'
 
-sign: build tarball
+sign: lint build tarball
 	@echo signing all binaries
 	rm -f build/*.asc
 	for bin in build/* ; do \

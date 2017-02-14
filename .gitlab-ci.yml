@@ -21,6 +21,7 @@ compile:
     stage: build
     script:
         - go get
+        - make lint
         - make build
         - make tarball
     artifacts:
