@@ -3,13 +3,17 @@ Wallabako. The format of this change may change without prior notice.
 
 # 0.9: Run forest
 
+Lots of attempts to fix sync that was becoming increasingly unreliable.
+
  * re-enable background processing which was disabled by mistake in
    0.4
  * increase delay to 15 seconds to try and fix sync issues
- * try to remount internal drive if it's not remounted when we finishe
+ * try to remount internal drive if it's not remounted when we finish
+ * display human-readable elapsed time
+ * close database properly when completed
+ * write logs in /root/wallabako.log instead of storage
  * output on console as well as logfile
  * logfile rotation
- * display human-readable elapsed time
 
 # 0.8: Stop don't do it
 
