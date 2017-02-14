@@ -37,6 +37,7 @@ import (
 	"github.com/dustin/go-humanize"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/nightlyone/lockfile"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 // commandline flags
@@ -50,6 +51,7 @@ var (
 	doDelete     = flag.Bool("delete", false, "if we should delete EPUB files not found in feed")
 	koboDatabase = flag.String("database", "/mnt/onboard/.kobo/KoboReader.sqlite", "path to Kobo database")
 	notify       = flag.String("exec", "", "execute the given command when files have changed")
+	logFile      = flag.String("logfile", "", "output file for logs")
 	outputDir    = flag.String("output", ".", "output directory to save files into")
 	pidFile      = flag.String("pidfile", "", "pidfile to write to avoid multiple runs")
 	retryMax     = flag.Int("retry", 4, "number of attempts to login the website, with exponential backoff delay")
@@ -82,19 +84,27 @@ func main() {
 		fmt.Println(version)
 		return
 	}
-	log.SetOutput(os.Stdout)
 	start := time.Now()
 	defer func() {
 		log.Printf("version %s completed in %s\n", version, time.Since(start))
 	}()
-	if err := findConfig(*configJSON); err != nil {
-		log.Fatal("cannot load configuration file: ", err.Error())
-	}
 	lock, err := getLock(*pidFile)
 	if err != nil {
 		log.Fatal("Cannot lock PID file: ", err)
 	}
 	defer lock.Unlock()
+
+	fileLogger := &lumberjack.Logger{
+		Filename:   *logFile,
+		MaxSize:    1, //megabytes - ouch, too big! https://github.com/natefinch/lumberjack/issues/37
+		MaxBackups: 7, //files
+		MaxAge:     7, //days
+	}
+	log.SetOutput(io.MultiWriter(fileLogger, os.Stdout))
+
+	if err := findConfig(*configJSON); err != nil {
+		log.Fatal("cannot load configuration file: ", err.Error())
+	}
 
 	log.Println("logging in to", wallabago.Config.WallabagURL)
 	//log.Println("username, password:", wallabago.Config.UserName, wallabago.Config.UserPassword)

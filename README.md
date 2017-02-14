@@ -443,6 +443,84 @@ On the Wallabag side, we do a `PATCH` request on the API at
 (a number that is taken from the filename) and `{_format}` is
 `json`. Then we need to set `archive` to `1` as a parameter.
 
+Logging
+-------
+
+Logs are printed to the console and written to a logfile in
+`/mnt/onboard/wallabako.log.txt` so that they can be read by the user
+on the reader directly. The logs are currently quite verbose. After 10
+days of more or less continuous operation, the logfile here had grown
+to around 400KB. We have implemented log rotation using [lumberjack][]
+so that we don't take up all the space on devices from version 0.9. We
+could also do log level filtering to limit the amount of data in the
+logfile but then that would reduce our much-needed debugging
+capabilities. We could also send debugging logs to syslog.
+
+[lumberjack]: https://github.com/natefinch/lumberjack
+
+There are a *lot* of [logging libraries][] for Go, which is probably a
+result of the limited functionality available in the standard
+library. See also this [rated list][]. After a short review, I have
+found the following libraries:
+
+[logging libraries]: https://github.com/avelino/awesome-go#logging
+[rated list]: https://golanglibs.com/category/logging
+
+* [mlog](https://github.com/jbrodriguez/mlog) - supports log
+  rotation, not a drop-in replacement
+* [logutils](https://github.com/hashicorp/logutils) - wraps the
+  standard library to filter based on strings, a bit too hackish?
+* [logging](https://github.com/op/go-logging) - multi-backend support
+  with differenciated level filtering, colors, seems well-designed and
+  self-contained, not a drop-in replacement, overkill?
+* [rlog](https://github.com/romana/rlog) - log level filtering and
+  file output configurable through config file or environment,
+  standlone, no rotation, not a drop-in replacement
+* [glog](https://godoc.org/github.com/golang/glog) - level filtering,
+  hooks into the flags package for output control, Google's simple
+  implementation, can hook into the builtin log package, no log
+  rotation
+* [lumberjack][] - rotation for the builtin logger
+* [logger](https://github.com/azer/logger) - timers, env-based log
+  selection, JSON output, overkill?
+* [clog](https://github.com/go-clog/clog) - parallelized logger, can
+  log to slack, files, console, level filtering, poor documentation,
+  overkill?
+
+Those projects weren't seriously considered, but may be interesting in
+other projects:
+
+* [logrus](https://github.com/Sirupsen/logrus) - level filtering, *lots*
+  of backends supported, environments, formatters, *no* log rotation,
+  thread-safe, structured, colors, oh my... 
+* [log4go](https://github.com/Kissaki/log4go) - level filtering,
+  rotation, XML, drop-in compatible with log, multi-backend support
+  with differenciated levels, 
+  [unmaintained](https://github.com/alecthomas/log4go)?
+* [seelog](https://github.com/cihub/seelog) - lots of features, but
+  XML config.
+* [zap](https://github.com/uber-go/zap) - really fast, but weird
+  calling sequence
+* [logrotate](https://github.com/NYTimes/logrotate) - if we *would*
+  use a logrotate daemon or cronjob, this would allow use to
+  gracefully handle signals
+* [logxi](https://github.com/mgutz/logxi) - colors, env-triggered
+  levels, simpler interface than logrus, fast, structured
+
+In the end we resolved it was simpler to stick with the builtin logger
+and use the lightweigth lumberjack library for log rotation.
+
+We note it is possible the logfile itself may cause problems with
+library reloads: since it is an open file on the `/mnt/onboard`
+filesystem, it may keep the refresh from working properly. The
+alternative would be to store the logfile in another location. The
+`/var/log` directory on the Kobo, as it has only 16KB of storage,
+which should be enough for a few days of logs. Unfortunately the
+lumberjack library only rotate files after [one megabyte][] has been
+used, which makes it impossible for us to use that location for now.
+
+[one megabyte]: https://github.com/natefinch/lumberjack/issues/37
+
 Remaining issues
 ================
 
@@ -701,67 +779,3 @@ probably read the sqlite database and send that data back, eventually.
 
 All this stuff is not part of the Wallabago Go API, which could be
 [extended to support more operations](https://github.com/Strubbl/wallabago/issues/5).
-
-Better logging
---------------
-
-Logs are currently written in a single logfile that is never rotated
-and is quite verbose. After 10 days of more or less continuous
-operation, the logfile here had grown to around 400KB and is still
-growing. We will need to implement log rotation, or, at the very
-least, log level filtering to limit the amount of data in the
-logfile. This will probably involve rolling our own mechanisms for
-this, as we can't assume there's a logrotate in the Kobo reader. We
-could also send debugging logs to syslog.
-
-Furthermore, it would be neat if we could have those logs readable
-*inside the device*. That would bring much more visibility to what's
-going on in Wallabako to the user. Even though it would still be quite
-obscure, it would be more convenient than having to plug the device in
-or login over SSH.
-
-There are a *lot* of [logging libraries][] for Go, which is probably a
-result of the limited functionality available in the standard
-library. See also this [rated list][]. Of those, I should mention:
-
-[logging libraries]: https://github.com/avelino/awesome-go#logging
-[rated list]: https://golanglibs.com/category/logging
-
-* [mlog](https://github.com/jbrodriguez/mlog) - supports log rotation
-* [logutils](https://github.com/hashicorp/logutils) - wraps the
-  standard library to filter based on strings
-* [logging](https://github.com/op/go-logging) - multi-backend support
-  with differenciated level filtering, colors, seems well-designed and
-  self-contained
-* [rlog](https://github.com/romana/rlog) - log level filtering and
-  file output configurable through config file or environment,
-  standlone
-* [glog](https://godoc.org/github.com/golang/glog) - level filtering,
-  hooks into the flags package for output control, Google's simple
-  implementation, can hook into the builtin log package
-* [lumberjack](https://github.com/natefinch/lumberjack) - rotation for
-  the builtin logger
-* [logger](https://github.com/azer/logger) - timers, env-based log
-  selection, JSON output
-* [clog](https://github.com/go-clog/clog) - parallelized logger, can
-  log to slack, files, console, level filtering, poor documentation
-
-Probably shouldn't considered, but may be interesting in other
-projects:
-
-* [logrus](https://github.com/Sirupsen/logrus) - level filtering, *lots*
-  of backends supported, environments, formatters, *no* log rotation,
-  thread-safe, structured, colors, oh my... 
-* [log4go](https://github.com/Kissaki/log4go) - level filtering,
-  rotation, XML, drop-in compatible with log, multi-backend support
-  with differenciated levels, 
-  [unmaintained](https://github.com/alecthomas/log4go)?
-* [seelog](https://github.com/cihub/seelog) - lots of features, but
-  XML config.
-* [zap](https://github.com/uber-go/zap) - really fast, but weird
-  calling sequence
-* [logrotate](https://github.com/NYTimes/logrotate) - if we *would*
-  use a logrotate daemon or cronjob, this would allow use to
-  gracefully handle signals
-* [logxi](https://github.com/mgutz/logxi) - colors, env-triggered
-  levels, simpler interface than logrus, fast, structured
