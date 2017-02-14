@@ -32,8 +32,7 @@ import (
 	"strings"
 	"time"
 
-	// because of https://github.com/Strubbl/wallabago/pull/4
-	"github.com/anarcat/wallabago"
+	"github.com/Strubbl/wallabago"
 	"github.com/dustin/go-humanize"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/nightlyone/lockfile"
