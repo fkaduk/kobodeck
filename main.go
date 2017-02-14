@@ -362,10 +362,6 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 		return fmt.Errorf("can't write file: %v", err)
 	}
 	if n >= 0 {
-		err = os.Chtimes(output, entry.UpdatedAt.Time, entry.UpdatedAt.Time)
-		if err != nil {
-			log.Printf("can't set modification time to %s on %s", entry.UpdatedAt, output)
-		}
 		counter.Inc("downloaded")
 		counter.Add("bytes", int(n))
 		log.Printf("wrote %d bytes (%s) in file %s, timestamp %s", n, humanize.IBytes(uint64(n)), output, entry.UpdatedAt.Time)
