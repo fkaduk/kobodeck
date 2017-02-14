@@ -373,7 +373,7 @@ func main() {
 	log.SetOutput(os.Stdout)
 	start := time.Now()
 	defer func() {
-		log.Printf("version %s completed in %.2fs\n", version, time.Since(start).Seconds())
+		log.Printf("version %s completed in %s\n", version, time.Since(start))
 	}()
 	if err := findConfig(*configJSON); err != nil {
 		log.Fatal("cannot load configuration file: ", err.Error())
