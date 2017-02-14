@@ -165,7 +165,7 @@ func main() {
 			// release the slot when finished
 			defer func() { <-sem }()
 			if err = download(client, wallabago.Config.WallabagURL, e); err != nil {
-				log.Println("error downloading entry", entry.ID, err)
+				log.Println("error downloading entry", e.ID, err)
 			}
 		}(entry)
 	}
