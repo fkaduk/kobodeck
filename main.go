@@ -73,9 +73,6 @@ var (
 
 	// version is the program's version
 	version = "undefined"
-
-	// db is the active database handle, if any
-	db *sql.DB
 )
 
 func main() {
@@ -172,13 +169,6 @@ func main() {
 	// refill all the semaphore slots to make sure we wait for everyone
 	for i := 0; i < cap(sem); i++ {
 		sem <- true
-	}
-	if len(*koboDatabase) > 0 {
-		db, err = sql.Open("sqlite3", *koboDatabase)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer db.Close()
 	}
 	deleted, read := inspectLocalFiles(*outputDir, valid)
 	log.Printf("processed: %d, downloaded: %d, size: %s, deleted: %d, read: %d",
@@ -384,6 +374,10 @@ func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, 
 			continue
 		}
 		status, err := readStatus(id)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
 		if status == koboBookRead {
 			err := markAsRead(id)
 			if err != nil {
@@ -423,6 +417,17 @@ const (
 // should be either koboBookUnread, koboBookReading or koboBookRead,
 // unless the database format is unexpected.
 func readStatus(ID int) (res int, err error) {
+	if len(*koboDatabase) <= 0 {
+		return koboBookUnread, fmt.Errorf("no database configured")
+	}
+	// XXX: this should be a singleton if we start calling readStatus
+	// more often
+	db, err := sql.Open("sqlite3", *koboDatabase)
+	if err != nil {
+		return res, err
+	}
+	defer db.Close()
+
 	path := fmt.Sprintf("file:///mnt/onboard/wallabako/%d.epub", ID)
 	rows, err := db.Query("SELECT ReadStatus FROM content WHERE ContentID = $1 AND ContentType = $2 LIMIT 1", path, koboRealBook)
 	if err != nil {
