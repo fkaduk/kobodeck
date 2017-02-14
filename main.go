@@ -76,6 +76,115 @@ var (
 	db *sql.DB
 )
 
+func main() {
+	flag.Parse()
+	if *showVersion {
+		fmt.Println(version)
+		return
+	}
+	log.SetOutput(os.Stdout)
+	start := time.Now()
+	defer func() {
+		log.Printf("version %s completed in %s\n", version, time.Since(start))
+	}()
+	if err := findConfig(*configJSON); err != nil {
+		log.Fatal("cannot load configuration file: ", err.Error())
+	}
+	lock, err := getLock(*pidFile)
+	if err != nil {
+		log.Fatal("Cannot lock PID file: ", err)
+	}
+	defer lock.Unlock()
+
+	log.Println("logging in to", wallabago.Config.WallabagURL)
+	//log.Println("username, password:", wallabago.Config.UserName, wallabago.Config.UserPassword)
+	// retryCount is the number of logins wallabako will attempt
+	// first attempt is 1 second and first attempt double the delay at each attempt
+	var client *http.Client
+	for retryCount := 0; retryCount <= *retryMax; retryCount++ {
+		client, err = login(wallabago.Config.WallabagURL, wallabago.Config.UserName, wallabago.Config.UserPassword)
+		if err == nil {
+			break
+		} else {
+			str := err.Error()
+			switch {
+			case strings.Contains(str, "login failed"), strings.Contains(str, "CSRF token"):
+				log.Fatal(err)
+			case strings.Contains(str, "login page"):
+				// "exponential backoff time", but not random
+				// this will sleep:
+				// 1s (total 1s)
+				// 2s (3s)
+				// 5s (8s)
+				// 10s (18s)
+				// 17s (35s)
+				// so 35 seconds max.
+				// linear would be:
+				// 1
+				// 3 4
+				// 5 9
+				// 7 16
+				// 9 25
+				// but second retry is one second later, we want that one faster.
+				delay := time.Duration((1 + (retryCount * retryCount))) * time.Second
+				log.Printf("%s, sleeping %s (%d/%d)", err, delay, retryCount, *retryMax)
+				time.Sleep(delay)
+			}
+		}
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+	// this is a semaphore buffer that will limit the number of
+	// threads running. taken from
+	// http://jmoiron.net/blog/limiting-concurrency-in-go/ an
+	// alternative is to use sync/errgroup:
+	// https://play.golang.org/p/hNaeTjLwdv we don't need toplevel
+	// error handling yet, so we stick with the semaphore channel
+	// pattern
+	sem := make(chan bool, *concurrency)
+	entries := listEntries()
+	valid := make(map[int]bool)
+	for _, entry := range entries {
+		//log.Println("dispatching", entry.ID)
+		valid[entry.ID] = true
+		// try to get a slot in the semaphore
+		sem <- true
+		// we got it, fork off a thread
+		go func(e wallabago.Item) {
+			// release the slot when finished
+			defer func() { <-sem }()
+			if err = download(client, wallabago.Config.WallabagURL, e); err != nil {
+				log.Println("error downloading entry", entry.ID, err)
+			}
+		}(entry)
+	}
+	// refill all the semaphore slots to make sure we wait for everyone
+	for i := 0; i < cap(sem); i++ {
+		sem <- true
+	}
+	if len(*koboDatabase) > 0 {
+		db, err = sql.Open("sqlite3", *koboDatabase)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer db.Close()
+	}
+	deleted, read := inspectLocalFiles(*outputDir, valid)
+	log.Printf("processed: %d, downloaded: %d, size: %s, deleted: %d, read: %d",
+		counter.Value("processed"), counter.Value("downloaded"), humanize.IBytes(uint64(counter.Value("bytes"))), len(deleted), len(read))
+	if len(*notify) > 0 && (counter.Value("downloaded") > 0 || len(deleted) > 0) {
+		log.Println("running command", *notify)
+		out, err := exec.Command(*notify).CombinedOutput()
+		if err != nil {
+			log.Fatal(err)
+		}
+		if len(out) > 0 {
+			log.Println(string(out))
+		}
+	}
+}
+
 // confPath is the name of the default configuration file
 const confPath = "wallabako.js"
 
@@ -193,47 +302,6 @@ func login(baseURL, username, password string) (*http.Client, error) {
 	return client, nil
 }
 
-// doAPI sends an arbitrary API call to the Wallabag API, getting a
-// new token in the process. it returns the body of the response in
-// bytes and any possible errors returned by the API, particularly if
-// the returned status code is not 200.
-func doAPI(method string, url string, body io.Reader) (data []byte, err error) {
-	// this is copied from getBodyOfAPIURL(), should probably be
-	// factored out
-
-	client := &http.Client{}
-	req, err := http.NewRequest(method, url, body)
-	req.Header.Add("Authorization", wallabago.GetAuthTokenHeader())
-	//log.Println("method, url, body:", method, url, body)
-	//dump, err := httputil.DumpRequestOut(req, true)
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//log.Printf("sending request: %q", dump)
-	resp, err := client.Do(req)
-	if err != nil {
-		//log.Println("data, err", data, err)
-		return data, err
-	}
-	defer resp.Body.Close()
-	data, err = ioutil.ReadAll(resp.Body)
-	if resp.StatusCode != 200 {
-		//log.Println(resp, data)
-		return data, fmt.Errorf("error from the API: %s", resp.Status)
-	}
-	return data, err
-}
-
-// markAsRead marks the given wallabag article ID as read through the API
-func markAsRead(id int) (err error) {
-	log.Printf("marking entry %d as read", id)
-	tmp := map[string]string{"archive": "1"}
-	body, _ := json.Marshal(tmp)
-	_, err = doAPI("PATCH", wallabago.Config.WallabagURL+"/api/entries/"+strconv.Itoa(id)+".json", bytes.NewBuffer(body))
-	//log.Println("data, err", string(data), err)
-	return err
-}
-
 // get the unread entries, most recent first, limited to the given count
 func listEntries() []wallabago.Item {
 	e := wallabago.GetEntries(0, -1, "updated", "desc", -1, *count, "")
@@ -295,37 +363,6 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 	return nil
 }
 
-// koboRealBook is the ContentID code for normal books in the Kobo sqlite database
-const koboRealBook = 6
-
-// koboBook* are the various book reading statuses in the Kobo sqlite database
-const (
-	koboBookUnread  = iota
-	koboBookReading = iota
-	koboBookRead    = iota
-)
-
-// readStatus will return the read status of the given ID book, which
-// should be either koboBookUnread, koboBookReading or koboBookRead,
-// unless the database format is unexpected.
-func readStatus(ID int) (res int, err error) {
-	path := fmt.Sprintf("file:///mnt/onboard/wallabako/%d.epub", ID)
-	rows, err := db.Query("SELECT ReadStatus FROM content WHERE ContentID = $1 AND ContentType = $2 LIMIT 1", path, koboRealBook)
-	if err != nil {
-		return res, err
-	}
-	var readStatus int
-	if rows.Next() {
-		if err := rows.Scan(&readStatus); err == nil {
-			//log.Println("found readStatus", readStatus)
-			res = readStatus
-		}
-	} else {
-		err = rows.Err()
-	}
-	return res, err
-}
-
 // inspectLocalFiles looks into the given outputDir for files matching
 // the N.epub pattern where N is a Wallabag content ID, and processes
 // every entry to mark it as read on the wallabag site and delete it
@@ -365,111 +402,74 @@ func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, 
 	return deleted, read
 }
 
-func main() {
-	flag.Parse()
-	if *showVersion {
-		fmt.Println(version)
-		return
-	}
-	log.SetOutput(os.Stdout)
-	start := time.Now()
-	defer func() {
-		log.Printf("version %s completed in %s\n", version, time.Since(start))
-	}()
-	if err := findConfig(*configJSON); err != nil {
-		log.Fatal("cannot load configuration file: ", err.Error())
-	}
-	lock, err := getLock(*pidFile)
-	if err != nil {
-		log.Fatal("Cannot lock PID file: ", err)
-	}
-	defer lock.Unlock()
+// koboRealBook is the ContentID code for normal books in the Kobo sqlite database
+const koboRealBook = 6
 
-	log.Println("logging in to", wallabago.Config.WallabagURL)
-	//log.Println("username, password:", wallabago.Config.UserName, wallabago.Config.UserPassword)
-	// retryCount is the number of logins wallabako will attempt
-	// first attempt is 1 second and first attempt double the delay at each attempt
-	var client *http.Client
-	for retryCount := 0; retryCount <= *retryMax; retryCount++ {
-		client, err = login(wallabago.Config.WallabagURL, wallabago.Config.UserName, wallabago.Config.UserPassword)
-		if err == nil {
-			break
-		} else {
-			str := err.Error()
-			switch {
-			case strings.Contains(str, "login failed"), strings.Contains(str, "CSRF token"):
-				log.Fatal(err)
-			case strings.Contains(str, "login page"):
-				// "exponential backoff time", but not random
-				// this will sleep:
-				// 1s (total 1s)
-				// 2s (3s)
-				// 5s (8s)
-				// 10s (18s)
-				// 17s (35s)
-				// so 35 seconds max.
-				// linear would be:
-				// 1
-				// 3 4
-				// 5 9
-				// 7 16
-				// 9 25
-				// but second retry is one second later, we want that one faster.
-				delay := time.Duration((1 + (retryCount * retryCount))) * time.Second
-				log.Printf("%s, sleeping %s (%d/%d)", err, delay, retryCount, *retryMax)
-				time.Sleep(delay)
-			}
-		}
-	}
+// koboBook* are the various book reading statuses in the Kobo sqlite database
+const (
+	koboBookUnread  = iota
+	koboBookReading = iota
+	koboBookRead    = iota
+)
+
+// readStatus will return the read status of the given ID book, which
+// should be either koboBookUnread, koboBookReading or koboBookRead,
+// unless the database format is unexpected.
+func readStatus(ID int) (res int, err error) {
+	path := fmt.Sprintf("file:///mnt/onboard/wallabako/%d.epub", ID)
+	rows, err := db.Query("SELECT ReadStatus FROM content WHERE ContentID = $1 AND ContentType = $2 LIMIT 1", path, koboRealBook)
 	if err != nil {
-		log.Fatal(err)
+		return res, err
 	}
-	// this is a semaphore buffer that will limit the number of
-	// threads running. taken from
-	// http://jmoiron.net/blog/limiting-concurrency-in-go/ an
-	// alternative is to use sync/errgroup:
-	// https://play.golang.org/p/hNaeTjLwdv we don't need toplevel
-	// error handling yet, so we stick with the semaphore channel
-	// pattern
-	sem := make(chan bool, *concurrency)
-	entries := listEntries()
-	valid := make(map[int]bool)
-	for _, entry := range entries {
-		//log.Println("dispatching", entry.ID)
-		valid[entry.ID] = true
-		// try to get a slot in the semaphore
-		sem <- true
-		// we got it, fork off a thread
-		go func(e wallabago.Item) {
-			// release the slot when finished
-			defer func() { <-sem }()
-			if err = download(client, wallabago.Config.WallabagURL, e); err != nil {
-				log.Println("error downloading entry", entry.ID, err)
-			}
-		}(entry)
-	}
-	// refill all the semaphore slots to make sure we wait for everyone
-	for i := 0; i < cap(sem); i++ {
-		sem <- true
-	}
-	if len(*koboDatabase) > 0 {
-		db, err = sql.Open("sqlite3", *koboDatabase)
-		if err != nil {
-			log.Fatal(err)
+	var readStatus int
+	if rows.Next() {
+		if err := rows.Scan(&readStatus); err == nil {
+			//log.Println("found readStatus", readStatus)
+			res = readStatus
 		}
-		defer db.Close()
+	} else {
+		err = rows.Err()
 	}
-	deleted, read := inspectLocalFiles(*outputDir, valid)
-	log.Printf("processed: %d, downloaded: %d, size: %s, deleted: %d, read: %d",
-		counter.Value("processed"), counter.Value("downloaded"), humanize.IBytes(uint64(counter.Value("bytes"))), len(deleted), len(read))
-	if len(*notify) > 0 && (counter.Value("downloaded") > 0 || len(deleted) > 0) {
-		log.Println("running command", *notify)
-		out, err := exec.Command(*notify).CombinedOutput()
-		if err != nil {
-			log.Fatal(err)
-		}
-		if len(out) > 0 {
-			log.Println(string(out))
-		}
+	return res, err
+}
+
+// markAsRead marks the given wallabag article ID as read through the API
+func markAsRead(id int) (err error) {
+	log.Printf("marking entry %d as read", id)
+	tmp := map[string]string{"archive": "1"}
+	body, _ := json.Marshal(tmp)
+	_, err = doAPI("PATCH", wallabago.Config.WallabagURL+"/api/entries/"+strconv.Itoa(id)+".json", bytes.NewBuffer(body))
+	//log.Println("data, err", string(data), err)
+	return err
+}
+
+// doAPI sends an arbitrary API call to the Wallabag API, getting a
+// new token in the process. it returns the body of the response in
+// bytes and any possible errors returned by the API, particularly if
+// the returned status code is not 200.
+func doAPI(method string, url string, body io.Reader) (data []byte, err error) {
+	// this is copied from getBodyOfAPIURL(), should probably be
+	// factored out
+
+	client := &http.Client{}
+	req, err := http.NewRequest(method, url, body)
+	req.Header.Add("Authorization", wallabago.GetAuthTokenHeader())
+	//log.Println("method, url, body:", method, url, body)
+	//dump, err := httputil.DumpRequestOut(req, true)
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//log.Printf("sending request: %q", dump)
+	resp, err := client.Do(req)
+	if err != nil {
+		//log.Println("data, err", data, err)
+		return data, err
 	}
+	defer resp.Body.Close()
+	data, err = ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != 200 {
+		//log.Println(resp, data)
+		return data, fmt.Errorf("error from the API: %s", resp.Status)
+	}
+	return data, err
 }
