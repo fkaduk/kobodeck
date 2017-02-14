@@ -173,7 +173,8 @@ func main() {
 	deleted, read := inspectLocalFiles(*outputDir, valid)
 	log.Printf("processed: %d, downloaded: %d, size: %s, deleted: %d, read: %d",
 		counter.Value("processed"), counter.Value("downloaded"), humanize.IBytes(uint64(counter.Value("bytes"))), len(deleted), len(read))
-	listOpenFds()
+	fds := listOpenFds()
+	log.Printf("%d open file descriptors: %s", len(fds), fds)
 	if len(*notify) > 0 && (counter.Value("downloaded") > 0 || len(deleted) > 0) {
 		log.Println("running command", *notify)
 		out, err := exec.Command(*notify).CombinedOutput()
@@ -488,11 +489,15 @@ func doAPI(method string, url string, body io.Reader) (data []byte, err error) {
 }
 
 // listOpenFds is a simple debug tool to show the currently opened files.
-func listOpenFds() {
-	fds, _ := filepath.Glob("/proc/self/fd/*")
-	log.Println("open fds", fds)
+func listOpenFds() (fds []string) {
+	fds, _ = filepath.Glob("/proc/self/fd/*")
 	for _, fd := range fds {
 		link, err := os.Readlink(fd)
-		log.Println(link, err)
+		if err != nil {
+			fds = append(fds, err.Error())
+		} else {
+			fds = append(fds, link)
+		}
 	}
+	return fds
 }
