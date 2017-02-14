@@ -32,7 +32,7 @@ tarball:
 
 build: $(BINARY)
 
-$(BINARY): *.go
+$(BINARY): lint *.go
 	@echo building main program
 	mkdir -p $$(dirname $(BINARY))
 	go build $(GFLAGS) -o $@
