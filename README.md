@@ -779,3 +779,57 @@ probably read the sqlite database and send that data back, eventually.
 
 All this stuff is not part of the Wallabago Go API, which could be
 [extended to support more operations](https://github.com/Strubbl/wallabago/issues/5).
+
+SSH builds
+----------
+
+A bit out of scope here, but could be interesting: we could/should
+build a `KoboRoot.tgz` targeted at giving out a SSH daemon
+automatically. While there are other implementations of this
+elsewhere, they all use a fairly outdated build of Dropbear taken out
+of the Maemo OS (dated `v2014.66` here) which uses fairly outdated
+algorithms and wouldn't accept newer ones. The latest release
+(`2016.74`) has more decent support for newer MAC algos. I was able to
+deploy the Debian-built binary directly to the Kobo by downloading it
+from packages.debian.org and extracting it, thus:
+
+    wget http://ftp.us.debian.org/debian/pool/main/d/dropbear/dropbear-bin_2016.74-2_armhf.deb
+    dpkg -x dropbear-bin_2016.74-2_armhf.deb d
+    pv d/usr/sbin/dropbear | ssh $host 'cat > /bin/dropbear; chmod +x /bin/dropbear'
+
+`/bin/dropbear` is not the correct location, btw - it's just the one
+the Preining images I used configured. A complete `KoboRoot.tgz`
+should probably also deploy the `inittab` hack:
+
+    # This is run first except when booting in single-user mode.
+    ::sysinit:/etc/init.d/rcS
+    ::respawn:/sbin/getty -L ttymxc0 115200 vt100
+    ::ctrlaltdel:/sbin/reboot
+    ::shutdown:/bin/umount -a -r
+    ::restart:/sbin/init
+    ::sysinit:/etc/init.d/rcS2
+
+The important part is the last line, which forces the init script to
+run an extra script on bootup, which is:
+
+    #!/bin/sh
+    mkdir -p /dev/pts
+    mount -t devpts devpts /dev/pts
+    /usr/sbin/inetd /etc/inetd.conf.local
+    # run user supplied commands
+    /mnt/onboard/run.sh &
+
+`inetd.conf.local` is:
+
+    22      stream  tcp     nowait  root    /bin/dropbearmulti dropbear -i -B
+
+We could take the rcS2 hack as a "standard" *or* we could deploy our
+own (e.g. deploy a `inittab` with `rcS2` *and* a `rc.local` and do our
+own things in `rc.local`). In any case, it would be nice to have some
+sort of CI that would (or at least, easily and verifiably) a new
+`KoboRoot.tgz` image when new releases of dropbear are performed.
+
+We don't need to cross-compile, just make sure we have the arm
+architecture in dpkg, fetch the packages with apt-secure correctly
+setup, and we're good to use the already existing Debian
+infrastructure.
