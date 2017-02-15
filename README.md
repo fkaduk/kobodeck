@@ -521,11 +521,48 @@ used, which makes it impossible for us to use that location for now.
 
 [one megabyte]: https://github.com/natefinch/lumberjack/issues/37
 
+Autobuilders
+------------
+
+We use Gitlab's Continuous Integration (CI) to build binary images for
+deployment. Because we needed cross-compilers, we
+[updated the official Golang docker images to stretch][] which was
+done fairly quickly.
+
+[update the official Golang docker images to stretch]: https://github.com/docker-library/official-images/issues/2639
+
+We could setup our own docker image to speed up the build process. See
+the [container registry][] documentation along with the
+[Gitlab docker documentation][].
+
+[container registry]: https://gitlab.com/help/user/project/container_registry
+[Gitlab docker documentation]: https://docs.gitlab.com/ce/ci/docker/using_docker_images.html
+
+An issue with the autobuilder is that we trust Gitlab.com to not
+inject hostile paylods in the binaries. I provide signed binaries in
+releases built on my own computer for verification, but they are not
+built with the same environment so we can't actually verify those
+builds.
+
 Remaining issues
 ================
 
 Those are known issues with the program. There are also `XXX` markers
-in the source code that show other issues that need to be checked.
+in the source code that show other issues that need to be checked. In
+general, this is the summary of the issues remaining:
+
+ * usability: hard to deploy and to used
+ * autoconfiguration: requires creating a "client" in Wallabag and a
+   configuration file
+ * long reload delay: 15 seconds wait is slow and error-prone
+ * Wallabag 2.2 API changes: need to port
+ * out of order: articles do not appear in the proper order
+ * performance: the Wallabag API is slow
+ * spurious triggers: sometimes the script gets triggered for no
+   apparent reason
+ * unit tests: there are none
+ * annotation and read progress support: missing
+ * SSH builds: could be nice
 
 Usability
 ---------
@@ -741,22 +778,6 @@ and hook into DBUS, wpa-supplicant, dhcpcd or some other existing
 daemon. Finally, the kernel has the netlink(7) socket interface to get
 notifications for interface changes since Linux 2.2, but that would
 require starting as a daemon which is trickier.
-
-Slow builds
------------
-
-Because we add stuff on top of the base docker images, our CI builds
-are slow. Maybe we could setup our own docker image to speed up the
-build process. See the [container registry][] documentation along with
-the [Gitlab docker documentation][].
-
-Alternatively, we could just wait for the official image to
-[fix itself][]. In the meantime, the [container registry][] is enabled
-and has simple usage instructions that we could follow.
-
-[fix itself]: https://github.com/docker-library/official-images/issues/2639
-[container registry]: https://gitlab.com/help/user/project/container_registry
-[Gitlab docker documentation]: https://docs.gitlab.com/ce/ci/docker/using_docker_images.html
 
 Unit tests
 ----------
