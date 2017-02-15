@@ -534,16 +534,16 @@ Usability tests with a friendly user have revealed severe issues with
 installing and using Wallabako. Here are the issues we found.
 
  1. there's *no "Download" button* that the user can just follow to
-    get the software.
+    get the software. (fixed!)
  
  2. users do not read the documentation, because it's a wall of
     text. We need a simple step-by-step procedure to help people
-    deploy that thing on their devices.
+    deploy that thing on their devices. (fixed!)
 
  3. instructions for copying the file in place were incorrectly
     telling the user to put the file at the toplevel directory when
     the file needs to be in the `.kobo` subdirectory. the screenshot
-    provided still shows that mistake.
+    provided still shows that mistake. (fixed!)
 
  4. the instructions to edit the file also didn't work because the
     user used their usual text editor (LibreOffice) to create the
@@ -556,10 +556,10 @@ installing and using Wallabako. Here are the issues we found.
  5. the configuration file written by LibreOffice was not recognized
     as the JSON parser would crash on the
     [BOM](http://www.unicode.org/faq/utf_bom.html#BOM) marker inserted
-    at the beginning of the file.
+    at the beginning of the file. (fixed!)
 
  6. the user had to be told to connect the reader back to see what was
-    happening - they didn't find the logfile on their own.
+    happening - they didn't find the logfile on their own. (fixed!)
 
  7. user attempted to tap the "Sync" button on the homepage to sync
     articles, which fails because that doesn't trigger wallabako
@@ -580,14 +580,14 @@ Proposed solutions:
     the released version if necessary.
 
  3. instructions already fixed to mention the `.kobo` directory, need
-    to fix screenshot as well.
+    to fix screenshot as well. (fixed!)
 
  4. possibly write an installer that will generate the config file for
     the user, using a simple (even if commandline) question/answer
     dialog to download relevant files, create config files, copy it in
     place and so on.
 
- 5. what the fuck, seriously. fix the parser to ignore BOM
+ 5. what the fuck, seriously. fixed the parser to ignore BOM
     markers. telling users to "use a proper editor" sounds more like
     evangelism than a usability fix. providing a template file
     (instead of copy-pasting) might be a good workaround as well.
@@ -607,9 +607,8 @@ Autoconfiguration
 
 This requires a significant amount of work to work on a Kobo. Now, the
 autobuilders on Gitlab generate a `KoboRoot.tgz` that *should* deploy
-the binary, config files and everything. I have not tested this yet,
-and even if it works, the configuration file needs to be edited before
-this works correctly.
+the binary, config files and everything. The configuration file needs
+to be edited before Wallabako works correctly.
 
 Besides, even with everything perfectly aligned on our side, we still
 need the user to create an "app" on the Wallabag side, which is a
@@ -714,12 +713,17 @@ doesn't clearly [document how to discover error conditions][].
 Spurious triggers
 -----------------
 
-We trigger the script on *any* udev activity on the network
+<del>We trigger the script on *any* udev activity on the network
 interfaces. That means we start the script when the interface goes
-*down* as well, which is silly because, well, the network is down.
+*down* as well, which is silly because, well, the network is
+down.</del> Fixed: we now fire only on `ACTION=="add"` events,
+although this still fires quite often... For example, it fires when
+the Kobo goes back from the library rescan.
 
-I also noticed that sometimes, turning wifi on did *not* trigger the
-script. We *could* abuse the init system's `respawn` flag (as there is
+<del>I also noticed that sometimes, turning wifi on did *not* trigger the
+script.</del> (Unconfirmed.)
+
+We *could* abuse the init system's `respawn` flag (as there is
 no cron daemon) to fire up the program repeatedly (with a sleep in
 between, of course). But this could affect battery usage, so use with
 care...
@@ -732,13 +736,11 @@ somehow. Maybe we should keep the lock a little longer in the end? Not
 sure.
 
 It is unclear how to solve this - we don't have many options because
-the Linux distribution Kobo is running is so ... alien. We could
-restrict the udev rules to `ACTION=="add"` (being tested). Another
-option would be to try and hook into DBUS, wpa-supplicant, dhcpcd or
-some other existing daemon. Finally, the kernel has the netlink(7)
-socket interface to get notifications for interface changes since
-Linux 2.2, but that would require starting as a daemon which is
-trickier.
+the Linux distribution Kobo is running is so ... alien. We could try
+and hook into DBUS, wpa-supplicant, dhcpcd or some other existing
+daemon. Finally, the kernel has the netlink(7) socket interface to get
+notifications for interface changes since Linux 2.2, but that would
+require starting as a daemon which is trickier.
 
 Slow builds
 -----------
