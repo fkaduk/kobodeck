@@ -801,7 +801,17 @@ Annotations and read position are not propagated back. We could
 probably read the sqlite database and send that data back, eventually.
 
 All this stuff is not part of the Wallabago Go API, which could be
-[extended to support more operations](https://github.com/Strubbl/wallabago/issues/5).
+[extended to support more operations][].
+
+[extended to support more operations]: https://github.com/Strubbl/wallabago/issues/5
+
+On the Kobo side, this is also in the SQLite database, in the
+`Bookmark` table. We still select the rows matching the proper
+`ContentID` but now we need to look at the `StartContainerPath` and
+`EndContainerPath` columns. An example format:
+
+    index_split_000.xhtml#point(/1/4/102/2/1:9)
+    index_split_000.xhtml#point(/1/4/102/3/1:1)
 
 SSH builds
 ----------
