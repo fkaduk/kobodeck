@@ -639,6 +639,15 @@ Proposed solutions:
  [post57]: https://www.mobileread.com/forums/showpost.php?p=3473914&postcount=57
  [MR to document this]: https://gitlab.com/gitlab-org/gitlab-ce/merge_requests/9161
 
+We could draw on the framebuffer as well with:
+
+<https://wiki.mobileread.com/wiki/Kobo_WiFi_Hacking#Drawing_to_the_Wifi.27s_framebuffer>
+
+This guy really hacked the hell out of the Kobo, going as far as
+coding Qt stuff...
+
+<http://blog.ringerc.id.au/search/label/kobo>
+
 Autoconfiguration
 -----------------
 
