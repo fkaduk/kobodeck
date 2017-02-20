@@ -775,10 +775,7 @@ care...
 
 Even worse, the sync gets triggered then the emulated disconnect
 happens: the nickel environment resumes, reconnects the wifi, and then
-... starts the sync again. In some cases, it starts up so fast that
-the drive is mount mounted yet - or at least the drive fails to mount,
-somehow. Maybe we should keep the lock a little longer in the end? Not
-sure.
+... starts the sync again.
 
 It is unclear how to solve this - we don't have many options because
 the Linux distribution Kobo is running is so ... alien. We could try
@@ -786,6 +783,40 @@ and hook into DBUS, wpa-supplicant, dhcpcd or some other existing
 daemon. Finally, the kernel has the netlink(7) socket interface to get
 notifications for interface changes since Linux 2.2, but that would
 require starting as a daemon which is trickier.
+
+One trigger we removed is when we have finished reading a book: we
+used to just delete it, which would cause yet another trigger. The way
+we have worked around this was to simply stop deleting books, but this
+puts more burden on the user to manually remove those books... It
+would be better to leave this as a configurable option, and the best
+place to do this would be in the `.js` config file. I therefore looked
+a few commandline parsers to see if they could start reading from a
+JSON file:
+
+ * [cobra](https://github.com/spf13/cobra) - has a configuration file,
+   but it's for command definition, not runtime. interesting project
+   nonetheless and widely used (e.g. Kubernetes, Restic, Hugo,
+   OpenShift...), autocompletion, suggestions, manpage, markdown
+   generation, subcommands, aliases, ...
+ * [kingpin](https://github.com/alecthomas/kingpin) - a bit less
+   obtuse than Cobra, can read commandline from file, manpage
+   generation, type safety, ...
+ * [cli](https://github.com/urfave/cli) - subcommands, autocompletion,
+   version flag, read defaults from YAML/TOML (and
+   [JSON in v2](https://github.com/urfave/cli/pull/470#issuecomment-280025496))
+ * [flagconfig](https://godoc.org/github.com/facebookgo/flagconfig)
+   does what we need, but requires an incompatible config file format
+   (ini-style)
+ * [docopt.go](https://github.com/docopt/docopt.go) is a thing, no
+   config file support
+ * [sflags](https://github.com/octago/sflags/) is clever: it maps
+   structs to commandline flags.
+
+I guess that it's impossible to use such a framework *and* keep our
+current config file syntax. It may also be impossible to extend the
+config file without breaking Wallabago, the library. An alternative
+would be to use environment variables, for example, or just a separate
+config.
 
 Unit tests
 ----------
