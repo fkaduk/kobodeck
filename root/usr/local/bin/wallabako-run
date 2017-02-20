@@ -2,4 +2,4 @@
 
 # wrapper script to avoid reloading udev to change this config
 echo starting wallabako
-/usr/local/bin/wallabako -delete -output /mnt/onboard/wallabako/ -exec /usr/local/bin/fake-connect-usb -logfile /mnt/onboard/wallabako.log.txt &
+/usr/local/bin/wallabako -output /mnt/onboard/wallabako/ -exec /usr/local/bin/fake-connect-usb -logfile /mnt/onboard/wallabako.log.txt &

@@ -12,8 +12,7 @@ Features:
 * **unattended**: runs in the background, when the wifi is turned on, only
   requires you to tap the fake USB connection screen for the Kobo to
   rescan its database
-* **status synchronization**: read books are deleted from the Kobo (keep
-  them as "in reading" to avoid deletion) and marked as
+* **status synchronization**: read books are marked as
   read in the Wallabag instance
 * **easy install**: just drop the magic file in your kobo reader like any
   other book, edit one configuration file and you're done
@@ -119,17 +118,16 @@ the device is not connected! Simply tap the `Connect` button to
 continue the synchronisation and the library will find the new entries.
 
 When an article downloaded with Wallabako is finished on your reader,
-it will be marked as read in Wallabag and will be *deleted from your
-reader*. This is because it is only a copy: you can always go back in
-Wallabag and mark the article as unread and Wallabako will download it
-again.
+it will be marked as read in Wallabag.
 
 Wallabako also downloads a limited numbers of articles from Wallabag,
 and it *will* remove extra articles (for example if they are too old
 or were marked as read in Wallabag).
 
-Wallabako will never delete articles you are currently reading, even
-if they are marked as read in Wallabag.
+By default, Wallabako will not delete old files from your reader - you
+will need to remove those files through the reader interface
+yourself. This is to avoid unnecessary synchronisations which are
+distracting to the user.
 
 Commandline
 -----------
@@ -417,7 +415,8 @@ Read status and other metadata
 The "read" status is now propagated by API calls to the Wallabag
 API. When an article is marked as read on the e-reader it will be
 marked as read on the API and if that succeeds, will be *deleted*
-locally. If the API calls fails for some reason, the file is not
+locally (if the `-delete` flag is provided, which is not the case by
+default anymore). If the API calls fails for some reason, the file is not
 deleted. This is to avoid getting into a delete/download loop as the
 next call would download the file and then delete it again.
 
