@@ -292,6 +292,7 @@ func loadConfig(configFile string) (config wallabakoConfig, err error) {
 func findConfig() (path string, config wallabakoConfig, err error) {
 	for _, path = range confPaths {
 		if config, err = loadConfig(path); err == nil {
+			//log.Printf("loaded conf from path %v: %v", path, config)
 			break
 		}
 	}
