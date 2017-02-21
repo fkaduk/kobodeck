@@ -39,23 +39,47 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-// commandline flags
+// commandline flags that are not in the config file
 var (
 	// XXX: we shouldn't need to write the password down in the config:
 	// https://github.com/wallabag/wallabag/issues/2800
-	configFile = flag.String("config", "", "path to the configuration file")
-	// default is from web browsers, which are around 6-10: http://www.browserscope.org/?category=network
-	concurrency  = flag.Int("concurrency", 6, "number of downloads to process in parallel")
-	count        = flag.Int("count", -1, "number of articles to fetch")
-	doDelete     = flag.Bool("delete", false, "if we should delete EPUB files not found in feed")
-	koboDatabase = flag.String("database", "/mnt/onboard/.kobo/KoboReader.sqlite", "path to Kobo database")
-	notify       = flag.String("exec", "", "execute the given command when files have changed")
-	logFile      = flag.String("logfile", "", "output file for logs")
-	outputDir    = flag.String("output", ".", "output directory to save files into")
-	pidFile      = flag.String("pidfile", "", "pidfile to write to avoid multiple runs")
-	retryMax     = flag.Int("retry", 4, "number of attempts to login the website, with exponential backoff delay")
-	showVersion  = flag.Bool("version", false, "show program version and exit")
+	configFile  = flag.String("config", "", "path to the configuration file")
+	showVersion = flag.Bool("version", false, "show program version and exit")
 )
+
+// config is the global configuration, as read from the config file
+// and overriden by commandline flags
+var config wallabakoConfig
+
+// wallabakoConfig represents all configuration settings that can be
+// read from the config file. others are only specified on the
+// commandline
+type wallabakoConfig struct {
+	wallabago.WallabagConfig
+	Delete       bool   `json:"delete"`
+	LogFile      string `json:"logfile"`
+	KoboDatabase string `json:"KoboDatabase"`
+	Concurrency  int    `json:"Concurrency"`
+	Count        int    `json:"Count"`
+	Exec         string `json:"Exec"`
+	OutputDir    string `json:"OutputDir"`
+	PidFile      string `json:"PidFile"`
+	RetryMax     int    `json:"RetryMax"`
+}
+
+// init sets up the commandline flags
+func init() {
+	flag.BoolVar(&config.Delete, "delete", false, "if we should delete EPUB files not found in feed")
+	flag.StringVar(&config.LogFile, "logfile", "", "output file for logs")
+	flag.StringVar(&config.KoboDatabase, "database", "/mnt/onboard/.kobo/KoboReader.sqlite", "path to Kobo database")
+	// default is from web browsers, which are around 6-10: http://www.browserscope.org/?category=network
+	flag.IntVar(&config.Concurrency, "concurrency", 6, "number of downloads to process in parallel")
+	flag.IntVar(&config.Count, "count", -1, "number of articles to fetch")
+	flag.StringVar(&config.Exec, "exec", "", "execute the given command when files have changed")
+	flag.StringVar(&config.OutputDir, "output", ".", "output directory to save files into")
+	flag.StringVar(&config.PidFile, "pidfile", "", "pidfile to write to avoid multiple runs")
+	flag.IntVar(&config.RetryMax, "retry", 4, "number of attempts to login the website, with exponential backoff delay")
+}
 
 // various global variables
 var (
@@ -75,11 +99,13 @@ var (
 )
 
 func main() {
-	config, err := findConfig()
-	// XXX: maybe those defaults could be handled by a global config
-	// struct instead
-	flag.Set("delete", fmt.Sprintf("%v", config.Delete))
-	flag.Set("logFile", config.LogFile)
+	// load defaults from configuration file
+	//
+	// we don't care about errors here, we'll catch it later and this
+	// is optional anyways
+	path, config, _ := findConfig()
+	// make sure the config file we found is used by wallabago
+	*configFile = path
 	flag.Parse()
 	if *showVersion {
 		fmt.Println(version)
@@ -89,24 +115,22 @@ func main() {
 	defer func() {
 		log.Printf("version %s completed in %s\n", version, time.Since(start))
 	}()
-	lock, err := getLock(*pidFile)
+	lock, err := getLock(config.PidFile)
 	if err != nil {
 		log.Fatal("Cannot lock PID file: ", err)
 	}
 	defer lock.Unlock()
 
 	fileLogger := &lumberjack.Logger{
-		Filename:   *logFile,
+		Filename:   config.LogFile,
 		MaxSize:    1, //megabytes - ouch, too big! https://github.com/natefinch/lumberjack/issues/37
 		MaxBackups: 7, //files
 		MaxAge:     7, //days
 	}
 	log.SetOutput(io.MultiWriter(fileLogger, os.Stdout))
 
-	if len(*configFile) > 0 {
-		if err := wallabago.ReadConfig(*configFile); err != nil {
-			log.Fatal("cannot load configuration file: ", err.Error())
-		}
+	if err := wallabago.ReadConfig(*configFile); err != nil {
+		log.Fatal("cannot load configuration file: ", err.Error())
 	}
 
 	log.Println("logging in to", wallabago.Config.WallabagURL)
@@ -114,7 +138,7 @@ func main() {
 	// retryCount is the number of logins wallabako will attempt
 	// first attempt is 1 second and first attempt double the delay at each attempt
 	var client *http.Client
-	for retryCount := 0; retryCount <= *retryMax; retryCount++ {
+	for retryCount := 0; retryCount <= config.RetryMax; retryCount++ {
 		client, err = login(wallabago.Config.WallabagURL, wallabago.Config.UserName, wallabago.Config.UserPassword)
 		if err == nil {
 			break
@@ -140,7 +164,7 @@ func main() {
 				// 9 25
 				// but second retry is one second later, we want that one faster.
 				delay := time.Duration((1 + (retryCount * retryCount))) * time.Second
-				log.Printf("%s, sleeping %s (%d/%d)", err, delay, retryCount, *retryMax)
+				log.Printf("%s, sleeping %s (%d/%d)", err, delay, retryCount, config.RetryMax)
 				time.Sleep(delay)
 			}
 		}
@@ -155,7 +179,7 @@ func main() {
 	// https://play.golang.org/p/hNaeTjLwdv we don't need toplevel
 	// error handling yet, so we stick with the semaphore channel
 	// pattern
-	sem := make(chan bool, *concurrency)
+	sem := make(chan bool, config.Concurrency)
 	entries := listEntries()
 	valid := make(map[int]bool)
 	for _, entry := range entries {
@@ -176,14 +200,14 @@ func main() {
 	for i := 0; i < cap(sem); i++ {
 		sem <- true
 	}
-	deleted, read := inspectLocalFiles(*outputDir, valid)
+	deleted, read := inspectLocalFiles(config.OutputDir, valid)
 	log.Printf("processed: %d, downloaded: %d, size: %s, deleted: %d, read: %d",
 		counter.Value("processed"), counter.Value("downloaded"), humanize.IBytes(uint64(counter.Value("bytes"))), len(deleted), len(read))
 	fds := listOpenFds()
 	log.Printf("%d open file descriptors: %s", len(fds), fds)
-	if len(*notify) > 0 && (counter.Value("downloaded") > 0 || len(deleted) > 0) {
-		log.Println("running command", *notify)
-		out, err := exec.Command(*notify).CombinedOutput()
+	if len(config.Exec) > 0 && (counter.Value("downloaded") > 0 || len(deleted) > 0) {
+		log.Println("running command", config.Exec)
+		out, err := exec.Command(config.Exec).CombinedOutput()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -206,17 +230,8 @@ var confPaths = []string{
 	"/etc/" + confPath,
 }
 
-// XXX: we should probably have a global Config struct and use
-// flag.StringVar in init() to initialize this. that way we would
-// avoid *some* duplication between here and the flag definition,
-// although not much unfortunately.
-type WallabakoConfig struct {
-	wallabago.WallabagConfig
-	Delete  bool   `json:"delete"`
-	LogFile string `json:"logfile"`
-}
-
-func loadConfig(configFile string) (config WallabakoConfig, err error) {
+// loadConfig parses the given configuration file and returns it
+func loadConfig(configFile string) (config wallabakoConfig, err error) {
 	raw, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		return config, err
@@ -228,13 +243,13 @@ func loadConfig(configFile string) (config WallabakoConfig, err error) {
 // findConfig looks for and loads the configuration file. it is either
 // provided as `path` or, if that is empty, is searched for in a set
 // of standard directories
-func findConfig() (config WallabakoConfig, err error) {
+func findConfig() (path string, config wallabakoConfig, err error) {
 	for _, path := range confPaths {
 		if config, err = loadConfig(path); err == nil {
 			break
 		}
 	}
-	return config, err
+	return path, config, err
 }
 
 // the base name of the pidfile
@@ -326,7 +341,7 @@ func login(baseURL, username, password string) (*http.Client, error) {
 
 // get the unread entries, most recent first, limited to the given count
 func listEntries() []wallabago.Item {
-	e := wallabago.GetEntries(0, -1, "updated", "desc", -1, *count, "")
+	e := wallabago.GetEntries(0, -1, "updated", "desc", -1, config.Count, "")
 	log.Printf("found %d unread entries", e.Total)
 	return e.Embedded.Items
 }
@@ -338,12 +353,12 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 	// only in 2.2: /api/entries/123/export.epub
 	counter.Inc("processed")
 	//log.Println("received entry", entry)
-	err = os.MkdirAll(*outputDir, os.ModePerm)
+	err = os.MkdirAll(config.OutputDir, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("failed to create directory: %v", err)
 	}
 	epubURL := baseURL + "/export/" + strconv.Itoa(entry.ID) + ".epub"
-	output := filepath.Join(*outputDir, path.Base(epubURL))
+	output := filepath.Join(config.OutputDir, path.Base(epubURL))
 	info, err := os.Stat(output)
 	if err == nil && info.ModTime().After(entry.UpdatedAt.Time) && info.Size() > 0 {
 		log.Printf("URL %s older than local file %s, skipped", epubURL, output)
@@ -410,7 +425,7 @@ func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, 
 				read = append(read, file)
 			}
 		}
-		if *doDelete && !valid[id] {
+		if config.Delete && !valid[id] {
 			if status == koboBookReading {
 				log.Printf("not deleting book currently being read: %s", file)
 			} else if err = os.Remove(file); err != nil {
@@ -438,12 +453,12 @@ const (
 // should be either koboBookUnread, koboBookReading or koboBookRead,
 // unless the database format is unexpected.
 func readStatus(ID int) (res int, err error) {
-	if len(*koboDatabase) <= 0 {
+	if len(config.KoboDatabase) <= 0 {
 		return koboBookUnread, fmt.Errorf("no database configured")
 	}
 	// XXX: this should be a singleton if we start calling readStatus
 	// more often
-	db, err := sql.Open("sqlite3", *koboDatabase)
+	db, err := sql.Open("sqlite3", config.KoboDatabase)
 	if err != nil {
 		return res, err
 	}
