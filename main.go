@@ -75,6 +75,11 @@ var (
 )
 
 func main() {
+	config, err := findConfig()
+	// XXX: maybe those defaults could be handled by a global config
+	// struct instead
+	flag.Set("delete", fmt.Sprintf("%v", config.Delete))
+	flag.Set("logFile", config.LogFile)
 	flag.Parse()
 	if *showVersion {
 		fmt.Println(version)
@@ -98,8 +103,10 @@ func main() {
 	}
 	log.SetOutput(io.MultiWriter(fileLogger, os.Stdout))
 
-	if err := findConfig(*configJSON); err != nil {
-		log.Fatal("cannot load configuration file: ", err.Error())
+	if len(*configFile) > 0 {
+		if err := wallabago.ReadConfig(*configFile); err != nil {
+			log.Fatal("cannot load configuration file: ", err.Error())
+		}
 	}
 
 	log.Println("logging in to", wallabago.Config.WallabagURL)
@@ -199,21 +206,35 @@ var confPaths = []string{
 	"/etc/" + confPath,
 }
 
+// XXX: we should probably have a global Config struct and use
+// flag.StringVar in init() to initialize this. that way we would
+// avoid *some* duplication between here and the flag definition,
+// although not much unfortunately.
+type WallabakoConfig struct {
+	wallabago.WallabagConfig
+	Delete  bool   `json:"delete"`
+	LogFile string `json:"logfile"`
+}
+
+func loadConfig(configFile string) (config WallabakoConfig, err error) {
+	raw, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		return config, err
+	}
+	err = json.Unmarshal(raw, &config)
+	return config, err
+}
+
 // findConfig looks for and loads the configuration file. it is either
 // provided as `path` or, if that is empty, is searched for in a set
 // of standard directories
-func findConfig(path string) (err error) {
-	if path != "" {
-		return wallabago.ReadConfig(path)
-	}
+func findConfig() (config WallabakoConfig, err error) {
 	for _, path := range confPaths {
-		if err = wallabago.ReadConfig(path); err == nil {
+		if config, err = loadConfig(path); err == nil {
 			break
-		} else {
-			log.Println(err)
 		}
 	}
-	return err
+	return config, err
 }
 
 // the base name of the pidfile
