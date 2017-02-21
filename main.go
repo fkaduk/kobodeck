@@ -132,9 +132,9 @@ func main() {
 	//
 	// we don't care about errors here, we'll catch it later and this
 	// is optional anyways
-	path, config, _ := findConfig()
-	// make sure the config file we found is used by wallabago
-	*configFile = path
+	//
+	// this also makes sure the config file we found is used by wallabago
+	*configFile, config, _ = findConfig()
 	flag.Parse()
 	config = restoreDefaults(config)
 	//log.Println("config: %v", config)
