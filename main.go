@@ -67,18 +67,47 @@ type wallabakoConfig struct {
 	RetryMax     int    `json:"RetryMax"`
 }
 
+// default values for flags
+//
+// XXX: this shouldn't be necessary, but unfortunately, the JSON
+// parser overwrites variables with their zero values if absent from
+// config file
+const (
+	defaultDatabase    = "/mnt/onboard/.kobo/KoboReader.sqlite"
+	defaultConcurrency = 6
+	defaultCount       = -1
+	defaultRetry       = 4
+)
+
+// restore the above defaults. this is uber ugly.
+func restoreDefaults(config wallabakoConfig) wallabakoConfig {
+	if config.Concurrency < 1 {
+		config.Concurrency = defaultConcurrency
+	}
+	if len(config.KoboDatabase) < 1 {
+		config.KoboDatabase = defaultDatabase
+	}
+	if config.Count < 1 {
+		config.Count = defaultCount
+	}
+	if config.RetryMax < 1 {
+		config.RetryMax = defaultRetry
+	}
+	return config
+}
+
 // init sets up the commandline flags
 func init() {
 	flag.BoolVar(&config.Delete, "delete", false, "if we should delete EPUB files not found in feed")
 	flag.StringVar(&config.LogFile, "logfile", "", "output file for logs")
-	flag.StringVar(&config.KoboDatabase, "database", "/mnt/onboard/.kobo/KoboReader.sqlite", "path to Kobo database")
+	flag.StringVar(&config.KoboDatabase, "database", defaultDatabase, "path to Kobo database")
 	// default is from web browsers, which are around 6-10: http://www.browserscope.org/?category=network
-	flag.IntVar(&config.Concurrency, "concurrency", 6, "number of downloads to process in parallel")
-	flag.IntVar(&config.Count, "count", -1, "number of articles to fetch")
+	flag.IntVar(&config.Concurrency, "concurrency", defaultConcurrency, "number of downloads to process in parallel")
+	flag.IntVar(&config.Count, "count", defaultCount, "number of articles to fetch")
 	flag.StringVar(&config.Exec, "exec", "", "execute the given command when files have changed")
 	flag.StringVar(&config.OutputDir, "output", ".", "output directory to save files into")
 	flag.StringVar(&config.PidFile, "pidfile", "", "pidfile to write to avoid multiple runs")
-	flag.IntVar(&config.RetryMax, "retry", 4, "number of attempts to login the website, with exponential backoff delay")
+	flag.IntVar(&config.RetryMax, "retry", defaultRetry, "number of attempts to login the website, with exponential backoff delay")
 }
 
 // various global variables
@@ -107,6 +136,8 @@ func main() {
 	// make sure the config file we found is used by wallabago
 	*configFile = path
 	flag.Parse()
+	config = restoreDefaults(config)
+	//log.Println("config: %v", config)
 	if *showVersion {
 		fmt.Println(version)
 		return
