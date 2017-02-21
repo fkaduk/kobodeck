@@ -52,15 +52,15 @@ var (
 // commandline
 type wallabakoConfig struct {
 	wallabago.WallabagConfig
-	Delete       bool   `json:"delete"`
-	LogFile      string `json:"logfile"`
-	KoboDatabase string `json:"KoboDatabase"`
-	Concurrency  int    `json:"Concurrency"`
-	Count        int    `json:"Count"`
-	Exec         string `json:"Exec"`
-	OutputDir    string `json:"OutputDir"`
-	PidFile      string `json:"PidFile"`
-	RetryMax     int    `json:"RetryMax"`
+	Delete      bool   `json:"delete"`
+	LogFile     string `json:"logfile"`
+	Database    string `json:"Database"`
+	Concurrency int    `json:"Concurrency"`
+	Count       int    `json:"Count"`
+	Exec        string `json:"Exec"`
+	OutputDir   string `json:"OutputDir"`
+	PidFile     string `json:"PidFile"`
+	RetryMax    int    `json:"RetryMax"`
 }
 
 // config is the global configuration, as read from the config file
@@ -72,16 +72,16 @@ type wallabakoConfig struct {
 // only some of those flags are set because the zero values are good
 // enough for the other flags
 var config = wallabakoConfig{
-	KoboDatabase: "/mnt/onboard/.kobo/KoboReader.sqlite",
-	Concurrency:  6,
-	Count:        -1,
-	RetryMax:     4,
+	Database:    "/mnt/onboard/.kobo/KoboReader.sqlite",
+	Concurrency: 6,
+	Count:       -1,
+	RetryMax:    4,
 }
 
 // init sets up the commandline flags
 func init() {
 	flag.BoolVar(&config.Delete, "delete", false, "if we should delete EPUB files not found in feed")
-	flag.StringVar(&config.KoboDatabase, "database", config.KoboDatabase, "path to Kobo database")
+	flag.StringVar(&config.Database, "database", config.Database, "path to Kobo database")
 	// default is from web browsers, which are around 6-10: http://www.browserscope.org/?category=network
 	flag.IntVar(&config.Concurrency, "concurrency", config.Concurrency, "number of downloads to process in parallel")
 	flag.IntVar(&config.Count, "count", config.Count, "number of articles to fetch")
@@ -480,12 +480,12 @@ const (
 // should be either koboBookUnread, koboBookReading or koboBookRead,
 // unless the database format is unexpected.
 func readStatus(ID int) (res int, err error) {
-	if len(config.KoboDatabase) <= 0 {
+	if len(config.Database) <= 0 {
 		return koboBookUnread, fmt.Errorf("no database configured")
 	}
 	// XXX: this should be a singleton if we start calling readStatus
 	// more often
-	db, err := sql.Open("sqlite3", config.KoboDatabase)
+	db, err := sql.Open("sqlite3", config.Database)
 	if err != nil {
 		return res, err
 	}
