@@ -679,6 +679,32 @@ server is trusted only once. This also requires builds to be
 reproducible. [sigtool](https://github.com/opencoff/sigtool) looks
 like a go version of signify that we could use.
 
+The API is pretty simple. I would need to generate a public/private
+keypair once, with this:
+
+    go get github.com/opencoff/sigtool
+    sigtool gen .sigtool/wallabako
+
+Then the base64 part of the public key in `~/.sigtool/wallabako.pub`
+would be hardcoded in the source code and decoded at runtime using the
+builtin `encoding/base64` library, say as `publicKey`. The signature
+should be a separate file (say the `KoboRoot.tgz.sig` file). Then the
+signature check would be something like this, mostly
+[cargo-culted from sigtool][]:
+
+    // XXX: needs to be fetched online...
+    fn = 'KoboRoot.tgz'
+    sn = 'KoboRoot.tgz.sig'
+    sig, err := sign.ReadSignature(sn)
+    if err != nil { die("%s: Can't read signature '%s': %s", Z, sn, err) }
+    if !sig.IsPKMatch(publicKey) { die("Wrong public key '%s' for verifying '%s'", publicKey, sn) }
+    ok, err := pk.VerifyFile(fn, sig)
+    if !ok || err != nil { die("%s: %s", Z, err) }
+
+[cargo-culted from sigtool]: https://github.com/opencoff/sigtool/blob/master/sigtool.go#L192
+
+Pretty straightforward, it seems.
+
 This should also be able to discriminate between snapshots and tagged
 releases. Since 0.7, wallabako knows which version it's
 running. Version information is embedded at compile-time with
@@ -687,6 +713,21 @@ compile flags. This was inspired by:
 * https://www.reddit.com/r/golang/comments/4cpi2y/question_where_to_keep_the_version_number_of_a_go/
 * https://www.atatus.com/blog/golang-auto-build-versioning/
 * http://stackoverflow.com/questions/11354518/golang-application-auto-build-versioning
+
+The last hurdle is how to ship the `.sig` file along with the
+autobuild artifacts. As far as I know, we can't directly add files to
+the artifacts storage on GitLab, but we can attach files to
+tags. Unfortunately, the GitLab API is pretty limited: while we can
+see the release notes and consequently we *could* parse out links to
+the signature files, that's rather clunky and we would rather have a
+distinct [API endpoint to list attachments][]. Also note that this
+approach would require either the binary file to be downloaded from
+the release notes or builds to be reproducible. The former is probably
+easier to start with, especially since we were forced to build with Go
+1.8 to get cross-building, something which is not currently available
+in Debian.
+
+ [API endpoint to list attachments]: https://gitlab.com/gitlab-org/gitlab-ce/issues/28460
 
 Shorter autoreload delay
 ------------------------
