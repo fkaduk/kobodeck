@@ -99,7 +99,8 @@ colons and commas (`{`, `}`, `"`, `:`, `,`).
 Also note that some commandline flags are hardcoded in the
 `wallabag-run` script. To modify those, you will
 need to modify the file in the `KoboRoot.tgz` file or hack the kobo to
-get commandline access. See the [troubleshooting](#troubleshooting)
+get commandline access. There are also more settings you can set in
+the configuration file, see the [troubleshooting](#troubleshooting)
 section for more information.
 
 <img alt="screenshot of the connect dialog on a Kobo Glo HD reader" src="assets/connect-dialog.png" align="right" />
@@ -215,9 +216,59 @@ you may stumble upon. Normally, if you install the package correctly,
 you shouldn't get those errors so please do file a bug if you can
 reproduce this issue.
 
-Also note that from 0.3, Wallabako logs debug information into
-`wallabako.log.txt` on the reader, so you can look into those files to see
-if it is running correctly when you plug your reader in a computer.
+Logging
+-------
+
+Versions from 0.3 to 1.0 were writing debugging information in the
+`wallabako.log.txt` on the reader. This is now disabled by default
+(see [this discussion for why][]) but can be enabled again by adding a
+`LogFile` option in the configuration file, like this:
+
+    {
+      "WallabagURL": "https://app.wallabag.it",
+      "ClientId": "14_2vun20ernfy880wgkk88gsoosk4csocs4ccw4sgwk84gc84o4k",
+      "ClientSecret": "69k0alx9bdcsc0c44o84wk04wkgw0c0g4wkww8c0wwok0sk4ok",
+      "UserName": "joelle",
+      "UserPassword": "your super password goes here",
+      "LogFile": "/mnt/onboard/wallabako.log.txt"
+    }
+
+[this discussion for why]: https://gitlab.com/anarcat/wallabako/merge_requests/1
+
+This will make a `wallabako.log` file show up on your reader that you
+can check to see what's going on with the command.
+
+Configuration file details
+--------------------------
+
+Most commandline options (except `-version` and `-config`) can also be
+set in the configuration file. Here are the configuration options and
+their matching configuration file settings:
+
+| Configuration | Flag | Default | Meaning |
+| `Delete` | `-delete` | `false` | delete EPUB files marked as read or missing from Wallabag |
+| `Database` | `-database` | `/mnt/onboard/.kobo/KoboReader.sqlite` | path to the Kobo database |
+| `Concurrency`, `-concurrency` | 6 | number of downloads to process in parallel |
+| `Count` | `-count` | -1 | number of articles to fetch, -1 means use Wallabag default |
+| `Exec` | `-exec` | nothing | execute the given command when files have changed |
+| `LogFile` | N/A | no logging | rotated logfile to store debug information |
+| `OutputDir` | `-output` | current directory | output directory to save files into |
+| `PidFile` | `-pidfile` | `wallabako.pid` | pidfile to write to avoid multiple runs |
+| `RetryMax` | `-retry` | 4 | number of attempts to login the website, with exponential backoff delay |
+
+The pidfile is actually written in one of those directories, the first
+one found that works:
+
+ 1. `/var/run`
+ 2. `/run`
+ 3. `/run/user/UID`
+ 4. `/home/USER/.`
+
+There's no `-logfile` option anymore since this was not really useful:
+you can just redirect output to a file using shell redirection (`>
+logfile`). Also, it was difficult to implement logging for
+configuration file discovery while at the same time allowing the
+logfile to be changed when commandline flags are parsed.
 
 x509: failed to load system roots and no roots provided
 -------------------------------------------------------
@@ -828,11 +879,10 @@ require starting as a daemon which is trickier.
 One trigger we removed is when we have finished reading a book: we
 used to just delete it, which would cause yet another trigger. The way
 we have worked around this was to simply stop deleting books, but this
-puts more burden on the user to manually remove those books... It
-would be better to leave this as a configurable option, and the best
-place to do this would be in the `.js` config file. I therefore looked
-a few commandline parsers to see if they could start reading from a
-JSON file:
+puts more burden on the user to manually remove those books... There
+is therefore a `Delete` option you can add to the JSON configuration
+file to enable deletion of read books. I have looked a few commandline
+parsers to see if they could start reading from a JSON file:
 
  * [cobra](https://github.com/spf13/cobra) - has a configuration file,
    but it's for command definition, not runtime. interesting project
@@ -857,7 +907,9 @@ I guess that it's impossible to use such a framework *and* keep our
 current config file syntax. It may also be impossible to extend the
 config file without breaking Wallabago, the library. An alternative
 would be to use environment variables, for example, or just a separate
-config.
+config. We ended up sticking with the default flags parser and just
+extend our JSON file parsing to support the extra flags, it was simple
+enough.
 
 Unit tests
 ----------

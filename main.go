@@ -78,7 +78,8 @@ var config = wallabakoConfig{
 	RetryMax:    4,
 }
 
-// init sets up the commandline flags
+// init sets up the commandline flags. when you change this, also
+// change the matching README section
 func init() {
 	flag.BoolVar(&config.Delete, "delete", false, "if we should delete EPUB files not found in feed")
 	flag.StringVar(&config.Database, "database", config.Database, "path to Kobo database")
