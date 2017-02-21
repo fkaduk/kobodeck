@@ -47,10 +47,6 @@ var (
 	showVersion = flag.Bool("version", false, "show program version and exit")
 )
 
-// config is the global configuration, as read from the config file
-// and overriden by commandline flags
-var config wallabakoConfig
-
 // wallabakoConfig represents all configuration settings that can be
 // read from the config file. others are only specified on the
 // commandline
@@ -67,46 +63,32 @@ type wallabakoConfig struct {
 	RetryMax     int    `json:"RetryMax"`
 }
 
-// default values for flags
+// config is the global configuration, as read from the config file
+// and overriden by commandline flags
 //
-// XXX: this shouldn't be necessary, but unfortunately, the JSON
-// parser overwrites variables with their zero values if absent from
-// config file
-const (
-	defaultDatabase    = "/mnt/onboard/.kobo/KoboReader.sqlite"
-	defaultConcurrency = 6
-	defaultCount       = -1
-	defaultRetry       = 4
-)
-
-// restore the above defaults. this is uber ugly.
-func restoreDefaults(config wallabakoConfig) wallabakoConfig {
-	if config.Concurrency < 1 {
-		config.Concurrency = defaultConcurrency
-	}
-	if len(config.KoboDatabase) < 1 {
-		config.KoboDatabase = defaultDatabase
-	}
-	if config.Count < 1 {
-		config.Count = defaultCount
-	}
-	if config.RetryMax < 1 {
-		config.RetryMax = defaultRetry
-	}
-	return config
+// the values we set here will be used by default by the UnmarshalJSON
+// function, so they are in effect the default values for those flags
+//
+// only some of those flags are set because the zero values are good
+// enough for the other flags
+var config = wallabakoConfig{
+	KoboDatabase: "/mnt/onboard/.kobo/KoboReader.sqlite",
+	Concurrency:  6,
+	Count:        -1,
+	RetryMax:     4,
 }
 
 // init sets up the commandline flags
 func init() {
 	flag.BoolVar(&config.Delete, "delete", false, "if we should delete EPUB files not found in feed")
-	flag.StringVar(&config.KoboDatabase, "database", defaultDatabase, "path to Kobo database")
+	flag.StringVar(&config.KoboDatabase, "database", config.KoboDatabase, "path to Kobo database")
 	// default is from web browsers, which are around 6-10: http://www.browserscope.org/?category=network
-	flag.IntVar(&config.Concurrency, "concurrency", defaultConcurrency, "number of downloads to process in parallel")
-	flag.IntVar(&config.Count, "count", defaultCount, "number of articles to fetch")
+	flag.IntVar(&config.Concurrency, "concurrency", config.Concurrency, "number of downloads to process in parallel")
+	flag.IntVar(&config.Count, "count", config.Count, "number of articles to fetch")
 	flag.StringVar(&config.Exec, "exec", "", "execute the given command when files have changed")
 	flag.StringVar(&config.OutputDir, "output", ".", "output directory to save files into")
 	flag.StringVar(&config.PidFile, "pidfile", "", "pidfile to write to avoid multiple runs")
-	flag.IntVar(&config.RetryMax, "retry", defaultRetry, "number of attempts to login the website, with exponential backoff delay")
+	flag.IntVar(&config.RetryMax, "retry", config.RetryMax, "number of attempts to login the website, with exponential backoff delay")
 }
 
 // various global variables
@@ -131,7 +113,7 @@ func main() {
 	// shadows the global config
 	var err error
 	// load defaults from configuration file
-	*configFile, config, err = findConfig()
+	*configFile, err = findConfig()
 	// need to bootstrap logfile first before we handle errors
 	setupLogging(config)
 	if err != nil {
@@ -139,8 +121,7 @@ func main() {
 	}
 	log.Println("loaded configuration from", *configFile)
 	flag.Parse()
-	config = restoreDefaults(config)
-	//log.Println("config: %v", config)
+	//log.Printf("config: %#v", config)
 	if *showVersion {
 		fmt.Println(version)
 		return
@@ -277,26 +258,25 @@ var confPaths = []string{
 }
 
 // loadConfig parses the given configuration file and returns it
-func loadConfig(configFile string) (config wallabakoConfig, err error) {
+func loadConfig(configFile string) (err error) {
 	raw, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		return config, err
+		return err
 	}
-	err = json.Unmarshal(raw, &config)
-	return config, err
+	return json.Unmarshal(raw, &config)
 }
 
 // findConfig looks for and loads the configuration file. it is either
 // provided as `path` or, if that is empty, is searched for in a set
 // of standard directories
-func findConfig() (path string, config wallabakoConfig, err error) {
+func findConfig() (path string, err error) {
 	for _, path = range confPaths {
-		if config, err = loadConfig(path); err == nil {
+		if err = loadConfig(path); err == nil {
 			//log.Printf("loaded conf from path %v: %v", path, config)
 			break
 		}
 	}
-	return path, config, err
+	return path, err
 }
 
 // the base name of the pidfile
