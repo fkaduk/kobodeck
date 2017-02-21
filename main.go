@@ -43,7 +43,7 @@ import (
 var (
 	// XXX: we shouldn't need to write the password down in the config:
 	// https://github.com/wallabag/wallabag/issues/2800
-	configJSON = flag.String("config", "", "file name of config JSON file")
+	configFile = flag.String("config", "", "path to the configuration file")
 	// default is from web browsers, which are around 6-10: http://www.browserscope.org/?category=network
 	concurrency  = flag.Int("concurrency", 6, "number of downloads to process in parallel")
 	count        = flag.Int("count", -1, "number of articles to fetch")
