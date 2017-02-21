@@ -466,8 +466,8 @@ func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, 
 	return deleted, read
 }
 
-// koboRealBook is the ContentID code for normal books in the Kobo sqlite database
-const koboRealBook = 6
+// koboNormalBook is the ContentID code for normal books in the Kobo sqlite database
+const koboNormalBook = 6
 
 // koboBook* are the various book reading statuses in the Kobo sqlite database
 const (
@@ -492,7 +492,7 @@ func readStatus(ID int) (res int, err error) {
 	defer db.Close()
 
 	path := fmt.Sprintf("file:///mnt/onboard/wallabako/%d.epub", ID)
-	rows, err := db.Query("SELECT ReadStatus FROM content WHERE ContentID = $1 AND ContentType = $2 LIMIT 1", path, koboRealBook)
+	rows, err := db.Query("SELECT ReadStatus FROM content WHERE ContentID = $1 AND ContentType = $2 LIMIT 1", path, koboNormalBook)
 	if err != nil {
 		return res, err
 	}
