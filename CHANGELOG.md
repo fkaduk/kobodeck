@@ -1,6 +1,31 @@
 This is a summary of changes in the published releases of
 Wallabako. The format of this change may change without prior notice.
 
+# 1.0.0: Finally somewhere
+
+This major release features complete configuration file
+support. Settings like `LogFile` can now be written directly into the
+`JSON` configuration file. Logs, by default, are now disabled as they
+do not seem as useful anymore since things generally work well, hence
+the 1.0 release.
+
+This release fixes a bunch of issues:
+
+ * extended configuration file support: logfiles, deletion,
+   parallelism can now all be configured in the configuration file,
+   see README for details
+ * do not delete articles by default: it causes spurious
+   triggers. this can be enabled again by adding the `Delete` setting
+   with a `true` value (note: no quotes) in the configuration file
+ * do not write a logfile by default: this takes up too much space and
+   doesn't seem very necessary anymore. this can be re-enabled by
+   using the `LogFile` parameter in the configuration file, set, for
+   example, to `/mnt/onboad/wallabako.log.txt`.
+ * drop support for the `-logfile` commandline flag, use shell
+   redirection instead
+ * slow builds are now fixed now that the docker images have been
+   updated
+
 # 0.9: Run forest
 
 Lots of attempts to fix sync that was becoming increasingly unreliable.
