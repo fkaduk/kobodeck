@@ -164,13 +164,13 @@ func main() {
 		log.Fatal("cannot load configuration file: ", err.Error())
 	}
 
-	log.Println("logging in to", wallabago.Config.WallabagURL)
-	//log.Println("username, password:", wallabago.Config.UserName, wallabago.Config.UserPassword)
+	log.Println("logging in to", config.WallabagURL)
+	//log.Println("username, password:", config.UserName, config.UserPassword)
 	// retryCount is the number of logins wallabako will attempt
 	// first attempt is 1 second and first attempt double the delay at each attempt
 	var client *http.Client
 	for retryCount := 0; retryCount <= config.RetryMax; retryCount++ {
-		client, err = login(wallabago.Config.WallabagURL, wallabago.Config.UserName, wallabago.Config.UserPassword)
+		client, err = login(config.WallabagURL, config.UserName, config.UserPassword)
 		if err == nil {
 			break
 		} else {
@@ -222,7 +222,7 @@ func main() {
 		go func(e wallabago.Item) {
 			// release the slot when finished
 			defer func() { <-sem }()
-			if err = download(client, wallabago.Config.WallabagURL, e); err != nil {
+			if err = download(client, config.WallabagURL, e); err != nil {
 				log.Println("error downloading entry", e.ID, err)
 			}
 		}(entry)
@@ -518,7 +518,7 @@ func markAsRead(id int) (err error) {
 	log.Printf("marking entry %d as read", id)
 	tmp := map[string]string{"archive": "1"}
 	body, _ := json.Marshal(tmp)
-	_, err = doAPI("PATCH", wallabago.Config.WallabagURL+"/api/entries/"+strconv.Itoa(id)+".json", bytes.NewBuffer(body))
+	_, err = doAPI("PATCH", config.WallabagURL+"/api/entries/"+strconv.Itoa(id)+".json", bytes.NewBuffer(body))
 	//log.Println("data, err", string(data), err)
 	return err
 }
