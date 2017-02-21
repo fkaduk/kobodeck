@@ -99,7 +99,6 @@ func restoreDefaults(config wallabakoConfig) wallabakoConfig {
 // init sets up the commandline flags
 func init() {
 	flag.BoolVar(&config.Delete, "delete", false, "if we should delete EPUB files not found in feed")
-	flag.StringVar(&config.LogFile, "logfile", "", "output file for logs")
 	flag.StringVar(&config.KoboDatabase, "database", defaultDatabase, "path to Kobo database")
 	// default is from web browsers, which are around 6-10: http://www.browserscope.org/?category=network
 	flag.IntVar(&config.Concurrency, "concurrency", defaultConcurrency, "number of downloads to process in parallel")
@@ -128,13 +127,17 @@ var (
 )
 
 func main() {
+	// this can't be initialized in the short form below otherwise it
+	// shadows the global config
+	var err error
 	// load defaults from configuration file
-	//
-	// we don't care about errors here, we'll catch it later and this
-	// is optional anyways
-	//
-	// this also makes sure the config file we found is used by wallabago
-	*configFile, config, _ = findConfig()
+	*configFile, config, err = findConfig()
+	// need to bootstrap logfile first before we handle errors
+	setupLogging(config)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	log.Println("loaded configuration from", *configFile)
 	flag.Parse()
 	config = restoreDefaults(config)
 	//log.Println("config: %v", config)
@@ -151,18 +154,6 @@ func main() {
 		log.Fatal("Cannot lock PID file: ", err)
 	}
 	defer lock.Unlock()
-
-	if len(config.LogFile) > 0 {
-		fileLogger := &lumberjack.Logger{
-			Filename:   config.LogFile,
-			MaxSize:    1, //megabytes - ouch, too big! https://github.com/natefinch/lumberjack/issues/37
-			MaxBackups: 7, //files
-			MaxAge:     7, //days
-		}
-		log.SetOutput(io.MultiWriter(fileLogger, os.Stdout))
-	} else {
-		log.SetOutput(os.Stdout)
-	}
 
 	if err := wallabago.ReadConfig(*configFile); err != nil {
 		log.Fatal("cannot load configuration file: ", err.Error())
@@ -249,6 +240,26 @@ func main() {
 		if len(out) > 0 {
 			log.Println(string(out))
 		}
+	}
+}
+
+// setupLogging configures logging to a rotate file using the
+// lumberjack package, if it is configured in the config file
+//
+// XXX: we do not support the -logfile argument anymore, as we would
+// need to reconfigure logging on the fly, which is clunky. users can
+// just use shell redirection there anyways.
+func setupLogging(config wallabakoConfig) {
+	if len(config.LogFile) > 0 {
+		fileLogger := &lumberjack.Logger{
+			Filename:   config.LogFile,
+			MaxSize:    1, //megabytes - ouch, too big! https://github.com/natefinch/lumberjack/issues/37
+			MaxBackups: 7, //files
+			MaxAge:     7, //days
+		}
+		log.SetOutput(io.MultiWriter(fileLogger, os.Stdout))
+	} else {
+		log.SetOutput(os.Stdout)
 	}
 }
 
