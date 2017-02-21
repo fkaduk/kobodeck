@@ -152,13 +152,17 @@ func main() {
 	}
 	defer lock.Unlock()
 
-	fileLogger := &lumberjack.Logger{
-		Filename:   config.LogFile,
-		MaxSize:    1, //megabytes - ouch, too big! https://github.com/natefinch/lumberjack/issues/37
-		MaxBackups: 7, //files
-		MaxAge:     7, //days
+	if len(config.LogFile) > 0 {
+		fileLogger := &lumberjack.Logger{
+			Filename:   config.LogFile,
+			MaxSize:    1, //megabytes - ouch, too big! https://github.com/natefinch/lumberjack/issues/37
+			MaxBackups: 7, //files
+			MaxAge:     7, //days
+		}
+		log.SetOutput(io.MultiWriter(fileLogger, os.Stdout))
+	} else {
+		log.SetOutput(os.Stdout)
 	}
-	log.SetOutput(io.MultiWriter(fileLogger, os.Stdout))
 
 	if err := wallabago.ReadConfig(*configFile); err != nil {
 		log.Fatal("cannot load configuration file: ", err.Error())
