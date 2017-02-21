@@ -279,7 +279,7 @@ func loadConfig(configFile string) (config wallabakoConfig, err error) {
 // provided as `path` or, if that is empty, is searched for in a set
 // of standard directories
 func findConfig() (path string, config wallabakoConfig, err error) {
-	for _, path := range confPaths {
+	for _, path = range confPaths {
 		if config, err = loadConfig(path); err == nil {
 			break
 		}
