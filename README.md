@@ -560,8 +560,8 @@ found the following libraries:
   standlone, no rotation, not a drop-in replacement
 * [glog](https://godoc.org/github.com/golang/glog) - level filtering,
   hooks into the flags package for output control, Google's simple
-  implementation, can hook into the builtin log package, no log
-  rotation
+  implementation, can hook into the builtin log package but not send
+  to it, no log rotation
 * [lumberjack][] - rotation for the builtin logger
 * [logger](https://github.com/azer/logger) - timers, env-based log
   selection, JSON output, overkill?
@@ -590,7 +590,18 @@ other projects:
   levels, simpler interface than logrus, fast, structured
 
 In the end we resolved it was simpler to stick with the builtin logger
-and use the lightweigth lumberjack library for log rotation.
+and use the lightweigth lumberjack library for log rotation. We also
+have a "debug" configuration setting to enable more verbose output,
+but no "verbose" flag yet, although that could be implemented (and the
+script could default to being silent).
+
+Note that there are [discussions][] to include a Logger interface in
+the standard library. The [proposal][] currently includes two logging
+levels: Debug and Info. So our work seems to be forward compatible
+with the direction the community is taking.
+
+[proposal]: https://docs.google.com/document/d/1nFRxQ5SJVPpIBWTFHV-q5lBYiwGrfCMkESFGNzsrvBU/edit#
+[discussions]: https://groups.google.com/forum/#!topic/golang-dev/F3l9Iz1JX4g%5B51-75%5D
 
 We note it is possible the logfile itself may cause problems with
 library reloads: since it is an open file on the `/mnt/onboard`
