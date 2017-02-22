@@ -372,6 +372,15 @@ Wallabako was written by The Anarcat and reviewed by friendly Debian
 developers `juliank` and `stapelberg`. `smurf` also helped in
 reviewing the code and answering my million newbie questions about go.
 
+Also thanks to [Norbert Preining][] for pulishing the
+[Kobo firmare images][] that got me started into this path and allowed
+me to easily root my reader. This inspired me to start the related
+[kobo-ssh][] project to build smaller, ssh-only images.
+
+[kobo-ssh]: https://gitlab.com/anarcat/kobo-ssh
+[Norbert Preining]: https://www.preining.info/
+[Kobo firmare images]: https://www.preining.info/blog/2016/01/kobo-firmware-3-19-5761-mega-update-ksm-nickel-patch-ssh-fonts/
+
 This program and documentation is distributed under the AGPLv3
 license, see the LICENSE file for more information.
 
