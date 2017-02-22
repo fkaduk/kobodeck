@@ -222,7 +222,7 @@ Logging
 Versions from 0.3 to 1.0 were writing debugging information in the
 `wallabako.log.txt` on the reader. This is now disabled by default
 (see [this discussion for why][]) but can be enabled again by adding a
-`LogFile` option in the configuration file, like this:
+`logfile` option in the configuration file, like this:
 
     {
       "WallabagURL": "https://app.wallabag.it",
@@ -230,7 +230,7 @@ Versions from 0.3 to 1.0 were writing debugging information in the
       "ClientSecret": "69k0alx9bdcsc0c44o84wk04wkgw0c0g4wkww8c0wwok0sk4ok",
       "UserName": "joelle",
       "UserPassword": "your super password goes here",
-      "LogFile": "/mnt/onboard/wallabako.log.txt"
+      "logfile": "/mnt/onboard/wallabako.log.txt"
     }
 
 [this discussion for why]: https://gitlab.com/anarcat/wallabako/merge_requests/1
