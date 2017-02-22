@@ -442,7 +442,7 @@ automatically. The sync script that is the main inspiration for this
 [rules]: https://github.com/wernerb/kobo-wget-sync/blob/master/src/etc/udev/rules.d/98-wget-sync.rules
 
 We reused the `eth*` and `wlan*` rules to kick the script when the
-network goes up or down. We haven't done that for the `usb*` rules as
+network goes up. We haven't done that for the `usb*` rules as
 they do not provide network, but since that's actually another hack
 that can be done, it may be a useful addition as well.
 
@@ -454,7 +454,7 @@ be part of the main configuration file.
 When the program starts, it tries to login to the Wallabag instance
 over the network. If that fails, it will sleep one second and try
 again. If that fails again, it will sleep an exponential number of
-seconds (2, 5, 10, 17, ...) per attempts, up to 5 attempts
+seconds (2, 5, 10, 17, ...) per attempts, up to 4 attempts
 (configurable on the commandline) for a total of 35 seconds.
 
 Autoreload
@@ -520,15 +520,17 @@ On the Wallabag side, we do a `PATCH` request on the API at
 Logging
 -------
 
-Logs are printed to the console and written to a logfile in
-`/mnt/onboard/wallabako.log.txt` so that they can be read by the user
-on the reader directly. The logs are currently quite verbose. After 10
-days of more or less continuous operation, the logfile here had grown
-to around 400KB. We have implemented log rotation using [lumberjack][]
-so that we don't take up all the space on devices from version 0.9. We
-could also do log level filtering to limit the amount of data in the
-logfile but then that would reduce our much-needed debugging
-capabilities. We could also send debugging logs to syslog.
+Logs are printed to the console by default. They used to be written to
+a logfile in `/mnt/onboard/wallabako.log.txt` so that they can be read
+by the user on the reader directly, until the 1.0.0 release at which
+point it became an option configurable with the `LogFile`
+parameter. The logs are currently quite verbose. After 10 days of more
+or less continuous operation, the logfile here had grown to around
+400KB. We have implemented log rotation using [lumberjack][] so that
+we don't take up all the space on devices from version 0.9. We could
+also do log level filtering to limit the amount of data in the logfile
+but then that would reduce our much-needed debugging capabilities. We
+could also send debugging logs to syslog.
 
 [lumberjack]: https://github.com/natefinch/lumberjack
 
@@ -616,12 +618,17 @@ An issue with the autobuilder is that we trust Gitlab.com to not
 inject hostile paylods in the binaries. I provide signed binaries in
 releases built on my own computer for verification, but they are not
 built with the same environment so we can't actually verify those
-builds.
+builds. There was some research done on package authentication and
+automated upgrades in issue [#3 on Gitlab][].
+
+[#3 on Gitlab]: https://gitlab.com/anarcat/wallabako/issues/3
 
 Remaining issues
 ================
 
-Those are known issues with the program. There are also `XXX` markers
-in the source code that show other issues that need to be checked. The
-issues previously stored in this file have been moved to the
-[Gitlab issue queue](https://gitlab.com/anarcat/wallabako/issues).
+There are `XXX` markers in the source code that show other issues that
+need to be checked. The other known issues previously stored in this
+file have been moved to the [Gitlab issue queue][] to allow for better
+visibility and public collaboration.
+
+[Gitlab issue queue]: https://gitlab.com/anarcat/wallabako/issues
