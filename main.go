@@ -22,6 +22,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/cookiejar"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"os/exec"
@@ -531,21 +532,24 @@ func doAPI(method string, url string, body io.Reader) (data []byte, err error) {
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, body)
 	req.Header.Add("Authorization", wallabago.GetAuthTokenHeader())
-	//log.Println("method, url, body:", method, url, body)
-	//dump, err := httputil.DumpRequestOut(req, true)
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//log.Printf("sending request: %q", dump)
+	log.Println("method, url, body:", method, url, body)
+	dump, err := httputil.DumpRequestOut(req, true)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("sending request: %q", dump)
 	resp, err := client.Do(req)
 	if err != nil {
-		//log.Println("data, err", data, err)
 		return data, err
 	}
 	defer resp.Body.Close()
+	dump, err = httputil.DumpResponse(resp, true)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("received response: %q", dump)
 	data, err = ioutil.ReadAll(resp.Body)
 	if resp.StatusCode != 200 {
-		//log.Println(resp, data)
 		return data, fmt.Errorf("error from the API: %s", resp.Status)
 	}
 	return data, err
