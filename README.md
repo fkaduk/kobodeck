@@ -246,9 +246,10 @@ set in the configuration file. Here are the configuration options and
 their matching configuration file settings:
 
 | Configuration | Flag | Default | Meaning |
+| ------------- | ---- | ------- | ------- |
 | `Delete` | `-delete` | `false` | delete EPUB files marked as read or missing from Wallabag |
 | `Database` | `-database` | `/mnt/onboard/.kobo/KoboReader.sqlite` | path to the Kobo database |
-| `Concurrency`, `-concurrency` | 6 | number of downloads to process in parallel |
+| `Concurrency` | `-concurrency` | 6 | number of downloads to process in parallel |
 | `Count` | `-count` | -1 | number of articles to fetch, -1 means use Wallabag default |
 | `Exec` | `-exec` | nothing | execute the given command when files have changed |
 | `LogFile` | N/A | no logging | rotated logfile to store debug information |
