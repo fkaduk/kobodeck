@@ -271,6 +271,20 @@ logfile`). Also, it was difficult to implement logging for
 configuration file discovery while at the same time allowing the
 logfile to be changed when commandline flags are parsed.
 
+Finally, note that some of those settings are hardcoded in the
+`wallabako-run` wrapper script and therefore cannot be overriden in
+the configuration file. Those are:
+
+| Flag      | Value                             |
+| --------- | --------------------------------- |
+| `-output` | `/mnt/onboard/wallabako`          |
+| `-exec`   | `/usr/local/bin/fake-connect-usb` |
+
+Changing those settings could be dangerous. In particular, changing
+the `-output` directory while enabling `-delete` could delete files
+unexpectedly if they match the magic pattern (`N.epub` where N is an
+integer).
+
 x509: failed to load system roots and no roots provided
 -------------------------------------------------------
 
