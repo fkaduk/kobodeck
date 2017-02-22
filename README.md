@@ -238,6 +238,11 @@ Versions from 0.3 to 1.0 were writing debugging information in the
 This will make a `wallabako.log` file show up on your reader that you
 can check to see what's going on with the command.
 
+You can increase the verbosity of those logs with the `Debug`
+commandline flag or configuration option (set to `true`, without
+quotes). WARNING: this *will* include your password and authentication
+tokens, so be careful where you send this output.
+
 Configuration file details
 --------------------------
 
@@ -247,6 +252,7 @@ their matching configuration file settings:
 
 | Configuration | Flag           | Default           | Meaning |
 | ------------- | -------------- | ----------------- | ------- |
+| `Debug`       | `-debug`       | `false`           | include (lots of!) additional debugging information in logs, including passwords  and confidential data |
 | `Delete`      | `-delete`      | `false`           | delete EPUB files marked as read or missing from Wallabag |
 | `Database`    | `-database`    | `/mnt/onboard/.kobo/KoboReader.sqlite` | path to the Kobo database |
 | `Concurrency` | `-concurrency` | 6                 | number of downloads to process in parallel |

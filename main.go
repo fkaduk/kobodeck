@@ -83,6 +83,7 @@ var config = wallabakoConfig{
 // init sets up the commandline flags. when you change this, also
 // change the matching README section
 func init() {
+	flag.BoolVar(&config.Debug, "debug", false, "additional debugging information in logs, including confidential information")
 	flag.BoolVar(&config.Delete, "delete", false, "if we should delete EPUB files not found in feed")
 	flag.StringVar(&config.Database, "database", config.Database, "path to Kobo database")
 	// default is from web browsers, which are around 6-10: http://www.browserscope.org/?category=network
