@@ -538,7 +538,7 @@ func readStatus(ID int) (res int, err error) {
 // markAsRead marks the given wallabag article ID as read through the API
 func markAsRead(id int) (err error) {
 	log.Printf("marking entry %d as read", id)
-	tmp := map[string]string{"archive": "1"}
+	tmp := map[string]int{"archive": 1}
 	body, _ := json.Marshal(tmp)
 	_, err = doAPI("PATCH", config.WallabagURL+"/api/entries/"+strconv.Itoa(id)+".json", bytes.NewBuffer(body))
 	return err
