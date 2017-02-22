@@ -435,8 +435,8 @@ automatically. The sync script that is the main inspiration for this
 ([kobo-wget-sync][]) uses udev to trigger downloads, using those
 [rules][]:
 
-    KERNEL=="eth*", RUN+="/usr/local/bin/wallabako-run"
-    KERNEL=="wlan*", RUN+="/usr/local/bin/wallabako-run"
+    KERNEL=="eth*", ACTION=="add", RUN+="/usr/local/bin/wallabako-run"
+    KERNEL=="wlan*", ACTION=="add", RUN+="/usr/local/bin/wallabako-run"
 
 [kobo-wget-sync]: https://github.com/wernerb/kobo-wget-sync/
 [rules]: https://github.com/wernerb/kobo-wget-sync/blob/master/src/etc/udev/rules.d/98-wget-sync.rules
