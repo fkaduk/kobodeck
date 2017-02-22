@@ -53,6 +53,7 @@ var (
 // commandline
 type wallabakoConfig struct {
 	wallabago.WallabagConfig
+	Debug       bool   `json:"debug"`
 	Delete      bool   `json:"delete"`
 	LogFile     string `json:"logfile"`
 	Database    string `json:"Database"`
@@ -123,7 +124,7 @@ func main() {
 	}
 	log.Println("loaded configuration from", *configFile)
 	flag.Parse()
-	//log.Printf("config: %#v", config)
+	debugf("config after commandline parsing: %#v", config)
 	if *showVersion {
 		fmt.Println(version)
 		return
@@ -143,7 +144,7 @@ func main() {
 	}
 
 	log.Println("logging in to", config.WallabagURL)
-	//log.Println("username, password:", config.UserName, config.UserPassword)
+	debugf("username: %v, password: %v", config.UserName, config.UserPassword)
 	// retryCount is the number of logins wallabako will attempt
 	// first attempt is 1 second and first attempt double the delay at each attempt
 	var client *http.Client
@@ -192,7 +193,7 @@ func main() {
 	entries := listEntries()
 	valid := make(map[int]bool)
 	for _, entry := range entries {
-		//log.Println("dispatching", entry.ID)
+		debugln("dispatching", entry.ID)
 		valid[entry.ID] = true
 		// try to get a slot in the semaphore
 		sem <- true
@@ -212,8 +213,10 @@ func main() {
 	deleted, read := inspectLocalFiles(config.OutputDir, valid)
 	log.Printf("processed: %d, downloaded: %d, size: %s, deleted: %d, read: %d",
 		counter.Value("processed"), counter.Value("downloaded"), humanize.IBytes(uint64(counter.Value("bytes"))), len(deleted), len(read))
-	fds := listOpenFds()
-	log.Printf("%d open file descriptors: %s", len(fds), fds)
+	if config.Debug {
+		fds := listOpenFds()
+		log.Printf("%d open file descriptors: %s", len(fds), fds)
+	}
 	if len(config.Exec) > 0 && (counter.Value("downloaded") > 0 || len(deleted) > 0) {
 		log.Println("running command", config.Exec)
 		out, err := exec.Command(config.Exec).CombinedOutput()
@@ -223,6 +226,22 @@ func main() {
 		if len(out) > 0 {
 			log.Println(string(out))
 		}
+	}
+}
+
+// debugln will log the given arguments using log.Println only if
+// debugging (config.Debug) is enabled
+func debugln(args ...interface{}) {
+	if config.Debug {
+		log.Println(args...)
+	}
+}
+
+// debugln will log the given arguments using log.Printf only if
+// debugging (config.Debug) is enabled
+func debugf(fmt string, args ...interface{}) {
+	if config.Debug {
+		log.Printf(fmt, args...)
 	}
 }
 
@@ -274,8 +293,9 @@ func loadConfig(configFile string) (err error) {
 func findConfig() (path string, err error) {
 	for _, path = range confPaths {
 		if err = loadConfig(path); err == nil {
-			//log.Printf("loaded conf from path %v: %v", path, config)
 			break
+		} else {
+			debugf("can't load config path %v: %v", path, err)
 		}
 	}
 	return path, err
@@ -310,13 +330,13 @@ func getLock(path string) (lock lockfile.Lockfile, err error) {
 	}
 OuterLoop:
 	for _, path := range pidPaths {
-		//log.Println("trying lockfile path", path)
+		debugln("trying lockfile path", path)
 		lock, _ = lockfile.New(path)
 		err = lock.TryLock()
 		switch err.(type) {
 		case *os.PathError:
 			// permission denied, wrong path and so on
-			//log.Println(err)
+			debugln(err)
 			continue OuterLoop
 		default:
 			break OuterLoop
@@ -381,7 +401,7 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 	// https://github.com/wallabag/wallabag/pull/2372
 	// only in 2.2: /api/entries/123/export.epub
 	counter.Inc("processed")
-	//log.Println("received entry", entry)
+	debugln("received entry", entry)
 	err = os.MkdirAll(config.OutputDir, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("failed to create directory: %v", err)
@@ -393,11 +413,14 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 		log.Printf("URL %s older than local file %s, skipped", epubURL, output)
 		return nil
 	} else if os.IsNotExist(err) {
-		//log.Println("missing:", err)
+		debugln("missing:", err)
 	} else if err != nil {
 		return fmt.Errorf("unexpected error checking existing file: %v", err)
 	}
-	//log.Printf("out of date: err: %s, modtime: %s, changed: %s, before? : %s", err, info.ModTime(), entry.changed, info.ModTime().Before(entry.changed))
+	if err != nil && info != nil {
+		debugf("out of date: err: %s, modtime: %s", err, info.ModTime())
+		debugf("changed: %s, before: %s", entry.UpdatedAt.Time, info.ModTime().Before(entry.UpdatedAt.Time))
+	}
 	log.Printf("downloading %s in %s", epubURL, output)
 	out, err := os.Create(output)
 	if err != nil {
@@ -411,7 +434,7 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 	if err != nil {
 		return fmt.Errorf("download of %s failed: %v", epubURL, err)
 	}
-	//log.Println("received response:", resp, err)
+	debugln("received response:", resp, err)
 	defer resp.Body.Close()
 	n, err := io.Copy(out, resp.Body)
 	if err != nil {
@@ -431,7 +454,7 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 // (if it's read)
 func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, read []string) {
 	files, _ := filepath.Glob(outputDir + "/*.epub")
-	//log.Println("files:", files, outputDir+"/*.epub")
+	debugln("files:", files, outputDir+"/*.epub")
 	for _, file := range files {
 		id, err := strconv.Atoi(strings.TrimSuffix(filepath.Base(file), filepath.Ext(file)))
 		if err != nil {
@@ -502,7 +525,7 @@ func readStatus(ID int) (res int, err error) {
 	var readStatus int
 	if rows.Next() {
 		if err := rows.Scan(&readStatus); err == nil {
-			//log.Println("found readStatus", readStatus)
+			debugln("found readStatus", readStatus)
 			res = readStatus
 		}
 	} else {
@@ -517,7 +540,6 @@ func markAsRead(id int) (err error) {
 	tmp := map[string]string{"archive": "1"}
 	body, _ := json.Marshal(tmp)
 	_, err = doAPI("PATCH", config.WallabagURL+"/api/entries/"+strconv.Itoa(id)+".json", bytes.NewBuffer(body))
-	//log.Println("data, err", string(data), err)
 	return err
 }
 
