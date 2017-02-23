@@ -23,7 +23,7 @@ for other platforms. I have tested this on a Debian GNU/Linux 9
 
 Table of contents:
 
-- [Installation](#installation)
+- [Installation](#download-and-install)
 - [Configuration](#configuration)
 - [Usage](#usage)
 - [Support](#support)
