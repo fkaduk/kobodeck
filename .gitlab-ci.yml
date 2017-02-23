@@ -9,7 +9,7 @@ image: golang:1.8-stretch
 before_script:
     - mkdir -p /go/src
     - ln -s /builds /go/src/gitlab.com
-    - cd /go/src/gitlab.com/anarcat/wallabako
+    - cd /go/src/gitlab.com/$CI_PROJECT_PATH
     - go get github.com/golang/lint/golint
     - apt-get update
     - apt-get install -y -q gcc-arm-linux-gnueabihf
