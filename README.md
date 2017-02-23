@@ -222,7 +222,7 @@ Logging
 Versions from 0.3 to 1.0 were writing debugging information in the
 `wallabako.log.txt` on the reader. This is now disabled by default
 (see [this discussion for why][]) but can be enabled again by adding a
-`LogFile` option in the configuration file, like this:
+`logfile` option in the configuration file, like this:
 
     {
       "WallabagURL": "https://app.wallabag.it",
@@ -230,13 +230,18 @@ Versions from 0.3 to 1.0 were writing debugging information in the
       "ClientSecret": "69k0alx9bdcsc0c44o84wk04wkgw0c0g4wkww8c0wwok0sk4ok",
       "UserName": "joelle",
       "UserPassword": "your super password goes here",
-      "LogFile": "/mnt/onboard/wallabako.log.txt"
+      "logfile": "/mnt/onboard/wallabako.log.txt"
     }
 
 [this discussion for why]: https://gitlab.com/anarcat/wallabako/merge_requests/1
 
 This will make a `wallabako.log` file show up on your reader that you
 can check to see what's going on with the command.
+
+You can increase the verbosity of those logs with the `Debug`
+commandline flag or configuration option (set to `true`, without
+quotes). WARNING: this *will* include your password and authentication
+tokens, so be careful where you send this output.
 
 Configuration file details
 --------------------------
@@ -247,6 +252,7 @@ their matching configuration file settings:
 
 | Configuration | Flag           | Default           | Meaning |
 | ------------- | -------------- | ----------------- | ------- |
+| `Debug`       | `-debug`       | `false`           | include (lots of!) additional debugging information in logs, including passwords  and confidential data |
 | `Delete`      | `-delete`      | `false`           | delete EPUB files marked as read or missing from Wallabag |
 | `Database`    | `-database`    | `/mnt/onboard/.kobo/KoboReader.sqlite` | path to the Kobo database |
 | `Concurrency` | `-concurrency` | 6                 | number of downloads to process in parallel |
@@ -554,8 +560,8 @@ found the following libraries:
   standlone, no rotation, not a drop-in replacement
 * [glog](https://godoc.org/github.com/golang/glog) - level filtering,
   hooks into the flags package for output control, Google's simple
-  implementation, can hook into the builtin log package, no log
-  rotation
+  implementation, can hook into the builtin log package but not send
+  to it, no log rotation
 * [lumberjack][] - rotation for the builtin logger
 * [logger](https://github.com/azer/logger) - timers, env-based log
   selection, JSON output, overkill?
@@ -584,7 +590,18 @@ other projects:
   levels, simpler interface than logrus, fast, structured
 
 In the end we resolved it was simpler to stick with the builtin logger
-and use the lightweigth lumberjack library for log rotation.
+and use the lightweigth lumberjack library for log rotation. We also
+have a "debug" configuration setting to enable more verbose output,
+but no "verbose" flag yet, although that could be implemented (and the
+script could default to being silent).
+
+Note that there are [discussions][] to include a Logger interface in
+the standard library. The [proposal][] currently includes two logging
+levels: Debug and Info. So our work seems to be forward compatible
+with the direction the community is taking.
+
+[proposal]: https://docs.google.com/document/d/1nFRxQ5SJVPpIBWTFHV-q5lBYiwGrfCMkESFGNzsrvBU/edit#
+[discussions]: https://groups.google.com/forum/#!topic/golang-dev/F3l9Iz1JX4g%5B51-75%5D
 
 We note it is possible the logfile itself may cause problems with
 library reloads: since it is an open file on the `/mnt/onboard`
