@@ -15,6 +15,18 @@ code of conduct, how to submit issues, bug reports and patches.
 <!-- may need to be adapted. the above URLs will also need to be -->
 <!-- changed, obviously. -->
 
+<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-generate-toc again -->
+**Table of Contents**
+
+- [Contributor Covenant Code of Conduct](#contributor-covenant-code-of-conduct)
+- [Patches](#patches)
+- [Documentation](#documentation)
+- [Issues and bug reports](#issues-and-bug-reports)
+- [Membership](#membership)
+- [Design notes](#design-notes)
+
+<!-- markdown-toc end -->
+
 # Contributor Covenant Code of Conduct
 
 ## Our Pledge
