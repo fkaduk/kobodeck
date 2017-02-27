@@ -387,7 +387,7 @@ documentation.
 Design notes
 ------------
 
-Moved to the [contribution guide](CONTRIBUTING#design-notes).
+Moved a [separate document](DESIGN).
 
 Remaining issues
 ----------------
