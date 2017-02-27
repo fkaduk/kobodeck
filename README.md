@@ -21,15 +21,18 @@ The instructions here are mostly for the Kobo E-readers but may work
 for other platforms. I have tested this on a Debian GNU/Linux 9
 ("stretch") system, a Kobo Glo HD and a Kobo Touch.
 
-Table of contents:
+<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-generate-toc again -->
+**Table of Contents**
 
-- [Installation](#download-and-install)
+- [Download and install](#download-and-install)
 - [Configuration](#configuration)
 - [Usage](#usage)
 - [Support](#support)
 - [Troubleshooting](#troubleshooting)
 - [Credits](#credits)
 - [Contributing](#contributing)
+
+<!-- markdown-toc end -->
 
 <img alt="screenshot of a KoboRoot.tgz file in a Kobo reader" src="assets/kobotgz-screenshot.png" align="right" />
 
