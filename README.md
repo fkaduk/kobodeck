@@ -379,7 +379,7 @@ license, see the LICENSE file for more information.
 Contributing
 ============
 
-See the [contribution guide](CONTRIBUTING) for more information. In
+See the [contribution guide](CONTRIBUTING.md) for more information. In
 short: this is a free software project and you are welcome to join us
 in improving it, both by fixing things, reporting issues or
 documentation.
@@ -387,7 +387,7 @@ documentation.
 Design notes
 ------------
 
-Moved a [separate document](DESIGN).
+Moved a [separate document](DESIGN.md).
 
 Remaining issues
 ----------------
