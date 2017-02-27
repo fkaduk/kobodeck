@@ -1,6 +1,20 @@
 This document outlines how to contribute to this project. It details a
 code of conduct, how to submit issues, bug reports and patches.
 
+ [GitLab project]: https://gitlab.com/anarcat/wallabako/
+ [merge requests]: https://gitlab.com/anarcat/wallabako/merge_requests
+ [issues]: https://gitlab.com/anarcat/wallabako/issues
+ [docs-editor]: https://gitlab.com/anarcat/wallabako/edit/master/README.md
+ [forum]: https://www.mobileread.com/forums/showthread.php?p=3467945
+
+<!-- for people reusing this in their own project, you will need to -->
+<!-- modify the Contacts section for the code of conduct. you will -->
+<!-- also want to read more about code of conducts and community -->
+<!-- guidelines before adopting it, it's not just a rubber -->
+<!-- stamp. other sections, like the Design notes and Documentation -->
+<!-- may need to be adapted. the above URLs will also need to be -->
+<!-- changed, obviously. -->
+
 # Contributor Covenant Code of Conduct
 
 ## Our Pledge
@@ -106,11 +120,8 @@ the Django enforcement manual.
 
 # Patches
 
-Patches can be submitted through [pull requests][] on the
-[GitHub project][].
-
-[pull requests]: https://github.com/linkcheck/linkchecker/pulls
-[GitHub project]: https://github.com/linkcheck/linkchecker
+Patches can be submitted through [merge requests][] on the
+[GitLab project][].
 
 Some guidelines for patches:
 
@@ -145,9 +156,18 @@ without the consensus of all administrators of the project.
 
 You can also review existing pull requests, by cloning the
 contributor's repository and testing it. If the tests do not pass
-(either locally or in Travis), if the patch is incomplete or otherwise
-does not respect the above guidelines, submit a review with "changes
-requested" with reasoning.
+(either locally or in the online Continuous Integration (CI) system),
+if the patch is incomplete or otherwise does not respect the above
+guidelines, submit a review with "changes requested" with reasoning.
+
+# Documentation
+
+We love documentation!
+
+The documentation mostly in the README file and can be
+[edited online][docs-editor] once you register. The
+[discussion on MobileRead.com][forum] may also be a good place to get
+help if you need to.
 
 # Issues and bug reports
 
@@ -155,7 +175,7 @@ We want you to report issuess you find in the software. It is a
 recognized and important part of contributing to this project. All
 issues will be read and replied to politely and
 professionnally. Issues and bug reports should be filed on the
-[GitHub issue tracker][issues].
+[issue tracker][issues].
 
 ## Issue triage
 
@@ -163,8 +183,8 @@ Issue triage is a useful contribution as well. You can review the
 [issues][] in the GitHub project and, for each issue:
 
 -  try to reproduce the issue, if it is not reproducible, label it with
-   `help-wanted` and explain the steps taken to reproduce
--  if information is missing, label it with `invalid` and request
+   `more-info` and explain the steps taken to reproduce
+-  if information is missing, label it with `more-info` and request
    specific information
 -  if the feature request is not within the scope of the project or
    should be refused for other reasons, use the `wontfix` label and
@@ -172,19 +192,17 @@ Issue triage is a useful contribution as well. You can review the
 -  mark feature requests with the `enhancement` label, bugs with
    `bug`, duplicates with `duplicate` and so on...
 
-[issues]: https://github.com/linkcheck/linkchecker/issues
-
 Note that some of those operations are available only to project
 maintainers, see below for the different statuses.
 
 # Membership
 
 There are three levels of membership in the project, Administrator
-(also known as "Owner" in GitHub), Maintainer (also known as
-"Member"), or regular users (everyone with or without a GitHub
-account). Anyone is welcome to contribute to the project within the
-guidelines outlined in this document, regardless of their status, and
-that includes regular users.
+(also known as "Owner" in GitHub or GitLab), Maintainer (also known as
+"Member" on GitHub or "Developer" on GitLab), or regular users
+(everyone with or without an account). Anyone is welcome to contribute
+to the project within the guidelines outlined in this document,
+regardless of their status, and that includes regular users.
 
 Maintainers can:
 
