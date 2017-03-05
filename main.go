@@ -559,7 +559,7 @@ func doAPI(method string, url string, body io.Reader) (data []byte, err error) {
 	log.Println("method, url, body:", method, url, body)
 	dump, err := httputil.DumpRequestOut(req, true)
 	if err != nil {
-		log.Fatal(err)
+		return data, err
 	}
 	debugf("sending request: %q", dump)
 	resp, err := client.Do(req)
@@ -569,7 +569,7 @@ func doAPI(method string, url string, body io.Reader) (data []byte, err error) {
 	defer resp.Body.Close()
 	dump, err = httputil.DumpResponse(resp, true)
 	if err != nil {
-		log.Fatal(err)
+		return data, err
 	}
 	debugf("received response: %q", dump)
 	data, err = ioutil.ReadAll(resp.Body)
