@@ -561,7 +561,7 @@ func doAPI(method string, url string, body io.Reader) (data []byte, err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("sending request: %q", dump)
+	debugf("sending request: %q", dump)
 	resp, err := client.Do(req)
 	if err != nil {
 		return data, err
@@ -571,7 +571,7 @@ func doAPI(method string, url string, body io.Reader) (data []byte, err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("received response: %q", dump)
+	debugf("received response: %q", dump)
 	data, err = ioutil.ReadAll(resp.Body)
 	if resp.StatusCode != 200 {
 		return data, fmt.Errorf("error from the API: %s", resp.Status)
