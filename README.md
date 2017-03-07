@@ -362,6 +362,30 @@ a time. It could make the first listing request slower, however, if
 you have a huge number of articles. We have reports of operation with
 60 articles without significant performance issues.
 
+Unable to open database file
+----------------------------
+
+If you see this warning message repeated:
+
+    2017/03/01 21:06:49 unable to open database file
+
+It is because the database cannot be found. By default, the database
+path is hardcoded to `/mnt/onboard/.kobo/KoboReader.sqlite`, which is
+likely to work only on Kobo readers. If you are running this on your
+desktop or another reader, you should disable the database by using
+the `-database` flag:
+
+    wallabako -database ""
+
+... or configuration option in `.wallabako.js`:
+
+    "Database": "",
+
+Such configuration should silence those warnings as Wallabako will not
+attempt to open a database file.
+
+Note that the warnings can also safely be ignored.
+
 x509: failed to load system roots and no roots provided
 -------------------------------------------------------
 
