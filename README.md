@@ -268,18 +268,11 @@ their matching configuration file settings:
 
 Some more details about specific settings:
 
- * If you can't seem to synchronize all your articles and you have a
-   large number of unread articles, you may want to change the `Count`
-   field in the configuration file. By default, Wallabako only
-   downloads a part of the database: it is limited by the number of
-   articles returned by the Wallabag listing (`30` at the time of
-   writing). If the `Delete` option is set, older articles will be
-   *deleted* from the Kobo reader as well. Note that it should be
-   fairly safe to use a larger number here, as only `Concurrency`
-   (e.g. 6) articles will be downloaded in parallel at a time. It
-   could make the first listing request slower, however, if you have a
-   huge number of articles. We have reports of operation with 60
-   articles without significant performance issues.
+ * The `Count` option actually defaults to 30 in Wallabag, at the time
+   of writing. You may want to bump that up if you have more than 30
+   unread articles, see [below][] for details.
+
+   [below]: #some-articles-are-not-downloaded-or-disappear
 
  * The `PidFile` is actually written in one of those directories, the
    first one found that works:
@@ -309,6 +302,24 @@ Changing those settings could be dangerous. In particular, changing
 the `-output` directory while enabling `-delete` could delete files
 unexpectedly if they match the magic pattern (`N.epub` where N is an
 integer).
+
+Some articles are not downloaded or disappear
+---------------------------------------------
+
+If you can't seem to synchronize all your articles and you have a
+large number of unread articles, you may want to change the `Count`
+field in the configuration file. By default, Wallabako only downloads
+a part of the database: it is limited by the number of articles
+returned by the Wallabag listing (`30` at the time of writing). 
+
+Also, if the `Delete` option is set, older articles will be *deleted*
+from the Kobo reader as well.
+
+Note that it should be fairly safe to use a larger number here, as
+only `Concurrency` (e.g. 6) articles will be downloaded in parallel at
+a time. It could make the first listing request slower, however, if
+you have a huge number of articles. We have reports of operation with
+60 articles without significant performance issues.
 
 x509: failed to load system roots and no roots provided
 -------------------------------------------------------
