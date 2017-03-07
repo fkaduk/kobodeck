@@ -234,3 +234,38 @@ requests.
 Maintainers can be promoted to administrators when they have given significant
 contributions for a sustained timeframe, by consensus of the current
 administrators. This process should be open and decided as any other issue.
+
+# Release process
+
+To make a release:
+
+ 1. generate release notes with:
+
+        git changelog
+
+    the file header will need to be moved back up to the beginning of
+    the file. also make sure to add a summary and choose a proper
+    version according to [Semantic Versioning][]
+
+ 2. check source code for errors, build and sign binaries, and deploy
+    to test host:
+
+        make lint sign deploy HOST=192.168.0.22
+
+ 3. make sure everything works: test the program on a desktop and a
+    Kobo reader
+
+ 4. tag the release according to [Semantic Versioning][] rules:
+
+        git tag x.y.z
+
+ 5. push changes:
+
+        git push
+        git push --tags
+
+ 6. edit the [tag on Gitlab][], copy-paste the changelog entry and
+    attach the signed binaries
+
+ [Semantic Versioning]: http://semver.org/
+ [tag on Gitlab]: https://gitlab.com/anarcat/wallabako/tags
