@@ -97,6 +97,8 @@ colons and commas (`{`, `}`, `"`, `:`, `,`).
     would prefer to not ask you your password, but unfortunately, that
     is [still required by the Wallabag API][password requirement of the API]
 
+ [password requirement of the API]: https://github.com/wallabag/wallabag/issues/2800
+
 Also note that some commandline flags are hardcoded in the
 `wallabag-run` script. To modify those, you will
 need to modify the file in the `KoboRoot.tgz` file or hack the kobo to
@@ -264,19 +266,35 @@ their matching configuration file settings:
 | `PidFile`     | `-pidfile`     | `wallabako.pid`   | pidfile to write to avoid multiple runs |
 | `RetryMax`    | `-retry`       | 4                 | number of attempts to login the website, with exponential backoff delay |
 
-The pidfile is actually written in one of those directories, the first
-one found that works:
+Some more details about specific settings:
 
- 1. `/var/run`
- 2. `/run`
- 3. `/run/user/UID`
- 4. `/home/USER/.`
+ * If you can't seem to synchronize all your articles and you have a
+   large number of unread articles, you may want to change the `Count`
+   field in the configuration file. By default, Wallabako only
+   downloads a part of the database: it is limited by the number of
+   articles returned by the Wallabag listing (`30` at the time of
+   writing). If the `Delete` option is set, older articles will be
+   *deleted* from the Kobo reader as well. Note that it should be
+   fairly safe to use a larger number here, as only `Concurrency`
+   (e.g. 6) articles will be downloaded in parallel at a time. It
+   could make the first listing request slower, however, if you have a
+   huge number of articles. We have reports of operation with 60
+   articles without significant performance issues.
 
-There's no `-logfile` option anymore since this was not really useful:
-you can just redirect output to a file using shell redirection (`>
-logfile`). Also, it was difficult to implement logging for
-configuration file discovery while at the same time allowing the
-logfile to be changed when commandline flags are parsed.
+ * The `PidFile` is actually written in one of those directories, the
+   first one found that works:
+
+    1. `/var/run`
+    2. `/run`
+    3. `/run/user/UID`
+    4. `/home/USER/.`
+
+ * There's no `-logfile` flag anymore since this was not really
+   useful: you can just redirect output to a file using shell
+   redirection (`> logfile`). Also, it was difficult to implement
+   logging for configuration file discovery while at the same time
+   allowing the logfile to be changed when commandline flags are
+   parsed.
 
 Finally, note that some of those settings are hardcoded in the
 `wallabako-run` wrapper script and therefore cannot be overriden in
