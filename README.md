@@ -303,6 +303,47 @@ the `-output` directory while enabling `-delete` could delete files
 unexpectedly if they match the magic pattern (`N.epub` where N is an
 integer).
 
+Configuration file is not found even if present
+-----------------------------------------------
+
+This can happen if you have some sort of a syntax error in the
+configuration file. For example, this can happen if you have a
+double-quote in your password and you didn't properly escape it.
+
+Tthe configuration file is a [JSON file][], parsed by the
+[Unmarshal][] function of the
+[Golang json package][]. [Wikipedia says][] that:
+
+> JSON's basic data types are: [...] String: a sequence of zero or
+> more Unicode characters. Strings are delimited with double-quotation
+> marks and support a backslash escaping syntax.
+
+This means that if you have a password that is, say `foo"bar`, you can
+escape the special character with a backslash, like this:
+
+```
+"UserPassword":  "foo\"bar",
+```
+
+According to the [JSON specification][], strings should be delimited
+by double-quote (`"`) and unless you have weird control characters in
+your passwords (e.g. tab or formfeed), double-quote and backslash are
+the only characters you should need to escape.
+
+Another common error is to add an extra comma (`,`) on the final
+entry, or ommitting the brackets (`{` or `}`). Files with
+[BOM markers][] used to cause issues as well, but that has been fixed
+in the Wallabago library since 0.7.
+
+[BOM markers]: https://en.wikipedia.org/wiki/Byte_order_mark
+
+[JSON file]: https://en.wikipedia.org/wiki/JSON
+[Unmarshal]: https://golang.org/pkg/encoding/json/#Unmarshal
+[Golang json package]: https://golang.org/pkg/encoding/json/
+[Wikipedia says]: https://en.wikipedia.org/wiki/JSON#Data_types.2C_syntax_and_example
+[JSON specification]: http://json.org/
+[issue #16]: https://gitlab.com/anarcat/wallabako/issues/16
+
 Some articles are not downloaded or disappear
 ---------------------------------------------
 
