@@ -219,6 +219,19 @@ you may stumble upon. Normally, if you install the package correctly,
 you shouldn't get those errors so please do file a bug if you can
 reproduce this issue.
 
+<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-generate-toc again -->
+**Table of Contents**
+
+ - [Logging](#logging)
+ - [Configuration file details](#configuration-file-details)
+ - [Configuration file is not found even if present](#configuration-file-is-not-found-even-if-present)
+ - [Some articles are not downloaded or disappear](#some-articles-are-not-downloaded-or-disappear)
+ - [Unable to open database file](#unable-to-open-database-file)
+ - [x509: failed to load system roots and no roots provided](#x509-failed-to-load-system-roots-and-no-roots-provided)
+ - [Command not running](#command-not-running)
+
+<!-- markdown-toc end -->
+
 Logging
 -------
 
