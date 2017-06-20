@@ -1,6 +1,14 @@
 This is a summary of changes in the published releases of
 Wallabako. The format of this change may change without prior notice.
 
+1.0.1 / 2017-06-20
+==================
+
+Small bugfix release to help with 2.2 API without breaking backwards
+compatibility.
+
+  * Make JSON requests to wallabag server
+
 # 1.0.0: Finally somewhere
 
 This major release features complete configuration file
