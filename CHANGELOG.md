@@ -1,6 +1,11 @@
 This is a summary of changes in the published releases of
 Wallabako. The format of this change may change without prior notice.
 
+1.0.2 / 2017-06-20
+==================
+
+  * fix build with latest wallabago API changes
+
 1.0.1 / 2017-06-20
 ==================
 
