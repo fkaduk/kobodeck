@@ -238,7 +238,7 @@ func debugln(args ...interface{}) {
 	}
 }
 
-// debugln will log the given arguments using log.Printf only if
+// debugf will log the given arguments using log.Printf only if
 // debugging (config.Debug) is enabled
 func debugf(fmt string, args ...interface{}) {
 	if config.Debug {
