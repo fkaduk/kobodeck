@@ -1,6 +1,30 @@
 This is a summary of changes in the published releases of
 Wallabako. The format of this change may change without prior notice.
 
+1.1.0 / 2017-03-07: Lost somewhere in time
+==========================================
+
+This minor release was shipped to tag a bunch of changes that have
+been piling up since the last release, 4 months ago. Mostly
+documentation fixes, but also a small fix to better support the 2.2
+API and allow for betting debugging output.
+
+ * documentation improvements:
+  * add TOC in troubleshooting section
+  * document the database warning errors
+  * document configuration file issues
+  * move design notes to a separate document
+  * add table of contents
+  * add contribution guidelines
+  * move known issues to the gitlab issue queue
+  * add note about hardcoded settings
+ * add -debug flag and configuration option
+ * Dynamic path in CI script to work with forks
+ * preliminary 2.2 API support:
+  * Make proper JSON requests to wallabag server
+
+Thanks to Martin Trigaux for his contributions in this release!
+
 # 1.0.0: Finally somewhere
 
 This major release features complete configuration file
