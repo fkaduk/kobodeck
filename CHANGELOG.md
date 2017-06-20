@@ -1,6 +1,13 @@
 This is a summary of changes in the published releases of
 Wallabako. The format of this change may change without prior notice.
 
+1.1.1 / 2017-06-20
+==================
+
+Merge changes from stable branch, including:
+
+  * fix build with latest wallabago API changes
+
 1.1.0 / 2017-03-07: Lost somewhere in time
 ==========================================
 
@@ -24,6 +31,19 @@ API and allow for betting debugging output.
   * Make proper JSON requests to wallabag server
 
 Thanks to Martin Trigaux for his contributions in this release!
+
+1.0.2 / 2017-06-20
+==================
+
+  * fix build with latest wallabago API changes
+
+1.0.1 / 2017-06-20
+==================
+
+Small bugfix release to help with 2.2 API without breaking backwards
+compatibility.
+
+  * Make JSON requests to wallabag server
 
 # 1.0.0: Finally somewhere
 
