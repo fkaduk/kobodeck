@@ -23,6 +23,7 @@ code of conduct, how to submit issues, bug reports and patches.
 - [Documentation](#documentation)
 - [Issues and bug reports](#issues-and-bug-reports)
 - [Membership](#membership)
+- [Release process](#release-process)
 
 <!-- markdown-toc end -->
 
