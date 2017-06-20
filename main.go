@@ -369,7 +369,7 @@ func login(baseURL, username, password string) (*http.Client, error) {
 
 // get the unread entries, most recent first, limited to the given count
 func listEntries() []wallabago.Item {
-	e := wallabago.GetEntries(0, -1, "updated", "desc", -1, config.Count, "")
+	e := wallabago.GetEntries(wallabago.APICall, 0, -1, "updated", "desc", -1, config.Count, "")
 	log.Printf("found %d unread entries", e.Total)
 	return e.Embedded.Items
 }
