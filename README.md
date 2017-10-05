@@ -490,9 +490,9 @@ Of those, the one likely to cause problems is possibly only
 should be enough to keep Wallabako from starting at all.
 
 If you cannot access those files directly (which is likely, unless you
-have SSH access or have KSM installed), a workaround disable the
-configuration file. Remove the `.wallabako.js` configuration file at
-the root of your Kobo filesystem: this will "unconfigure" Wallabako
+have [SSH access](https://gitlab.com/anarcat/kobo-ssh) or have [KSM](https://www.mobileread.com/forums/showthread.php?t=266821) installed), a workaround disable
+the configuration file. Remove the `.wallabako.js` configuration file
+at the root of your Kobo filesystem: this will "unconfigure" Wallabako
 which will still fire automatically when wifi comes up, but it will do
 nothing, which shouldn't cause problems anymore.
 
