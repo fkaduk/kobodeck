@@ -464,6 +464,38 @@ too fast. You can adjust the delay in `wallabako-run`, but really this
 should be automated in the script (which should retry a few times
 before giving up).
 
+Uninstalling
+------------
+
+Unfortunately, there is no easy way to uninstall Wallabako. While Kobo
+provides a way to automatically *install* files on the readers, there
+is no (at least obvious) way of *removing* those files once they are
+installed. To cleanup the install, you need to manually remove the
+files provided in the `KoboRoot.tgz` file, which are, at the time of
+writing:
+
+```
+etc/udev/rules.d/90-wallabako.rules
+etc/wallabako.js
+etc/ssl/certs/ca-certificates.crt
+usr/local/bin/wallabako
+usr/local/bin/fake-connect-usb
+usr/local/bin/wallabako-run
+```
+
+Of those, the one likely to cause problems is possibly only
+`/etc/udev/rules.d/90-wallabako.rules`, and only because it calls
+`/usr/local/bin/wallabako-run` which in turns calls
+`/usr/local/bin/fake-connect-usb`. So removing the `.rules` file
+should be enough to keep Wallabako from starting at all.
+
+If you cannot access those files directly (which is likely, unless you
+have SSH access or have KSM installed), a workaround disable the
+configuration file. Remove the `.wallabako.js` configuration file at
+the root of your Kobo filesystem: this will "unconfigure" Wallabako
+which will still fire automatically when wifi comes up, but it will do
+nothing, which shouldn't cause problems anymore.
+
 Credits
 =======
 
