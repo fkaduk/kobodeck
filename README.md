@@ -36,6 +36,24 @@ for other platforms. I have tested this on a Debian GNU/Linux 9
 
 <img alt="screenshot of a KoboRoot.tgz file in a Kobo reader" src="assets/kobotgz-screenshot.png" align="right" />
 
+Warning
+=======
+
+There has been some [reports](https://gitlab.com/anarcat/wallabako/issues/22) of instability introduced by
+Wallabako on Kobo readers. While we have yet to confirm a definite
+correlation, it is possible that installing Wallabako on your reader
+makes it more unstable. 
+
+We have unconfirmed reports of lost wifi passwords, trouble
+reconnecting USB and momentarily disappeared collections. Usually,
+restarting the device fixes the issue, but you may want to get
+familiar with the [uninstallation](#uninstalling) procedures and
+the [bug reports](https://gitlab.com/anarcat/wallabako/issues) before you continue.
+
+That said, the author has been using Wallabako for months and while
+there are sometimes small irritants (mostly lost wifi password),
+things generally work fine.
+
 Download and install
 ====================
 
