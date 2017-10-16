@@ -296,6 +296,7 @@ their matching configuration file settings:
 | `OutputDir`   | `-output`      | current directory | output directory to save files into |
 | `PidFile`     | `-pidfile`     | `wallabako.pid`   | pidfile to write to avoid multiple runs |
 | `RetryMax`    | `-retry`       | 4                 | number of attempts to login the website, with exponential backoff delay |
+| `Tags`	| `-tags`	 | no tags filtering | a comma-separated list of tags to filter for |
 
 Some more details about specific settings:
 

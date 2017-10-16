@@ -63,6 +63,7 @@ type wallabakoConfig struct {
 	OutputDir   string `json:"OutputDir"`
 	PidFile     string `json:"PidFile"`
 	RetryMax    int    `json:"RetryMax"`
+	Tags        string `json:"Tags"`
 }
 
 // config is the global configuration, as read from the config file
@@ -93,6 +94,7 @@ func init() {
 	flag.StringVar(&config.OutputDir, "output", ".", "output directory to save files into")
 	flag.StringVar(&config.PidFile, "pidfile", "", "pidfile to write to avoid multiple runs")
 	flag.IntVar(&config.RetryMax, "retry", config.RetryMax, "number of attempts to login the website, with exponential backoff delay")
+	flag.StringVar(&config.Tags, "tags", "", "a comma-separated list of tags to filter for") 
 }
 
 // various global variables
@@ -193,7 +195,19 @@ func main() {
 	sem := make(chan bool, config.Concurrency)
 	entries := listEntries()
 	valid := make(map[int]bool)
+	tags := make(map[string]bool)
+	if len(config.Tags) > 0 {
+		for _, tag := range strings.Split(strings.ToLower(config.Tags), ",") {
+			tags[strings.TrimSpace(tag)] = true
+		}
+	}
 	for _, entry := range entries {
+		if len(config.Tags) > 0 {
+			if checkTags(tags, entry.Tags) == false {
+				debugf("skipping %d (not in Tags)", entry.ID)
+				continue
+			}
+		}
 		debugln("dispatching", entry.ID)
 		valid[entry.ID] = true
 		// try to get a slot in the semaphore
@@ -394,6 +408,16 @@ func listEntries() []wallabago.Item {
 	e := wallabago.GetEntries(wallabago.APICall, 0, -1, "updated", "desc", -1, config.Count, "")
 	log.Printf("found %d unread entries", e.Total)
 	return e.Embedded.Items
+}
+
+// check item tags against tags set in config
+func checkTags(tags map[string]bool, itemTags []wallabago.Tag) bool {
+	for _, tag := range itemTags {
+		if tags[strings.ToLower(tag.Label)] {
+			return true
+		}
+	}
+	return false
 }
 
 // download a given entry in the right place
