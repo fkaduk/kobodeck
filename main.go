@@ -67,7 +67,7 @@ type wallabakoConfig struct {
 }
 
 // config is the global configuration, as read from the config file
-// and overriden by commandline flags
+// and overridden by commandline flags
 //
 // the values we set here will be used by default by the UnmarshalJSON
 // function, so they are in effect the default values for those flags
