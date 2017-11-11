@@ -94,7 +94,7 @@ func init() {
 	flag.StringVar(&config.OutputDir, "output", ".", "output directory to save files into")
 	flag.StringVar(&config.PidFile, "pidfile", "", "pidfile to write to avoid multiple runs")
 	flag.IntVar(&config.RetryMax, "retry", config.RetryMax, "number of attempts to login the website, with exponential backoff delay")
-	flag.StringVar(&config.Tags, "tags", "", "a comma-separated list of tags to filter for") 
+	flag.StringVar(&config.Tags, "tags", "", "a comma-separated list of tags to filter for")
 }
 
 // various global variables
