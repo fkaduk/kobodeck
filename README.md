@@ -536,6 +536,15 @@ at the root of your Kobo filesystem: this will "unconfigure" Wallabako
 which will still fire automatically when wifi comes up, but it will do
 nothing, which shouldn't cause problems anymore.
 
+Known issues
+============
+
+Like any program, Wallabako is imperfect. There is a list of [known
+issues](https://gitlab.com/anarcat/wallabako/issues) on the main site,
+but some issues do not depend on Wallabako, as they are problems with
+Wallabag itself. Most of the issues we have found are documented in
+[issue #2821](https://github.com/wallabag/wallabag/issues/2821).
+
 Credits
 =======
 
