@@ -335,6 +335,27 @@ the `-output` directory while enabling `-delete` could delete files
 unexpectedly if they match the magic pattern (`N.epub` where N is an
 integer).
 
+Here's an example of a fully-populated configuration file:
+
+    {
+      "Concurrency": 6,
+      "Count": -1,
+      "ClientId": "14_2vun20ernfy880wgkk88gsoosk4csocs4ccw4sgwk84gc84o4k",
+      "ClientSecret": "69k0alx9bdcsc0c44o84wk04wkgw0c0g4wkww8c0wwok0sk4ok",
+      "Debug": false,
+      "Delete": false,
+      "Database": "/mnt/onboard/.kobo/KoboReader.sqlite",
+      "Exec": "/usr/local/bin/fake-connect-usb",
+      "LogFile": "/mnt/onboard/wallabako.log.txt",
+      "OutputDir": "/mnt/onboard/wallabako",
+      "PidFile", "wallabako.pid",
+      "RetryMax": 4,
+      "Tags": "",
+      "UserName": "joelle",
+      "UserPassword": "your super password goes here",
+      "WallabagURL": "https://app.wallabag.it"
+    }
+
 Configuration file is not found even if present
 -----------------------------------------------
 
