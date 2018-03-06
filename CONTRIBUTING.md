@@ -130,6 +130,20 @@ the Django enforcement manual.
 > community. This may change in the future if the community grows
 > larger.
 
+# Positive feedback
+
+Even if you have no changes, suggestions, documentation or bug reports
+to submit, even just positive feedback like "it works" goes a long
+way. It shows the project is being used and gives instant
+gratification to contributors. So we welcome emails that tell us of
+your positive experiences with the project or just thank you
+notes.
+
+You can also send your "thanks" through
+[saythanks.io](https://saythanks.io/to/anarcat).
+
+[![Say Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/anarcat)
+
 # Patches
 
 Patches can be submitted through [merge requests][] on the
