@@ -42,8 +42,8 @@ clean:
 
 lint:
 	@echo checking idioms and syntax
-	go vet ./...
-	golint ./...
+	go vet .
+	golint .
 	gofmt  -s -l .
 
 test:
