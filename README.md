@@ -21,6 +21,9 @@ The instructions here are mostly for the Kobo E-readers but may work
 for other platforms. I have tested this on a Debian GNU/Linux 9
 ("stretch") system, a Kobo Glo HD and a Kobo Touch.
 
+[![Say
+Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/anarcat)
+
 <!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-generate-toc again -->
 **Table of Contents**
 
