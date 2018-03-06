@@ -23,6 +23,9 @@ for other platforms. I have tested this on a Debian GNU/Linux 9
 
 [![Say
 Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/anarcat)
+[![Go Report Card](https://goreportcard.com/badge/gitlab.com/anarcat/wallabako)](https://goreportcard.com/report/gitlab.com/anarcat/wallabako)
+[![pipeline status](https://gitlab.com/anarcat/wallabako/badges/master/pipeline.svg)](https://gitlab.com/anarcat/wallabako/commits/master)
+
 
 <!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-generate-toc again -->
 **Table of Contents**
