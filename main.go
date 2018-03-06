@@ -193,7 +193,10 @@ func main() {
 	// error handling yet, so we stick with the semaphore channel
 	// pattern
 	sem := make(chan bool, config.Concurrency)
-	entries := listEntries()
+	entries, err := listEntries()
+	if err != nil {
+		log.Fatal(err)
+	}
 	valid := make(map[int]bool)
 	tags := make(map[string]bool)
 	if len(config.Tags) > 0 {
@@ -404,10 +407,13 @@ func login(baseURL, username, password string) (*http.Client, error) {
 }
 
 // get the unread entries, most recent first, limited to the given count
-func listEntries() []wallabago.Item {
-	e := wallabago.GetEntries(wallabago.APICall, 0, -1, "updated", "desc", -1, config.Count, "")
-	log.Printf("found %d unread entries", e.Total)
-	return e.Embedded.Items
+func listEntries() ([]wallabago.Item, error) {
+	entries, err := wallabago.GetEntries(wallabago.APICall, 0, -1, "updated", "desc", -1, config.Count, "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list entries in wallabag: %v", err)
+	}
+	log.Printf("found %d unread entries", entries.Total)
+	return entries.Embedded.Items, err
 }
 
 // check item tags against tags set in config
