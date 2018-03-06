@@ -4,8 +4,8 @@
 [[projects]]
   name = "github.com/Strubbl/wallabago"
   packages = ["."]
-  revision = "76b4ab9cb1aff500b34e8de0f0a633533e57359f"
-  version = "v1.0.0"
+  revision = "45cf890a53afb5e12241df692eed993ea7661451"
+  version = "2.0.0"
 
 [[projects]]
   branch = "master"
@@ -34,6 +34,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "280325ebcdc5ddaead895a577907f337239193713dbf4c18cf18b1e1a280e9b7"
+  inputs-digest = "fbb1e2b58a831af1793c0d4c00bc359ede9a836dd25709862dfd4011ac35df03"
   solver-name = "gps-cdcl"
   solver-version = 1
