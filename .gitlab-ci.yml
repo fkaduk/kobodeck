@@ -26,9 +26,9 @@ stages:
 compile:
     stage: build
     script:
-        - make lint
         - dep ensure
         - go get
+        - make lint
         - make build
         - make tarball
     artifacts:
