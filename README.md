@@ -30,11 +30,13 @@ Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saytha
 <!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-generate-toc again -->
 **Table of Contents**
 
+- [Warning](#warning)
 - [Download and install](#download-and-install)
 - [Configuration](#configuration)
 - [Usage](#usage)
 - [Support](#support)
 - [Troubleshooting](#troubleshooting)
+- [Known issues](#known-issues)
 - [Credits](#credits)
 - [Contributing](#contributing)
 
