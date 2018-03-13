@@ -23,7 +23,7 @@ BINARY?=build/wallabako.$(GNUARCH)
 
 tarball:
 	@echo building Kobo tarball
-	$(MAKE) build $(GFLAGS) GOARCH=arm BINARY=build/wallabako.arm CGO_ENABLED=1 GOOS=linux GOARCH=arm CC="arm-linux-gnueabihf-gcc-6"
+	$(MAKE) build BINARY=build/wallabako.arm GOARCH=arm GOOS=linux CGO_ENABLED=1 CC="arm-linux-gnueabihf-gcc-6" $(GFLAGS)
 	cp build/wallabako.arm root/usr/local/bin/wallabako
     # make sure we ship a SSL certs file as the Kobo doesn't have any (!)
 	tar -C root/ -c -z -f build/KoboRoot.tgz etc /etc/ssl/certs/ca-certificates.crt usr
