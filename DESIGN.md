@@ -144,6 +144,325 @@ On the Wallabag side, we do a `PATCH` request on the API at
 (a number that is taken from the filename) and `{_format}` is
 `json`. Then we need to set `archive` to `1` as a parameter.
 
+Writing to the database
+-----------------------
+
+In order to fix problems with the [wifi trigger](#wifi-trigger), which we (ab)use
+to make the reader detect our articles, we looked at writing to the
+database directly. This would also allow us to [add books to
+shelves/collections](https://gitlab.com/anarcat/wallabako/issues/20), which is more relevant now that [real authors
+are propagated in the metadata](https://github.com/wallabag/wallabag/pull/3266) (so we can't find Wallabag articles
+just by looking at at the author).
+
+So we need to figure out:
+
+ 1. how to insert books
+ 2. how to remove books
+ 3. add books to shelves
+
+To see if we could write to the SQLite database directly, we need to
+run arbitrary SQL commands on the Kobo. And doing this through
+Wallabako is a pain: the compile/deploy loop is rather slow. It would
+be easier to have an actual SQL shell on the device, so we looked at 
+compiling SQLite statically, but that turned out to be much harder
+than expected, and didn't work at all. The next step was to create a
+[custom sqlite shell using the golang bindings](https://github.com/mattn/go-sqlite3/pull/538) and that
+worked. But in the end that work wasn't necessary, as there's is
+already a nice commandline sql client called [usql](https://github.com/xo/usql) that operates
+with many different databases.
+
+It can be built for the Kobo with:
+
+    env CGO_ENABLED=1 GOARCH=arm CC="arm-linux-gnueabihf-gcc-6" GOOS=linux go build -o usql.arm
+
+Then we can list tables using this weird SQLite query:
+
+    SELECT name FROM sqlite_master WHERE type='table';
+
+Table schemas can be inspected with this `PRAGMA`:
+
+    PRAGMA table_info(content);
+
+But in the end, it's easier to just copy the SQLite database on a real
+computer and inspect it directly. The client can still be used to
+manipulate the tables, but that comes later. One thing that would be
+useful would be a way to dump the database, but [usql doesn't support
+that](https://github.com/xo/usql/issues/39) so I copied the database over my local workstation and
+operated from there.
+
+Then I dumped the database content's using:
+
+    sqlite3 test.db .dump > dump.sql
+
+The table schemas can similarly be extracted with the `.schema`
+command. Then we make a modification, redo a copy + dump and check the
+diff. Unfortunately, after thorough analysis of those diffs, it seems
+that the GUI doesn't checkpoint into the SQLite database
+reliably. Adding a collection, for example, doesn't show up in the
+on-disk database until a reboot or `fake-usb-connect`. Same for books:
+inserting a new entry in the `content` table has no effect on the
+GUI. This makes sense from a power-saving perspective: all changes are
+done in memory to save power since writing to the flash card might
+need more current than writing to RAM. 
+
+This all makes it impossible for us to use the database to effect
+changes without going through, again, the `fake-usb-connect`
+app. Collections/shelves will be basically impossible to implement as
+we'd need to make Nickel stop holding on to the database while at the
+same time making it *not* unmount `/mnt/onboard`, which seems
+impossible.
+
+One thing we *could* do would be to kill the `nickel` process and
+force it to restart, but this would probably be even worse UI than the
+current pop-up approach. This makes saner projects like [okreader](https://github.com/lgeek/okreader/)
+much more interesting...
+
+Database reverse-engineering
+----------------------------
+
+Nevertheless, I still did a short analysis using [sqlitebrowser](http://sqlitebrowser.org/) to
+inspect the tables that seemed relevant. Diffs actually show changes
+in `content`, `volume_shortcovers`, `AnalyticsEvents`, `Activity` and
+`Event` when a book is added or removed, for what that's worth.
+
+### `Shelf` table
+
+```
+CreationDate: ISO timestamp (TEXT)
+Id: a63fb80d-f81c-419e-a5e1-0609a39b0371 (TEXT, uuid? primary key)
+InternalName: label chosen by user (TEXT)
+LastModified: ISO...
+Name: = InternalName
+Type: UserTag / SystemTag (TEXT)
+_IsDeleted: false (BOOL)
+_IsVisible: true (BOOL)
+_IsSynced: true (BOOL)
+_SyncTime: ISO...
+LastAccessed: ISO...
+```
+
+### `ShelfContent` table
+
+```
+ShelfName: InternalName?
+ContentID: = content.ContentID
+DateModified: ISO...
+_IsDeleted: false
+_IsSynced: true
+```
+
+### `content` table
+
+```
+ContentID: file:///path or e.g. file:///path#(0)OEBPS/Cover2.html...
+ContentType: 6 (main book entry) or 9 (chapters?)
+MimeType: text/plain (.txt files) or application/epub+zip
+BookID: NULL or ContentID for chapter entries
+BookTitle: NULL or Title of main
+ImageId: NULL or file____mnt_onboard_wallabako_1273_epub?
+Title: book title or chapter title
+Attribution: author? ("wallabag" or varies for later)
+Description: Some articles saved on my wallabag
+ShortCoverKey: NULL
+adobe_location: OEBPS/Cover2.html
+Publisher: NULL
+IsEncrypted: false
+DateLastRead: NULL or ISO when started
+FirstTimeReading: true or false when started
+ChapterIDBookmarked: NULL or "" for chapters or file...# path for started books
+ParagraphBookmarked: 0
+BookmarkWordOffset: 0
+NumShortcovers: 1, 3, NULL...?
+VolumeIndex: 0 for main book entry, or 0-based list of chapters
+___NumPages: 0/-1?
+ReadStatus: 0/1/2
+___SyncTime: ISO
+___UserID: adobe_user or localDocument for .txt file
+PublicationId: NULL
+___FileOffset: NULL or 0 for chapters
+___FileSize: byte count or 0 for chapters?
+___PercentRead: integer...
+___ExpirationStatus: 0 or NULL for chapters
+FavouritesIndex: -1
+Accessibility: -1
+ContentURL: "" or NULL?
+Language: en or NULL?
+BookshelfTags: "" or NULL?
+IsDownloaded: true or 1??
+FeedbackType: 0
+AverageRating: 0
+Depth: 0
+PageProgressDirection: default for books, NULL for chapters
+InWishlist: FALSE or false
+ISBN: NULL or title??
+WishlistedDate: all zero ISO date or NULL??
+```
+
+full dump of the table, interspersed with some of the values:
+
+```
+sq:/mnt/onboard/.kobo/KoboReader.sqlite=> PRAGMA table_info(content);
+  cid |          name           |  type   | notnull |        dflt_value         | pk
++-----+-------------------------+---------+---------+---------------------------+----+
+    0 | ContentID               | TEXT    |       1 | <nil>                     |  1
+    1 | ContentType             | TEXT    |       1 | <nil>                     |  0
+    2 | MimeType                | TEXT    |       1 | <nil>                     |  0
+    3 | BookID                  | TEXT    |       0 | <nil>                     |  0
+    4 | BookTitle               | TEXT    |       0 | <nil>                     |  0
+    5 | ImageId                 | TEXT    |       0 | <nil>                     |  0
+    6 | Title                   | TEXT    |       0 | <nil>                     |  0
+    7 | Attribution             | TEXT    |       0 | <nil>                     |  0
+    8 | Description             | TEXT    |       0 | <nil>                     |  0
+    9 | DateCreated             | TEXT    |       0 | <nil>                     |  0
+   10 | ShortCoverKey           | TEXT    |       0 | <nil>                     |  0
+   11 | adobe_location          | TEXT    |       0 | <nil>                     |  0
+   12 | Publisher               | TEXT    |       0 | <nil>                     |  0
+   13 | IsEncrypted             | BOOL    |       0 | <nil>                     |  0
+   14 | DateLastRead            | TEXT    |       0 | <nil>                     |  0
+   15 | FirstTimeReading        | BOOL    |       0 | <nil>                     |  0
+   16 | ChapterIDBookmarked     | TEXT    |       0 | <nil>                     |  0
+   17 | ParagraphBookmarked     | INTEGER |       0 | <nil>                     |  0
+   18 | BookmarkWordOffset      | INTEGER |       0 | <nil>                     |  0
+   19 | NumShortcovers          | INTEGER |       0 | <nil>                     |  0
+   20 | VolumeIndex             | INTEGER |       0 | <nil>                     |  0
+   21 | ___NumPages             | INTEGER |       0 | <nil>                     |  0
+   22 | ReadStatus              | INTEGER |       0 | <nil>                     |  0
+   23 | ___SyncTime             | TEXT    |       0 | <nil>                     |  0
+   24 | ___UserID               | TEXT    |       1 | <nil>                     |  0
+   25 | PublicationId           | TEXT    |       0 | <nil>                     |  0
+   26 | ___FileOffset           | INTEGER |       0 | <nil>                     |  0
+   27 | ___FileSize             | INTEGER |       0 | <nil>                     |  0
+   28 | ___PercentRead          | INTEGER |       0 | <nil>                     |  0
+   29 | ___ExpirationStatus     | INTEGER |       0 | <nil>                     |  0
+   30 | FavouritesIndex         |         |       1 |                        -1 |  0
+   31 | Accessibility           | INTEGER |       0 |                         1 |  0
+   32 | ContentURL              | TEXT    |       0 | <nil>                     |  0
+   33 | Language                | TEXT    |       0 | <nil>                     |  0
+   34 | BookshelfTags           | TEXT    |       0 | <nil>                     |  0
+   35 | IsDownloaded            | BIT     |       1 |                         1 |  0
+   36 | FeedbackType            | INTEGER |       0 |                         0 |  0
+   37 | AverageRating           | INTEGER |       0 |                         0 |  0
+   38 | Depth                   | INTEGER |       0 | <nil>                     |  0
+   39 | PageProgressDirection   | TEXT    |       0 | <nil>                     |  0
+   40 | InWishlist              | BOOL    |       1 | FALSE                     |  0
+   41 | ISBN                    | TEXT    |       0 | <nil>                     |  0
+   42 | WishlistedDate          | TEXT    |       0 | "0000-00-00T00:00:00.000" |  0
+   43 | FeedbackTypeSynced      | INTEGER |       0 |                         0 |  0
+0
+   44 | IsSocialEnabled         | BOOL    |       1 | TRUE                      |  0
+true
+   45 | EpubType                | INT     |       1 |                        -1 |  0
+-1
+   46 | Monetization            | INTEGER |       0 |                         2 |  0
+2
+   47 | ExternalId              | TEXT    |       0 | <nil>                     |  0
+NULL
+   48 | Series                  | TEXT    |       0 | <nil>                     |  0
+NULL
+   49 | SeriesNumber            | TEXT    |       0 | <nil>                     |  0
+NULL
+   50 | Subtitle                | TEXT    |       0 | <nil>                     |  0
+NULL
+   51 | WordCount               | INTEGER |       0 |                        -1 |  0
+-1
+   52 | Fallback                | TEXT    |       0 | <nil>                     |  0
+NULL
+   53 | RestOfBookEstimate      | INTEGER |       0 | <nil>                     |  0
+0 or NULL for chapters?
+   54 | CurrentChapterEstimate  | INTEGER |       0 | <nil>                     |  0
+0 or NULL for chapters?
+   55 | CurrentChapterProgress  | FLOAT   |       0 | <nil>                     |  0
+0.0 or NULL for chapters?
+   56 | PocketStatus            | INTEGER |       0 |                         0 |  0
+0
+   57 | UnsyncedPocketChanges   | TEXT    |       0 | <nil>                     |  0
+"" or NULL for chapters?
+   58 | ImageUrl                | TEXT    |       0 | <nil>                     |  0
+NULL or "", seemingly random
+   59 | DateAdded               | TEXT    |       0 | <nil>                     |  0
+NULL (!!!)
+   60 | WorkId                  | TEXT    |       0 | <nil>                     |  0
+NULL or "", seemingly random
+   61 | Properties              | TEXT    |       0 | <nil>                     |  0
+NULL or "", seemingly random, like WorkId
+   62 | RenditionSpread         | TEXT    |       0 | <nil>                     |  0
+NULL or "", seemingly random
+   63 | RatingCount             | INTEGER |       0 |                         0 |  0
+0
+   64 | ReviewsSyncDate         | TEXT    |       0 | <nil>                     |  0
+NULL
+   65 | MediaOverlay            | TEXT    |       0 | <nil>                     |  0
+NULL
+   66 | MediaOverlayType        | TEXT    |       0 | <nil>                     |  0
+NULL
+   67 | RedirectPreviewUrl      | TEXT    |       0 | <nil>                     |  0
+false or NULL for chapters?
+   68 | PreviewFileSize         | INTEGER |       0 | <nil>                     |  0
+0 or NULL for chapters?
+   69 | EntitlementId           | TEXT    |       0 | <nil>                     |  0
+"" or NULL for chapters?
+   70 | CrossRevisionId         | TEXT    |       0 | <nil>                     |  0
+NULL?
+   71 | DownloadUrl             | TEXT    |       0 | <nil>                     |  0
+false or NULL for chapters?
+   72 | ReadStateSynced         | BIT     |       1 | false                     |  0
+true or false for chapters
+   73 | TimesStartedReading     | INTEGER |       0 | <nil>                     |  0
+0 or NULL for chapters
+   74 | TimeSpentReading        | INTEGER |       0 | <nil>                     |  0
+0 or NULL for chapters
+   75 | LastTimeStartedReading  | TEXT    |       0 | <nil>                     |  0
+NULL
+   76 | LastTimeFinishedReading | TEXT    |       0 | <nil>                     |  0
+NULL
+   77 | ApplicableSubscriptions | TEXT    |       0 | <nil>                     |  0
+NULL
+   78 | ExternalIds             | TEXT    |       0 | <nil>                     |  0
+NULL
+   79 | PurchaseRevisionId      | TEXT    |       0 | <nil>                     |  0
+NULL
+   80 | SeriesID                | TEXT    |       0 | <nil>                     |  0
+NULL
+   81 | SeriesNumberFloat       | REAL    |       0 | <nil>                     |  0
+0.0 or NULL for chapters
+   82 | AdobeLoanExpiration     | TEXT    |       0 | <nil>                     |  0
+NULL
+   83 | HideFromHomePage        | bit     |       0 | <nil>                     |  0
+false or NULL for chapters
+   84 | IsInternetArchive       | BOOL    |       1 | FALSE                     |  0
+false or FALSE for chapters (!)
+   85 | titleKana               | TEXT    |       0 | <nil>                     |  0
+NULL
+   86 | subtitleKana            | TEXT    |       0 | <nil>                     |  0
+NULL
+   87 | seriesKana              | TEXT    |       0 | <nil>                     |  0
+NULL
+   88 | attributionKana         | TEXT    |       0 | <nil>                     |  0
+NULL
+   89 | publisherKana           | TEXT    |       0 | <nil>
+NULL
+```
+
+### `content_keys` table
+
+```
+volumeId: uuid?
+elementId: part of a book?
+elementKey: base64-encoded stuff?
+```
+
+### `content_settings` table
+
+not relevant, as applied only to some books
+
+### `volume_shortcovers` table 
+
+may be relevant, has entries for all books...
+
+### `volume_tabs` table
+
+also mysterious
+
 Logging
 -------
 
