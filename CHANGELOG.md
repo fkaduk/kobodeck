@@ -1,6 +1,23 @@
 This is a summary of changes in the published releases of
 Wallabako. The format of this change may change without prior notice.
 
+1.2.0 / 2018-03-13
+==================
+
+Minor release to ship patches accumulated in the last 9 months.
+
+  * add incomplete uninstall instructions
+  * add tag filtering support, thanks to Bogdan Cordier
+  * add a fully-populated config file to README
+  * add "say thanks", go report card and pipeline badges
+  * basic port to wallabago 2.0 library
+  * follow latest golang releases
+  * start using godep for dependency management
+  * fix linting in CI
+  * research the database format, abandon writing to the database
+    which means no collection/shelf support will be possible on Kobo
+    readers
+
 1.1.1 / 2017-06-20
 ==================
 
