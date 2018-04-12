@@ -254,9 +254,9 @@ administrators. This process should be open and decided as any other issue.
 
 To make a release:
 
- 1. generate release notes with:
+ 1. generate and commit release notes with:
 
-        git changelog
+        git changelog && editor CHANGELOG.md && git commit -a
 
     the file header will need to be moved back up to the beginning of
     the file. also make sure to add a summary and choose a proper
@@ -272,12 +272,11 @@ To make a release:
 
  4. tag the release according to [Semantic Versioning][] rules:
 
-        git tag x.y.z
+        git tag -s x.y.z
 
  5. push changes:
 
         git push
-        git push --tags
 
  6. edit the [tag on Gitlab][], copy-paste the changelog entry and
     attach the signed binaries
