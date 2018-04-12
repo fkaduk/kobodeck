@@ -1,6 +1,14 @@
 This is a summary of changes in the published releases of
 Wallabako. The format of this change may change without prior notice.
 
+1.2.1 / 2018-04-12
+==================
+
+Patch release to fix problem that would make any Wallabag annotation
+crash wallabako.
+
+  * update to wallabago v4 to fix change in wallabag annotations
+
 1.2.0 / 2018-03-13
 ==================
 
