@@ -142,7 +142,7 @@ func main() {
 	}
 	defer lock.Unlock()
 
-	if err := wallabago.ReadConfig(*configFile); err != nil {
+	if err = wallabago.ReadConfig(*configFile); err != nil {
 		log.Fatal("cannot load configuration file: ", err.Error())
 	}
 
@@ -498,7 +498,7 @@ func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, 
 			continue
 		}
 		if status == koboBookRead {
-			err := markAsRead(id)
+			err = markAsRead(id)
 			if err != nil {
 				log.Println("failed to mark as read:", err)
 			} else {
@@ -555,7 +555,7 @@ func readStatus(ID int) (res int, err error) {
 	defer rows.Close()
 	var readStatus int
 	if rows.Next() {
-		if err := rows.Scan(&readStatus); err == nil {
+		if err = rows.Scan(&readStatus); err == nil {
 			debugln("found readStatus", readStatus)
 			res = readStatus
 		}
