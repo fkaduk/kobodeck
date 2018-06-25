@@ -43,6 +43,7 @@ clean:
 lint:
 	@echo checking idioms and syntax
 	go vet .
+	go vet -shadow .
 	golint .
 	gofmt  -s -l .
 
