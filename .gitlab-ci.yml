@@ -19,6 +19,7 @@ before_script:
     - chmod +x /usr/local/bin/dep
     - apt-get update
     - apt-get install -y -q gcc-arm-linux-gnueabihf
+    - go version
 
 stages:
     - build
