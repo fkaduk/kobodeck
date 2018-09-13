@@ -42,8 +42,6 @@ Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saytha
 
 <!-- markdown-toc end -->
 
-<img alt="screenshot of a KoboRoot.tgz file in a Kobo reader" src="assets/kobotgz-screenshot.png" align="right" />
-
 Warning
 =======
 
@@ -59,6 +57,8 @@ the [bug reports](https://gitlab.com/anarcat/wallabako/issues) before you contin
 
 That said, the author is using Wallabako on a daily basis and while
 there are sometimes small irritants things generally work fine.
+
+<img alt="screenshot of a KoboRoot.tgz file in a Kobo reader" src="assets/kobotgz-screenshot.png" align="right" />
 
 Download and install
 ====================
