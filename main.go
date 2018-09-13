@@ -450,7 +450,7 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 	}
 	if err != nil && info != nil {
 		debugf("out of date: err: %s, modtime: %s", err, info.ModTime())
-		debugf("changed: %s, before: %s", entry.UpdatedAt.Time, info.ModTime().Before(entry.UpdatedAt.Time))
+		debugf("changed: %s, before: %v", entry.UpdatedAt.Time, info.ModTime().Before(entry.UpdatedAt.Time))
 	}
 	log.Printf("downloading %s in %s", epubURL, output)
 	out, err := os.Create(output)
