@@ -1,0 +1,40 @@
+[
+  {
+    "title": "There Is No Reason to Cross the U.S. by Train. But I Did It Anyway.",
+    "author": "Caity Weaver",
+    "year": "2019",
+    "publisher": "wallabag",
+    "categories": [
+      "wallabako"
+    ],
+    "file": {
+      "path": "wallabako/32827.epub",
+      "kind": "epub",
+      "size": 156030
+    },
+    "reader": {
+      "opened": "2019-04-06 23:21:22",
+      "currentPage": 181623,
+      "pagesCount": 181834,
+      "finished": true,
+      "rotation": 3,
+      "fontSize": 10.660494
+    },
+    "added": "2019-04-01 14:28:52"
+  },
+  {
+    "title": "Translating Anarchy: The Anarchism of Occupy Wall Street",
+    "author": "Mark Bray",
+    "year": "2013",
+    "publisher": "Zero Books",
+    "categories": [
+      "Bray, Mark"
+    ],
+    "file": {
+      "path": "Bray, Mark/Translating Anarchy_ The Anarchism of Occupy Wall Street - Mark Bray.epub",
+      "kind": "epub",
+      "size": 4259928
+    },
+    "added": "2019-04-01 14:28:52"
+  }
+]
