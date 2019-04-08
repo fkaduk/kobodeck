@@ -432,7 +432,7 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 	// https://github.com/wallabag/wallabag/pull/2372
 	// only in 2.2: /api/entries/123/export.epub
 	counter.Inc("processed")
-	debugln("received entry", entry)
+	//debugln("received entry", entry)
 	err = os.MkdirAll(config.OutputDir, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("failed to create directory: %v", err)
@@ -465,7 +465,7 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 	if err != nil {
 		return fmt.Errorf("download of %s failed: %v", epubURL, err)
 	}
-	debugln("received response:", resp, err)
+	//debugln("received response:", resp, err)
 	defer resp.Body.Close()
 	n, err := io.Copy(out, resp.Body)
 	if err != nil {
@@ -623,7 +623,7 @@ func doAPI(method string, url string, body io.Reader) (data []byte, err error) {
 	if err != nil {
 		return data, err
 	}
-	debugf("received response: %q", dump)
+	//debugf("received response: %q", dump)
 	data, err = ioutil.ReadAll(resp.Body)
 	if resp.StatusCode != 200 {
 		return data, fmt.Errorf("error from the API: %s", resp.Status)
