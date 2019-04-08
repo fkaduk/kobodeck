@@ -497,7 +497,7 @@ func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, 
 			log.Println(err)
 			continue
 		}
-		if status == koboBookRead {
+		if status {
 			err = markAsRead(id)
 			if err != nil {
 				log.Println("failed to mark as read:", err)
@@ -509,7 +509,7 @@ func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, 
 			}
 		}
 		if config.Delete && !valid[id] {
-			if status == koboBookReading {
+			if status {
 				log.Printf("not deleting book currently being read: %s", file)
 			} else if err = os.Remove(file); err != nil {
 				log.Printf("warning: failed to remove file %s: %s", file, err)
@@ -535,9 +535,32 @@ const (
 // readStatus will return the read status of the given ID book, which
 // should be either koboBookUnread, koboBookReading or koboBookRead,
 // unless the database format is unexpected.
-func readStatus(ID int) (res int, err error) {
+func readStatus(ID int) (res bool, err error) {
+	res, err = readKoboStatus(ID)
+	if err != nil || res {
+		return res, err
+	}
+	res, err = readPlatoStatus(ID)
+	if err != nil || res {
+		return res, err
+	}
+	res, err = readKoreaderStatus(ID)
+	return res, err
+}
+
+func readKoreaderStatus(ID int) (res bool, err error) {
+	// TODO: for path.epub, look in path.sdr/metadata.txt.lua for regex:
+	//
+	// ^\s*\["percent_finished"\] = [0-9.]+,?$
+	//
+	// ... and turn that number in a percentage. presumably if 100.0%
+	// we are done, but maybe define a threshold?
+	return res, err
+}
+
+func readKoboStatus(ID int) (res bool, err error) {
 	if len(config.Database) <= 0 {
-		return koboBookUnread, fmt.Errorf("no database configured")
+		return res, fmt.Errorf("no database configured")
 	}
 	// XXX: this should be a singleton if we start calling readStatus
 	// more often
@@ -557,11 +580,15 @@ func readStatus(ID int) (res int, err error) {
 	if rows.Next() {
 		if err = rows.Scan(&readStatus); err == nil {
 			debugln("found readStatus", readStatus)
-			res = readStatus
 		}
 	} else {
 		err = rows.Err()
 	}
+	return readStatus == koboBookRead, err
+}
+
+func readPlatoStatus(ID int) (res bool, err error) {
+	// TODO: parse .metadata.json and look for [].reader.finished
 	return res, err
 }
 
