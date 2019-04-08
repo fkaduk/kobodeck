@@ -536,15 +536,15 @@ const (
 // should be either koboBookUnread, koboBookReading or koboBookRead,
 // unless the database format is unexpected.
 func readStatus(ID int) (res bool, err error) {
-	res, err = readKoboStatus(ID)
-	if err != nil || res {
-		return res, err
-	}
 	res, err = readPlatoStatus(ID)
 	if err != nil || res {
 		return res, err
 	}
 	res, err = readKoreaderStatus(ID)
+	if err != nil || res {
+		return res, err
+	}
+	res, err = readKoboStatus(ID)
 	return res, err
 }
 
