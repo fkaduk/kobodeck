@@ -250,6 +250,57 @@ Maintainers can be promoted to administrators when they have given significant
 contributions for a sustained timeframe, by consensus of the current
 administrators. This process should be open and decided as any other issue.
 
+# Building
+
+Even though wallabako is a golang program, it has a `Makefile` to
+build the peculiar stuff Kobo readers expect from it. In particular,
+the build should produce an ARM binary inside a specifically crafted
+tar archive.
+
+In order to build wallabako, you will need git, GCC and Golang:
+
+    apt install golang git gcc-arm-linux-gnueabihf make pv
+
+Note that Kobo readers might be running a glibc and kernel too old for
+your platform, see below if you get weird error messages when building
+from versions greated than Debian 9 (stretch), with glibc 2.28 or
+later.
+
+You will also need the golang dependencies:
+
+    export GOPATH=~/go
+    go get -d gitlab.com/anarcat/wallabako
+
+The release process (below) uses the `deploy` target as part of an
+ad-hoc test suite, but if you do not have a Kobo with SSH access to
+test it, you can also just use this to build the right tar file and
+deploy it another way:
+
+    make -C ~/go/src/gitlab.com/anarcat/wallabako tarball
+
+## Building on Debian versions greater than 9 (stretch)
+
+Starting from Debian 10 "buster", things get a little harder for
+wallabako because the Kobo platform is *so* old. Out of the box,
+running the binary built there results in the following error:
+
+    /lib/libc.so.6: version `GLIBC_2.28' not found (required by /usr/local/bin/wallabako)
+
+This was fixed by adding extra flags to the linker (`-linkmode
+external -extldflags "-static"`), but then it still fails with the
+following:
+
+    FATAL: kernel too old
+
+... which is pretty dramatic and, unfortunately, kind of true: the
+Kobo Glo HD, for example, runs a `3.0.35+` kernel ([released in
+2012](https://lkml.org/lkml/2012/6/17/107) that was compiled in December 2016.
+
+I have found it wasn't sufficient to build in a stretch `chroot`: the
+golang build process then also expects a certain version of the
+kernel. I had to use a Debian 9 stretch virtual machine (with Vagrant)
+to get a working binary from Debian 10 buster, unfortunately.
+
 # Release process
 
 To make a release:
