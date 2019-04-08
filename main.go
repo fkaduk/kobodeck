@@ -587,11 +587,6 @@ func readKoboStatus(ID int) (res bool, err error) {
 	return readStatus == koboBookRead, err
 }
 
-func readPlatoStatus(ID int) (res bool, err error) {
-	// TODO: parse .metadata.json and look for [].reader.finished
-	return res, err
-}
-
 // markAsRead marks the given wallabag article ID as read through the API
 func markAsRead(id int) (err error) {
 	log.Printf("marking entry %d as read", id)
