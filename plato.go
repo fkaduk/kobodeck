@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"strings"
 )
 
 type platoMetadata struct {
@@ -44,7 +45,7 @@ func parsePlatoMetadata(path string) (meta []platoMetadata, err error) {
 
 func checkPlatoStatus(bookPath string) (res bool) {
 	for _, entry := range meta {
-		if entry.Reader.Finished && entry.File.Path == bookPath {
+		if entry.Reader.Finished && strings.HasSuffix(entry.File.Path, bookPath) {
 			debugf("book found as read: %s", bookPath)
 			return true
 		}
