@@ -12,4 +12,8 @@ func TestReadPlatoStatus(t *testing.T) {
 	if !res {
 		t.Errorf("Book status was incorrect, got: %v, want: %v", res, true)
 	}
+	res = checkPlatoStatus("wallabako/1.epub")
+	if res {
+		t.Errorf("Book status was incorrect, got: %v, want: %v", res, false)
+	}
 }
