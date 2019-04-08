@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 )
 
 type platoMetadata struct {
@@ -60,11 +61,14 @@ var (
 )
 
 func readPlatoStatus(ID int) (res bool, err error) {
+	configPath := "/mnt/onboard/.metadata.json"
 	if !parsed {
-		meta, err = parsePlatoMetadata("/mnt/onboard/.metadata.json")
-	}
-	if err != nil {
-		return res, err
+		meta, err = parsePlatoMetadata(configPath)
+		if err != nil {
+			return res, err
+		}
+		parsed = true
+		log.Println("loaded Plato config from ", configPath)
 	}
 	// XXX: similar code in readKoreaderStatus, getting messy and hardcode-y
 	path := fmt.Sprintf("wallabako/%d.epub", ID)
