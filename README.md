@@ -215,6 +215,9 @@ You can also run the program straight from source with:
 
     go run *.go
 
+Building for the Kobo requires more work, see the [contribution
+guide](CONTRIBUTING.md) for details.
+
 Support
 =======
 
