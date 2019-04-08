@@ -68,6 +68,5 @@ func readPlatoStatus(ID int) (res bool, err error) {
 	}
 	// XXX: similar code in readKoreaderStatus, getting messy and hardcode-y
 	path := fmt.Sprintf("wallabako/%d.epub", ID)
-	res = checkPlatoStatus(path)
-	return res, err
+	return checkPlatoStatus(path), err
 }
