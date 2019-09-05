@@ -6,17 +6,12 @@ image: golang:latest
 # the default GOPATH being /go, then you'd need to have your
 # repository in /go/src/mydomainperso.com/repos/projectname 
 # Thus, making a symbolic link corrects this.
-#
-# here we install dep by hand from binary packages, but starting from
-# Debian buster, it's part of the official repos so we should switch
-# when "latest" is "buster"
 before_script:
     - mkdir -p /go/src
     - ln -s /builds /go/src/gitlab.com
     - cd /go/src/gitlab.com/$CI_PROJECT_PATH
-    - go get golang.org/x/lint/golint
     - apt-get update
-    - apt-get install -y -q gcc-arm-linux-gnueabihf go-dep golang-golang-x-tools
+    - apt-get install -y -q gcc-arm-linux-gnueabihf go-dep golang-golang-x-tools golint
 
 stages:
     - build
