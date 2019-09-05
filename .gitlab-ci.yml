@@ -10,8 +10,9 @@ before_script:
     - mkdir -p /go/src
     - ln -s /builds /go/src/gitlab.com
     - cd /go/src/gitlab.com/$CI_PROJECT_PATH
+    - go get -u golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
     - apt-get update
-    - apt-get install -y -q gcc-arm-linux-gnueabihf go-dep golang-golang-x-tools golint
+    - apt-get install -y -q gcc-arm-linux-gnueabihf go-dep golint
 
 stages:
     - build

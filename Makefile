@@ -43,7 +43,7 @@ clean:
 lint:
 	@echo checking idioms and syntax
 	go vet .
-	go vet -vettool=/usr/bin/shadow .
+	go vet -vettool=`which shadow` .
 	golint .
 	gofmt  -s -l .
 
