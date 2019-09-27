@@ -84,6 +84,19 @@ again. If that fails again, it will sleep an exponential number of
 seconds (2, 5, 10, 17, ...) per attempts, up to 4 attempts
 (configurable on the commandline) for a total of 35 seconds.
 
+One problem with this design is that it can take too long for
+wallabako to realize wifi is up, or, inversly, it can take too long
+for wifi to go online. Similarly, wifi can be turned off because
+Nickel thinks it's idle, cutting off a long wallabako download.
+
+The solution for the former could be to retry more aggressively and
+for a longer time. Or we could use launchers, see below for that.
+
+A solution for the latter issue would be more aggressive timeouts. We
+should also be careful to transfer files atomically: right now we
+write the files directly in their final destination, which means we
+might leave incomplete files in place that wallabako will not retry.
+
 Autoreload
 ----------
 
@@ -110,6 +123,40 @@ there's stuff there like:
     LastSyncTime=@Variant(\0\0\0\x10\0%\x80\x3\0\xe9R \x2)
     PeriodicAutoSync=false
     syncOnNextBoot=false
+
+Launchers
+---------
+
+One way to workaround the above started and reload issues would be to
+hook Wallabako into a launcher like KSM or [kfmon][]. I have
+experimented with the latter and it gives interesting results. To try
+it out, do the following:
+
+[kfmon]: https://github.com/NiLuJe/kfmon
+
+ 1. install [kfmon][]
+
+ 2. install wallabako normally (you at least need to have the
+    `wallabako` programs in `/usr/local/bin` and a config file setup)
+
+
+ 3. copy the `assets/logo-white.png` image to the Kobo root, for
+    example:
+    
+        cp assets/logo-white.png /media/anarcat/KOBOeReader/wallabako.png
+
+ 4. copy the `kfmon.ini` configuration file into the kfmon config
+    directory:
+    
+        cp assets/kfmon.ini /media/anarcat/KOBOeReader/.adds/kfmon/config/
+
+ 5. unmount the Kobo
+
+If all goes well, the Wallabako logo should show up in your list of
+books. When you tap it, wallabako should start automatically. This is
+very nice because it allows you to control exactly *when* wallabako
+will start. You might, for example, make sure wifi is properly started
+and working before you start it.
 
 Read status and other metadata
 ------------------------------
