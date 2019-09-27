@@ -318,6 +318,12 @@ To make a release:
 
         make lint sign deploy HOST=192.168.0.22
 
+    note that because Debian buster has a newer libc, this will not
+    work. you need to run `make lint build tarball` inside a stretch
+    virtual machine, extract the files from there, and *then* `make
+    sign deploy`. yes, it's a pain. no, there's no way around, see
+    above.
+
  3. make sure everything works: test the program on a desktop and a
     Kobo reader
 
