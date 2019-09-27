@@ -17,16 +17,16 @@ and other launchers as well.
   * do not hardcode the gcc version, in the futile hope it still works
   * documentation improvements
 
-1.2.1 / 2018-04-12: Le bal des zombies
-======================================
+1.2.1 / 2018-04-12: Never flush a tampon
+========================================
 
 Patch release to fix problem that would make any Wallabag annotation
 crash wallabako.
 
   * update to wallabago v4 to fix change in wallabag annotations
 
-1.2.0 / 2018-03-13: Not a day goes by
-=====================================
+1.2.0 / 2018-03-13: Giving up on writing
+========================================
 
 Minor release to ship patches accumulated in the last 9 months.
 
