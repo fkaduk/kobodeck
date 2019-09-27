@@ -636,3 +636,36 @@ builds. There was some research done on package authentication and
 automated upgrades in issue [#3 on Gitlab][].
 
 [#3 on Gitlab]: https://gitlab.com/anarcat/wallabako/issues/3
+
+Other readers
+-------------
+
+Wallabako was designed mainly for the Nickel reader, or at least that
+is how I have been using it so far. However, some other readers exist
+for the Kobo machines. I have been particularly impressed by the
+[koreader][] and [plato][] readers so I have tried to implement hooks
+to recognize when a book is read in those platforms.
+
+There is an [issue in the koreader tracker][] detailing the
+possibility of hooking up wallabako directly in a koreader menu, but
+this was abandoned. There's also a stub `readKoreaderStatus` function
+in the code that should eventually read from the koreader state
+files. The problem is parsing their silly Lua code, which I haven't
+got around to.
+
+There's also a `readPlatoStatus` function, split into its own
+`plato.go` source file which should handle plato status changes. It
+parses the Plato JSON file for state changes and will mark items as
+"read" in wallabako (with all that implies, including removing files
+if so configured) when the state and pattern matches. This has been
+only slightly tested.
+
+The first reader sending a "read" status wins, and they are read in
+order (Plato, Koreader, Nickel). This implies that if a book is marked
+as read in Plato but not Nickel, it might still be deleted from
+Nickel, which is something to keep in mind. If it's marked as unread
+in Plato but read in Nickel, it will also be deleted.
+
+[issue in the koreader tracker]: https://github.com/koreader/koreader/issues/2621
+[plato]: https://github.com/baskerville/plato/
+[koreader]: https://github.com/koreader/koreader/
