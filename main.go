@@ -509,7 +509,7 @@ func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, 
 			}
 		}
 		if config.Delete && !valid[id] {
-			if status {
+			if !status {
 				log.Printf("not deleting book currently being read: %s", file)
 			} else if err = os.Remove(file); err != nil {
 				log.Printf("warning: failed to remove file %s: %s", file, err)
