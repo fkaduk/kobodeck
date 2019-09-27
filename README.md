@@ -85,8 +85,8 @@ Quick start for Kobo devices:
 section
  5. disconnect the reader
 
-[latest `KoboRoot.tgz`]: https://gitlab.com/anarcat/wallabako/builds/artifacts/1.2.1/file/build/KoboRoot.tgz?job=compile
-[download]: https://gitlab.com/anarcat/wallabako/builds/artifacts/1.2.1/file/build/KoboRoot.tgz?job=compile
+[latest `KoboRoot.tgz`]: https://gitlab.com/anarcat/wallabako/builds/artifacts/master/file/build/KoboRoot.tgz?job=compile
+[download]: https://gitlab.com/anarcat/wallabako/builds/artifacts/master/file/build/KoboRoot.tgz?job=compile
 
 When you disconnect the reader, it will perform what looks like an
 upgrade, but it's just the content of the `KoboRoot.tgz` being
