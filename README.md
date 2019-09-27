@@ -85,6 +85,10 @@ program should run, which should create a `wallabako.log.txt` file at
 the top directory of the reader which you can use to diagnose
 problems, see also the [troubleshooting](#troubleshooting) section.
 
+Another more advanced installation method, for power users, can done
+with the KFmon launcher. See the [design](DESIGN.md) document, section
+"Launchers" for more information for this experimental configuration.
+
 Configuration
 =============
 
