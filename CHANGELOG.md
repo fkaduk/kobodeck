@@ -17,16 +17,16 @@ and other launchers as well.
   * do not hardcode the gcc version, in the futile hope it still works
   * documentation improvements
 
-1.2.1 / 2018-04-12
-==================
+1.2.1 / 2018-04-12: Le bal des zombies
+======================================
 
 Patch release to fix problem that would make any Wallabag annotation
 crash wallabako.
 
   * update to wallabago v4 to fix change in wallabag annotations
 
-1.2.0 / 2018-03-13
-==================
+1.2.0 / 2018-03-13: Not a day goes by
+=====================================
 
 Minor release to ship patches accumulated in the last 9 months.
 
@@ -42,8 +42,8 @@ Minor release to ship patches accumulated in the last 9 months.
     which means no collection/shelf support will be possible on Kobo
     readers
 
-1.1.1 / 2017-06-20
-==================
+1.1.1 / 2017-06-20: A piece of strange
+======================================
 
 Merge changes from stable branch, including:
 
@@ -73,13 +73,13 @@ API and allow for betting debugging output.
 
 Thanks to Martin Trigaux for his contributions in this release!
 
-1.0.2 / 2017-06-20
-==================
+1.0.2 / 2017-06-20: L'ombre sur la mesure
+=========================================
 
   * fix build with latest wallabago API changes
 
-1.0.1 / 2017-06-20
-==================
+1.0.1 / 2017-06-20: La rumeur
+=============================
 
 Small bugfix release to help with 2.2 API without breaking backwards
 compatibility.
