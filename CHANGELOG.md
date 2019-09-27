@@ -1,6 +1,22 @@
 This is a summary of changes in the published releases of
 Wallabako. The format of this change may change without prior notice.
 
+1.3.0 / 2019-09-26: Our Collective Consciousness' Psychogenic Fugue
+===================================================================
+
+Minor release to ship patches accumulated in the last year. This
+release is the first shipping with support for other readers than the
+builtin "Nickel" reader, mainly Plato for now, but work has also been
+done to support Koreader. Some tests have been done to support kfmon
+and other launchers as well.
+
+  * abstract Kobo logic from read status and prepare support for others
+  * add Plato metadata parsing code
+  * add kfmon.ini configuration and white-background logo of right size
+  * fix compilation in golang 1.11 and 1.12
+  * do not hardcode the gcc version, in the futile hope it still works
+  * documentation improvements
+
 1.2.1 / 2018-04-12
 ==================
 
