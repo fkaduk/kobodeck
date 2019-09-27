@@ -13,6 +13,7 @@ Design notes
  - [Database reverse-engineering](#database-reverse-engineering)
  - [Logging](#logging)
  - [Autobuilders](#autobuilders)
+ - [Other readers](#other-readers)
 
 <!-- markdown-toc end -->
 
