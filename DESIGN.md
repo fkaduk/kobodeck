@@ -140,8 +140,10 @@ it out, do the following:
  1. install [kfmon][]
 
  2. install wallabako normally (you at least need to have the
-    `wallabako` programs in `/usr/local/bin` and a config file setup)
-
+    `wallabako` programs in `/usr/local/bin` and a config file
+    setup). Note that the kfmon configuration installed below assumes
+    a newer wrapper script is present (`wallabako-run-direct`) which
+    you might not already have installed.
 
  3. copy the `assets/logo-white.png` image to the Kobo root, for
     example:
@@ -160,6 +162,11 @@ books. When you tap it, wallabako should start automatically. This is
 very nice because it allows you to control exactly *when* wallabako
 will start. You might, for example, make sure wifi is properly started
 and working before you start it.
+
+The advantage of this approach is the user has total control on when
+wallabako is started. The downside is it requires installing yet
+another piece of software on your Kobo, which you might not be
+familiar with.
 
 Read status and other metadata
 ------------------------------
