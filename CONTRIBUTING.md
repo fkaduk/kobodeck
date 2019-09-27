@@ -259,7 +259,7 @@ tar archive.
 
 In order to build wallabako, you will need git, GCC and Golang:
 
-    apt install golang git gcc-arm-linux-gnueabihf make pv
+    apt install golang golint git gcc-arm-linux-gnueabihf make pv
 
 Note that Kobo readers might be running a glibc and kernel too old for
 your platform, see below if you get weird error messages when building
