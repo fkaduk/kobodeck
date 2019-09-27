@@ -7,7 +7,10 @@ Design notes
  - [File synchronisation and deletion](#file-synchronisation-and-deletion)
  - [Wifi trigger](#wifi-trigger)
  - [Autoreload](#autoreload)
+ - [Launchers](#launchers)
  - [Read status and other metadata](#read-status-and-other-metadata)
+ - [Writing to the database](#writing-to-the-database)
+ - [Database reverse-engineering](#database-reverse-engineering)
  - [Logging](#logging)
  - [Autobuilders](#autobuilders)
 

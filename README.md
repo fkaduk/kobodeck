@@ -30,15 +30,28 @@ Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saytha
 <!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-generate-toc again -->
 **Table of Contents**
 
+- [Wallabag downloader](#wallabag-downloader)
 - [Warning](#warning)
 - [Download and install](#download-and-install)
 - [Configuration](#configuration)
 - [Usage](#usage)
+    - [Kobo devices](#kobo-devices)
+    - [Commandline](#commandline)
 - [Support](#support)
 - [Troubleshooting](#troubleshooting)
+    - [Logging](#logging)
+    - [Configuration file details](#configuration-file-details)
+    - [Configuration file is not found even if present](#configuration-file-is-not-found-even-if-present)
+    - [Some articles are not downloaded or disappear](#some-articles-are-not-downloaded-or-disappear)
+    - [Unable to open database file](#unable-to-open-database-file)
+    - [x509: failed to load system roots and no roots provided](#x509-failed-to-load-system-roots-and-no-roots-provided)
+    - [Command not running](#command-not-running)
+    - [Uninstalling](#uninstalling)
 - [Known issues](#known-issues)
 - [Credits](#credits)
 - [Contributing](#contributing)
+    - [Design notes](#design-notes)
+    - [Remaining issues](#remaining-issues)
 
 <!-- markdown-toc end -->
 
