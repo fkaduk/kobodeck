@@ -670,3 +670,13 @@ in Plato but read in Nickel, it will also be deleted.
 [issue in the koreader tracker]: https://github.com/koreader/koreader/issues/2621
 [plato]: https://github.com/baskerville/plato/
 [koreader]: https://github.com/koreader/koreader/
+
+Static linking
+--------------
+
+Wallabako is, as much as possible, statically linked. That allows it
+to get away with running on the Kobo with very minimal
+dependencies. Unfortunately, since Debian 10 ("buster"), this
+broke. The details of that debacle are documented in the CONTRIBUTING
+document, but it certainly looks like it is going to become more and
+more difficult to maintain Wallabako in the future.
