@@ -45,14 +45,15 @@ func parsePlatoMetadata(path string) (meta []platoMetadata, err error) {
 
 func checkPlatoStatus(bookPath string) (res bookStatus) {
 	for _, entry := range meta {
-		if entry.Reader.Finished && strings.HasSuffix(entry.File.Path, bookPath) {
-			debugf("book found as read: %s", bookPath)
-			return bookRead
-		}
-		if entry.Reader.Finished {
+		if strings.HasSuffix(entry.File.Path, bookPath) {
+			if entry.Reader.Finished {
+				debugf("book found as read: %s", bookPath)
+				return bookRead
+			} else if entry.Reader.CurrentPage != 0 {
+				return bookReading
+			}
+		} else if entry.Reader.Finished {
 			debugf("book found as read but not matching pattern, expected: %s, actual: %s", bookPath, entry.File.Path)
-		} else if entry.Reader.CurrentPage != 0 {
-			return bookReading
 		}
 	}
 	return bookUnread
