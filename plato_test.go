@@ -9,11 +9,15 @@ func TestReadPlatoStatus(t *testing.T) {
 		t.Errorf("failure to setup test suite: %v", err)
 	}
 	res := checkPlatoStatus("wallabako/32827.epub")
-	if !res {
-		t.Errorf("Book status was incorrect, got: %v, want: %v", res, true)
+	if res != bookRead {
+		t.Errorf("Book status was incorrect, got: %v, want: %v", res, bookRead)
+	}
+	res = checkPlatoStatus("wallabako/35130.epub")
+	if res != bookReading {
+		t.Errorf("Book status was incorrect, got: %v, want: %v", res, bookReading)
 	}
 	res = checkPlatoStatus("wallabako/1.epub")
-	if res {
-		t.Errorf("Book status was incorrect, got: %v, want: %v", res, false)
+	if res != bookUnread {
+		t.Errorf("Book status was incorrect, got: %v, want: %v", res, bookUnread)
 	}
 }
