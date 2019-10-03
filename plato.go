@@ -27,7 +27,7 @@ type platoFileMetadata struct {
 
 type platoMetadataReader struct {
 	opened      interface{}
-	CurrentPage int `json:"current_page"`
+	CurrentPage int `json:"currentPage"`
 	pagesCount  interface{}
 	Finished    bool `json:"finished"`
 	rotation    interface{}
