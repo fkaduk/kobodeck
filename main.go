@@ -497,7 +497,7 @@ func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, 
 			log.Println(err)
 			continue
 		}
-		if status {
+		if status == bookRead {
 			err = markAsRead(id)
 			if err != nil {
 				log.Println("failed to mark as read:", err)
@@ -509,7 +509,7 @@ func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, 
 			}
 		}
 		if config.Delete && !valid[id] {
-			if !status {
+			if status == bookReading {
 				log.Printf("not deleting book currently being read: %s", file)
 			} else if err = os.Remove(file); err != nil {
 				log.Printf("warning: failed to remove file %s: %s", file, err)
@@ -525,30 +525,44 @@ func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, 
 // koboNormalBook is the ContentID code for normal books in the Kobo sqlite database
 const koboNormalBook = 6
 
-// koboBook* are the various book reading statuses in the Kobo sqlite database
+// the book status stored in the Kobo database
+type koboBookStatus int
+
+// those happen to be incremental identifiers in the Kobo database,
+// starting at zero
 const (
-	koboBookUnread  = iota
-	koboBookReading = iota
-	koboBookRead    = iota
+	koboBookUnread koboBookStatus = iota
+	koboBookReading
+	koboBookRead
+)
+
+// the book statuses we know of, internal to wallabako. this currently
+// is the same as koboBookStatus but might change in the future
+type bookStatus int
+
+const (
+	bookUnread bookStatus = iota
+	bookReading
+	bookRead
 )
 
 // readStatus will return the read status of the given ID book, which
 // should be either koboBookUnread, koboBookReading or koboBookRead,
 // unless the database format is unexpected.
-func readStatus(ID int) (res bool, err error) {
+func readStatus(ID int) (res bookStatus, err error) {
 	res, err = readPlatoStatus(ID)
-	if err != nil || res {
+	if err != nil || res != bookUnread {
 		return res, err
 	}
 	res, err = readKoreaderStatus(ID)
-	if err != nil || res {
+	if err != nil || res != bookUnread {
 		return res, err
 	}
 	res, err = readKoboStatus(ID)
 	return res, err
 }
 
-func readKoreaderStatus(ID int) (res bool, err error) {
+func readKoreaderStatus(ID int) (res bookStatus, err error) {
 	// TODO: for path.epub, look in path.sdr/metadata.txt.lua for regex:
 	//
 	// ^\s*\["percent_finished"\] = [0-9.]+,?$
@@ -558,7 +572,7 @@ func readKoreaderStatus(ID int) (res bool, err error) {
 	return res, err
 }
 
-func readKoboStatus(ID int) (res bool, err error) {
+func readKoboStatus(ID int) (res bookStatus, err error) {
 	if len(config.Database) <= 0 {
 		return res, fmt.Errorf("no database configured")
 	}
@@ -576,7 +590,7 @@ func readKoboStatus(ID int) (res bool, err error) {
 		return res, err
 	}
 	defer rows.Close()
-	var readStatus int
+	var readStatus koboBookStatus
 	if rows.Next() {
 		if err = rows.Scan(&readStatus); err == nil {
 			debugln("found readStatus", readStatus)
@@ -584,7 +598,16 @@ func readKoboStatus(ID int) (res bool, err error) {
 	} else {
 		err = rows.Err()
 	}
-	return readStatus == koboBookRead, err
+	switch readStatus {
+	case koboBookUnread:
+		return bookUnread, err
+	case koboBookReading:
+		return bookReading, err
+	case koboBookRead:
+		return bookRead, err
+	}
+	log.Printf("warning: unexpected Kobo book state: %s, assuming reading\n", readStatus)
+	return bookReading, err
 }
 
 // markAsRead marks the given wallabag article ID as read through the API
