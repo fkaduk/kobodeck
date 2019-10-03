@@ -43,17 +43,17 @@ func parsePlatoMetadata(path string) (meta []platoMetadata, err error) {
 	return meta, err
 }
 
-func checkPlatoStatus(bookPath string) (res bool) {
+func checkPlatoStatus(bookPath string) (res bookStatus) {
 	for _, entry := range meta {
 		if entry.Reader.Finished && strings.HasSuffix(entry.File.Path, bookPath) {
 			debugf("book found as read: %s", bookPath)
-			return true
+			return bookRead
 		}
 		if entry.Reader.Finished {
 			debugf("book found as read but not matching pattern, expected: %s, actual: %s", bookPath, entry.File.Path)
 		}
 	}
-	return res
+	return bookUnread
 }
 
 var (
@@ -61,7 +61,7 @@ var (
 	meta   []platoMetadata
 )
 
-func readPlatoStatus(ID int) (res bool, err error) {
+func readPlatoStatus(ID int) (res bookStatus, err error) {
 	configPath := "/mnt/onboard/.metadata.json"
 	if !parsed {
 		meta, err = parsePlatoMetadata(configPath)
