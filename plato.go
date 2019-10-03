@@ -27,7 +27,7 @@ type platoFileMetadata struct {
 
 type platoMetadataReader struct {
 	opened      interface{}
-	currentPage interface{}
+	CurrentPage int `json:"current_page"`
 	pagesCount  interface{}
 	Finished    bool `json:"finished"`
 	rotation    interface{}
@@ -51,6 +51,8 @@ func checkPlatoStatus(bookPath string) (res bookStatus) {
 		}
 		if entry.Reader.Finished {
 			debugf("book found as read but not matching pattern, expected: %s, actual: %s", bookPath, entry.File.Path)
+		} else if entry.Reader.CurrentPage != 0 {
+			return bookReading
 		}
 	}
 	return bookUnread
