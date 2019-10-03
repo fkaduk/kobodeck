@@ -606,7 +606,7 @@ func readKoboStatus(ID int) (res bookStatus, err error) {
 	case koboBookRead:
 		return bookRead, err
 	}
-	log.Printf("warning: unexpected Kobo book state: %s, assuming reading\n", readStatus)
+	log.Printf("warning: unexpected Kobo book state: %d, assuming reading\n", readStatus)
 	return bookReading, err
 }
 
