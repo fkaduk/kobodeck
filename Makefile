@@ -45,9 +45,7 @@ lint:
 	go vet .
 	golint .
 	gofmt  -s -l .
-
-test:
-	echo 'no tests implemented yet, but if i would, i would do that with -race as well'
+	go test
 
 sign: lint build tarball
 	@echo signing all binaries
