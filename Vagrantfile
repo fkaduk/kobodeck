@@ -17,6 +17,9 @@ Vagrant.configure("2") do |config|
     libvirt.storage_pool_name = "default"
   end
 
+  # publish source directory under GOPATH
+  config.vm.synced_folder './', '/vagrant/go/src/gitlab.com/anarcat/wallabako', type: 'sshfs'
+
   # preseed the box with wallabako dependencies
   config.vm.provision "shell", inline: <<-SHELL
     export DEBIAN_FRONTEND=noninteractive APT_LISTCHANGES_FRONTEND=mail
@@ -29,7 +32,4 @@ Vagrant.configure("2") do |config|
     echo "W: curl | sh is horribly, but it seems the only way"
     curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
   SHELL
-
-  # publish source directory under GOPATH
-  config.vm.synced_folder './', '/vagrant/go/src/gitlab.com/anarcat/wallabako', type: 'sshfs'
 end
