@@ -1,6 +1,16 @@
 This is a summary of changes in the published releases of
 Wallabako. The format of this change may change without prior notice.
 
+1.3.1 / 2019-10-04: Agnus dei
+=============================
+
+Bugfix release to make read but untouched files be deleted again.
+
+  * add Vagrantfile to build on older Debian releases more easily
+  * simplify plato status check logic
+  * support "in reading" state in plato, hopefully
+  * fix go dep in CI
+
 1.3.0 / 2019-09-26: Our Collective Consciousness' Psychogenic Fugue
 ===================================================================
 
