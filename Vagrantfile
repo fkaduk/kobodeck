@@ -25,7 +25,9 @@ Vagrant.configure("2") do |config|
     export GOPATH=/vagrant/go
     mkdir -p $GOPATH/src/gitlab.com/anarcat/wallabako $GOPATH/bin
     chown -R vagrant $GOPATH
-    echo "W: curl | sh is horribly, but it seems the only way"
-    curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+    if [ -x /vagrant/go/bin/dep ]; then
+        echo "W: curl | sh is horribly, but it seems the only way"
+        curl -sSL https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+    fi
   SHELL
 end
