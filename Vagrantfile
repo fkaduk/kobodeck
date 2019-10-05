@@ -1,10 +1,6 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-# so that go 1.7 works at all
-ENV["GOPATH"] = "/vagrant/go"
-# for go dep and other go binaries
-ENV["PATH"] = "/usr/bin:/bin:/vagrant/go/bin"
 
 Vagrant.configure("2") do |config|
   config.vm.box = "debian/stretch64"
