@@ -25,7 +25,7 @@ Vagrant.configure("2") do |config|
     export DEBIAN_FRONTEND=noninteractive APT_LISTCHANGES_FRONTEND=mail
     apt update
     apt upgrade -yy
-    apt install -y golang golint git gcc-arm-linux-gnueabihf make pv
+    apt install -y golang golint git gcc-arm-linux-gnueabihf make pv curl
     export GOPATH=/vagrant/go
     mkdir -p $GOPATH/src/gitlab.com/anarcat/wallabako $GOPATH/bin
     chown -R vagrant $GOPATH
