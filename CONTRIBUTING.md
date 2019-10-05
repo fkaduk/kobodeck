@@ -313,16 +313,22 @@ To make a release:
     the file. also make sure to add a summary and choose a proper
     version according to [Semantic Versioning][]
 
- 2. check source code for errors, build and sign binaries, and deploy
-    to test host:
+ 2. check source code for errors, and deploy to test host:
 
-        make lint sign deploy HOST=192.168.0.22
+        make lint deploy HOST=192.168.0.22
 
     note that because Debian buster has a newer libc, this will not
     work. you need to run `make lint build tarball` inside a stretch
     virtual machine, extract the files from there, and *then* `make
     sign deploy`. yes, it's a pain. no, there's no way around, see
-    above.
+    above. This command will do the right thing, using Vagrant:
+
+        vagrant up ; vagrant ssh -- 'export GOPATH=/vagrant/go ; cd /vagrant/go/src/gitlab.com/anarcat/wallabako ; /vagrant/go/bin/dep ensure; make lint build tarball'
+        make deploy HOST=192.168.0.22
+
+    To install vagrant:
+
+        sudo apt install vagrant vagrant-sshfs
 
  3. make sure everything works: test the program on a desktop and a
     Kobo reader
@@ -330,6 +336,11 @@ To make a release:
  4. tag the release according to [Semantic Versioning][] rules:
 
         git tag -s x.y.z
+
+ 5. rebuild with the new tag:
+
+        vagrant ssh -- 'export GOPATH=/vagrant/go ; cd /vagrant/go/src/gitlab.com/anarcat/wallabako ; /vagrant/go/bin/dep ensure; make lint build tarball'
+        make sign deploy HOST=192.168.0.22
 
  5. push changes:
 
