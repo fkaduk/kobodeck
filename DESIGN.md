@@ -151,10 +151,10 @@ it out, do the following:
     
         cp assets/logo-white.png /media/anarcat/KOBOeReader/wallabako.png
 
- 4. copy the `kfmon.ini` configuration file into the kfmon config
+ 4. copy and rename to `wallabako.ini` the `kfmon.ini` configuration file into the kfmon config
     directory:
     
-        cp assets/kfmon.ini /media/anarcat/KOBOeReader/.adds/kfmon/config/
+        cp assets/kfmon.ini /media/anarcat/KOBOeReader/.adds/kfmon/config/wallabako.ini
 
  5. unmount the Kobo
 
