@@ -551,11 +551,11 @@ const (
 // unless the database format is unexpected.
 func readStatus(ID int) (res bookStatus, err error) {
 	res, err = readPlatoStatus(ID)
-	if err != nil || res != bookUnread {
+	if res != bookUnread {
 		return res, err
 	}
 	res, err = readKoreaderStatus(ID)
-	if err != nil || res != bookUnread {
+	if res != bookUnread {
 		return res, err
 	}
 	res, err = readKoboStatus(ID)
