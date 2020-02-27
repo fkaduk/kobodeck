@@ -441,7 +441,7 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 	output := filepath.Join(config.OutputDir, path.Base(epubURL))
 	info, err := os.Stat(output)
 	if err == nil && info.ModTime().After(entry.UpdatedAt.Time) && info.Size() > 0 {
-		log.Printf("URL %s older than local file %s, skipped", epubURL, output)
+		log.Printf("URL %s older than local file %s, skipped (%s > %s)", epubURL, output, info.ModTime(), entry.UpdatedAt.Time)
 		return nil
 	} else if os.IsNotExist(err) {
 		debugln("missing:", err)
@@ -551,11 +551,11 @@ const (
 // unless the database format is unexpected.
 func readStatus(ID int) (res bookStatus, err error) {
 	res, err = readPlatoStatus(ID)
-	if err != nil || res != bookUnread {
+	if res != bookUnread {
 		return res, err
 	}
 	res, err = readKoreaderStatus(ID)
-	if err != nil || res != bookUnread {
+	if res != bookUnread {
 		return res, err
 	}
 	res, err = readKoboStatus(ID)
