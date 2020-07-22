@@ -492,7 +492,7 @@ func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, 
 			log.Println("skipping irreglar file", file)
 			continue
 		}
-		status, err := readStatus(id)
+		status, err := readStatus(id, outputDir)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -549,20 +549,20 @@ const (
 // readStatus will return the read status of the given ID book, which
 // should be either koboBookUnread, koboBookReading or koboBookRead,
 // unless the database format is unexpected.
-func readStatus(ID int) (res bookStatus, err error) {
-	res, err = readPlatoStatus(ID)
+func readStatus(ID int, outputDir string) (res bookStatus, err error) {
+	res, err = readPlatoStatus(ID, outputDir)
 	if res != bookUnread {
 		return res, err
 	}
-	res, err = readKoreaderStatus(ID)
+	res, err = readKoreaderStatus(ID, outputDir)
 	if res != bookUnread {
 		return res, err
 	}
-	res, err = readKoboStatus(ID)
+	res, err = readKoboStatus(ID, outputDir)
 	return res, err
 }
 
-func readKoreaderStatus(ID int) (res bookStatus, err error) {
+func readKoreaderStatus(ID int, outputDir string) (res bookStatus, err error) {
 	// TODO: for path.epub, look in path.sdr/metadata.txt.lua for regex:
 	//
 	// ^\s*\["percent_finished"\] = [0-9.]+,?$
@@ -572,7 +572,7 @@ func readKoreaderStatus(ID int) (res bookStatus, err error) {
 	return res, err
 }
 
-func readKoboStatus(ID int) (res bookStatus, err error) {
+func readKoboStatus(ID int, outputDir string) (res bookStatus, err error) {
 	if len(config.Database) <= 0 {
 		return res, fmt.Errorf("no database configured")
 	}
@@ -584,7 +584,7 @@ func readKoboStatus(ID int) (res bookStatus, err error) {
 	}
 	defer db.Close()
 
-	path := fmt.Sprintf("file:///mnt/onboard/wallabako/%d.epub", ID)
+	path := fmt.Sprintf("file://%s/%d.epub", outputDir, ID)
 	rows, err := db.Query("SELECT ReadStatus FROM content WHERE ContentID = $1 AND ContentType = $2 LIMIT 1", path, koboNormalBook)
 	if err != nil {
 		return res, err

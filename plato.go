@@ -152,7 +152,7 @@ var (
 	fat32Epoch = time.Unix(315_532_800, 0)
 )
 
-func readPlatoStatus(ID int) (res bookStatus, err error) {
+func readPlatoStatus(ID int, outputDir string) (res bookStatus, err error) {
 	if !parsed {
 		meta, err = parsePlatoMetadata(metadataPath, readingStatesPath)
 		if err != nil {
@@ -166,7 +166,7 @@ func readPlatoStatus(ID int) (res bookStatus, err error) {
 		log.Println("loaded Plato config from ", metadataPath)
 	}
 	// XXX: similar code in readKoreaderStatus, getting messy and hardcode-y
-	path := fmt.Sprintf("wallabako/%d.epub", ID)
+	path := fmt.Sprintf("%s/%d.epub", outputDir, ID)
 	return checkPlatoStatus(path), err
 }
 
@@ -183,5 +183,7 @@ func getFingerprint(path string) (f fingerprint, err error) {
 
 	f = fingerprint(uint64((diff << 32) ^ size))
 
+	debugf("path %s: fingerprint %s, mtime %#v, mtime tz %s, size %#v, diff %#v\n",
+		path, f, mtime.Unix(), mtime.Location().String(), size, diff)
 	return f, nil
 }
