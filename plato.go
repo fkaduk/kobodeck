@@ -16,6 +16,10 @@ const metadataPath = "/mnt/onboard/.metadata.json"
 // As of plato 0.8.5: completion status of each book now stored as a separate file in .reading-states
 const readingStatesPath = "/mnt/onboard/.reading-states/"
 
+// Plato v0.8.5+ uses the modified time from a file using the fat32-epoch
+const fat32EpochPath = "/mnt/onboard/.fat32-epoch"
+const fat32EpochSeconds = 315_532_800
+
 type fingerprint uint64
 
 // Used as key in .metadata.json
@@ -149,7 +153,7 @@ var (
 	meta       map[string]platoMetadata
 
 	// used for fingerprinting as of https://github.com/baskerville/plato/releases/tag/0.8.5
-	fat32Epoch = time.Unix(315_532_800, 0)
+	fat32EpochModTime time.Time
 )
 
 func readPlatoStatus(ID int, outputDir string) (res bookStatus, err error) {
@@ -162,12 +166,40 @@ func readPlatoStatus(ID int, outputDir string) (res bookStatus, err error) {
 			}
 		}
 
+		fat32EpochModTime = getFat32EpochModifiedTime()
 		parsed = true
 		log.Println("loaded Plato config from ", metadataPath)
 	}
 	// XXX: similar code in readKoreaderStatus, getting messy and hardcode-y
 	path := fmt.Sprintf("%s/%d.epub", outputDir, ID)
 	return checkPlatoStatus(path), err
+}
+
+// Try to retrieve plato's .fat32-epoch modified time or create our own
+func getFat32EpochModifiedTime() time.Time {
+	fatMeta, err := os.Stat(fat32EpochPath)
+	if err != nil {
+		fat32EpochTime := time.Unix(fat32EpochSeconds, 0)
+
+		f, err := ioutil.TempFile("", "wallabako-fat32-epoch-*")
+
+		// This fallback may lead to wallbako not actioning on read items due to time variances creating incorrect fingerprints
+		if f == nil || err != nil {
+			debugf("using %#v for epoch due to error: %s\n", fat32EpochModTime.Unix(), err)
+			return fat32EpochTime
+		}
+
+		err = os.Chtimes(f.Name(), fat32EpochTime, fat32EpochTime)
+
+		fatMeta, err = os.Stat(f.Name())
+		if err != nil {
+			debugf("using %#v for epoch due to error: %s\n", fat32EpochModTime.Unix(), err)
+			return fat32EpochTime
+		}
+	}
+
+	debugf("%s mtime is %#v\n", fatMeta.Name(), fatMeta.ModTime().Unix())
+	return fatMeta.ModTime()
 }
 
 func getFingerprint(path string) (f fingerprint, err error) {
@@ -179,7 +211,7 @@ func getFingerprint(path string) (f fingerprint, err error) {
 	mtime := fileMeta.ModTime()
 	size := fileMeta.Size()
 
-	diff := int64(mtime.Sub(fat32Epoch).Seconds())
+	diff := int64(mtime.Sub(fat32EpochModTime).Seconds())
 
 	f = fingerprint(uint64((diff << 32) ^ size))
 
