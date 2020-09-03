@@ -11,13 +11,13 @@ import (
 	"time"
 )
 
-const metadataPath = "/mnt/onboard/.metadata.json"
+const metadataFilename = ".metadata.json"
 
 // As of plato 0.8.5: completion status of each book now stored as a separate file in .reading-states
-const readingStatesPath = "/mnt/onboard/.reading-states/"
+const readingStatesDirName = ".reading-states/"
 
 // Plato v0.8.5+ uses the modified time from a file using the fat32-epoch
-const fat32EpochPath = "/mnt/onboard/.fat32-epoch"
+const fat32EpochFilename = ".fat32-epoch"
 const fat32EpochSeconds = 315_532_800
 
 type fingerprint uint64
@@ -30,6 +30,11 @@ func (f fingerprint) String() string {
 // Used as filename in .reading-state/
 func (f fingerprint) Hex() string {
 	return fmt.Sprintf("%016X", uint64(f))
+}
+
+type PlatoConfig struct {
+	// LibraryPath corresponds to [[libraries.path]] in Settings.toml for Plato
+	LibraryPath string
 }
 
 type platoMetadata struct {
@@ -156,8 +161,17 @@ var (
 	fat32EpochModTime time.Time
 )
 
-func readPlatoStatus(ID int, outputDir string) (res bookStatus, err error) {
+func readPlatoStatus(ID int, config wallabakoConfig) (res bookStatus, err error) {
+	libraryPath := config.PlatoConfig.LibraryPath
+
+	if libraryPath == "" {
+		// This was the default in wallabako 1.3.1 and earlier
+		libraryPath = "/mnt/onboard"
+	}
+
 	if !parsed {
+		metadataPath := fmt.Sprintf("%s/%s", libraryPath, metadataFilename)
+		readingStatesPath := fmt.Sprintf("%s/%s", libraryPath, readingStatesDirName)
 		meta, err = parsePlatoMetadata(metadataPath, readingStatesPath)
 		if err != nil {
 			legacyMeta, err = parsePlatoLegacyMetadata(metadataPath)
@@ -166,17 +180,18 @@ func readPlatoStatus(ID int, outputDir string) (res bookStatus, err error) {
 			}
 		}
 
-		fat32EpochModTime = getFat32EpochModifiedTime()
+		fat32EpochPath := fmt.Sprintf("%s/%s", libraryPath, fat32EpochFilename)
+		fat32EpochModTime = getFat32EpochModifiedTime(fat32EpochPath)
 		parsed = true
 		log.Println("loaded Plato config from ", metadataPath)
 	}
 	// XXX: similar code in readKoreaderStatus, getting messy and hardcode-y
-	path := fmt.Sprintf("%s/%d.epub", outputDir, ID)
+	path := fmt.Sprintf("%s/%d.epub", config.OutputDir, ID)
 	return checkPlatoStatus(path), err
 }
 
 // Try to retrieve plato's .fat32-epoch modified time or create our own
-func getFat32EpochModifiedTime() time.Time {
+func getFat32EpochModifiedTime(fat32EpochPath string) time.Time {
 	fatMeta, err := os.Stat(fat32EpochPath)
 	if err != nil {
 		fat32EpochTime := time.Unix(fat32EpochSeconds, 0)

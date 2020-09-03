@@ -32,7 +32,7 @@ func createTempReadingState(t *testing.T, filePath string, data []byte) {
 
 // fingerprint is derived from mtime and size so we'll have to create a file, set the mtime, and check the fingerprint
 func TestFingerprint(t *testing.T) {
-	fat32EpochModTime = getFat32EpochModifiedTime()
+	fat32EpochModTime = getFat32EpochModifiedTime("")
 	tmpBookPath := "/tmp/fingerprint-test"
 
 	defer os.Remove(tmpBookPath)

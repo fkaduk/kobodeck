@@ -64,6 +64,7 @@ type wallabakoConfig struct {
 	PidFile     string `json:"PidFile"`
 	RetryMax    int    `json:"RetryMax"`
 	Tags        string `json:"Tags"`
+	PlatoConfig PlatoConfig `json:"plato"`
 }
 
 // config is the global configuration, as read from the config file
@@ -228,7 +229,7 @@ func main() {
 	for i := 0; i < cap(sem); i++ {
 		sem <- true
 	}
-	deleted, read := inspectLocalFiles(config.OutputDir, valid)
+	deleted, read := inspectLocalFiles(config, valid)
 	log.Printf("processed: %d, downloaded: %d, size: %s, deleted: %d, read: %d",
 		counter.Value("processed"), counter.Value("downloaded"), humanize.IBytes(uint64(counter.Value("bytes"))), len(deleted), len(read))
 	if config.Debug {
@@ -483,7 +484,9 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 // the N.epub pattern where N is a Wallabag content ID, and processes
 // every entry to mark it as read on the wallabag site and delete it
 // (if it's read)
-func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, read []string) {
+func inspectLocalFiles(config wallabakoConfig, valid map[int]bool) (deleted []string, read []string) {
+	outputDir := config.OutputDir
+
 	files, _ := filepath.Glob(outputDir + "/*.epub")
 	debugln("files:", files, outputDir+"/*.epub")
 	for _, file := range files {
@@ -492,7 +495,7 @@ func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, 
 			log.Println("skipping irreglar file", file)
 			continue
 		}
-		status, err := readStatus(id, outputDir)
+		status, err := readStatus(id, config)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -549,16 +552,16 @@ const (
 // readStatus will return the read status of the given ID book, which
 // should be either koboBookUnread, koboBookReading or koboBookRead,
 // unless the database format is unexpected.
-func readStatus(ID int, outputDir string) (res bookStatus, err error) {
-	res, err = readPlatoStatus(ID, outputDir)
+func readStatus(ID int, config wallabakoConfig) (res bookStatus, err error) {
+	res, err = readPlatoStatus(ID, config)
 	if res != bookUnread {
 		return res, err
 	}
-	res, err = readKoreaderStatus(ID, outputDir)
+	res, err = readKoreaderStatus(ID, config.OutputDir)
 	if res != bookUnread {
 		return res, err
 	}
-	res, err = readKoboStatus(ID, outputDir)
+	res, err = readKoboStatus(ID, config.OutputDir)
 	return res, err
 }
 
