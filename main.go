@@ -103,7 +103,7 @@ var (
 	// this is a generic counter to safely count things across threads
 	// we use it to count how many files we actually downloaded and
 	// other statistics
-	counter = SafeCounter{v: make(map[string]int)}
+	counter = Status{}
 
 	// the regex for the CSRF token in the login page
 	csrfRegexp = regexp.MustCompile(`"_csrf_token" +value="([^"]*)"`)
@@ -229,14 +229,15 @@ func main() {
 	for i := 0; i < cap(sem); i++ {
 		sem <- true
 	}
-	deleted, read := inspectLocalFiles(config, valid)
+
+	inspectLocalFiles(config, valid)
 	log.Printf("processed: %d, downloaded: %d, size: %s, deleted: %d, read: %d",
-		counter.Value("processed"), counter.Value("downloaded"), humanize.IBytes(uint64(counter.Value("bytes"))), len(deleted), len(read))
+		counter.Processed.Value(), counter.Downloaded.Value(), humanize.IBytes(uint64(counter.Bytes.Value())), counter.Deleted.Value(), counter.Read.Value())
 	if config.Debug {
 		fds := listOpenFds()
 		log.Printf("%d open file descriptors: %s", len(fds), fds)
 	}
-	if len(config.Exec) > 0 && (counter.Value("downloaded") > 0 || len(deleted) > 0) {
+	if len(config.Exec) > 0 && (counter.Downloaded.Value() > 0 || counter.Deleted.Value() > 0) {
 		log.Println("running command", config.Exec)
 		out, err := exec.Command(config.Exec).CombinedOutput()
 		if err != nil {
@@ -432,7 +433,7 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 	// XXX: proper way will be through the API, but for now we hardcode this URL
 	// https://github.com/wallabag/wallabag/pull/2372
 	// only in 2.2: /api/entries/123/export.epub
-	counter.Inc("processed")
+	counter.Processed.Inc()
 	//debugln("received entry", entry)
 	err = os.MkdirAll(config.OutputDir, os.ModePerm)
 	if err != nil {
@@ -473,8 +474,8 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 		return fmt.Errorf("can't write file: %v", err)
 	}
 	if n >= 0 {
-		counter.Inc("downloaded")
-		counter.Add("bytes", int(n))
+		counter.Downloaded.Inc()
+		counter.Bytes.Add(uint32(n))
 		log.Printf("wrote %d bytes (%s) in file %s, timestamp %s", n, humanize.IBytes(uint64(n)), output, entry.UpdatedAt.Time)
 	}
 	return nil
@@ -484,7 +485,7 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 // the N.epub pattern where N is a Wallabag content ID, and processes
 // every entry to mark it as read on the wallabag site and delete it
 // (if it's read)
-func inspectLocalFiles(config wallabakoConfig, valid map[int]bool) (deleted []string, read []string) {
+func inspectLocalFiles(config wallabakoConfig, valid map[int]bool) {
 	outputDir := config.OutputDir
 
 	files, _ := filepath.Glob(outputDir + "/*.epub")
@@ -508,7 +509,7 @@ func inspectLocalFiles(config wallabakoConfig, valid map[int]bool) (deleted []st
 				// read books are now up for deletion on next check
 				// anyways, speed that up so we can remove them now
 				valid[id] = false
-				read = append(read, file)
+				counter.Read.Inc()
 			}
 		}
 		if config.Delete && !valid[id] {
@@ -518,11 +519,10 @@ func inspectLocalFiles(config wallabakoConfig, valid map[int]bool) (deleted []st
 				log.Printf("warning: failed to remove file %s: %s", file, err)
 			} else {
 				log.Println("deleted file", file)
-				deleted = append(deleted, file)
+				counter.Deleted.Inc()
 			}
 		}
 	}
-	return deleted, read
 }
 
 // koboNormalBook is the ContentID code for normal books in the Kobo sqlite database
