@@ -18,6 +18,8 @@ const readingStatesDirName = ".reading-states/"
 
 // Plato v0.8.5+ uses the modified time from a file using the fat32-epoch
 const fat32EpochFilename = ".fat32-epoch"
+
+// fat32EpochSeconds is the number of seconds between the UNIX epoch (1/1/70) and the FAT32 epoch (1/1/80)
 const fat32EpochSeconds = 315_532_800
 
 type fingerprint uint64
