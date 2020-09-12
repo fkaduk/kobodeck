@@ -1,33 +1,36 @@
 package main
 
 import (
-	"sync"
+	"sync/atomic"
 )
 
-// SafeCounter is safe to use concurrently.
-// cargo-culted from https://tour.golang.org/concurrency/9
-type SafeCounter struct {
-	v   map[string]int
-	mux sync.Mutex
+// Status holds all of our counters
+type Status struct {
+	Processed SafeCounter `json:"processed"`
+	Downloaded SafeCounter `json:"downloaded"`
+	Bytes SafeCounter `json:"bytes"`
+	Deleted SafeCounter `json:"deleted"`
+	Read SafeCounter `json:"read"`
 }
 
+// SafeCounter is safe to use concurrently.
+// cargo-culted from https://gobyexample.com/atomic-counters
+type SafeCounter struct {
+	count uint32
+}
+
+
 // Inc increments the counter for the given key.
-func (c *SafeCounter) Inc(key string) {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-	c.v[key]++
+func (c *SafeCounter) Inc() {
+	atomic.AddUint32(&c.count, 1)
 }
 
 // Add adds the value to the given key.
-func (c *SafeCounter) Add(key string, value int) {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-	c.v[key] += value
+func (c *SafeCounter) Add(value uint32) {
+	atomic.AddUint32(&c.count, value)
 }
 
 // Value returns the current value of the counter for the given key.
-func (c *SafeCounter) Value(key string) int {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-	return c.v[key]
+func (c *SafeCounter) Value() uint32 {
+	return atomic.LoadUint32(&c.count)
 }

@@ -1,0 +1,10 @@
+github.com/Strubbl/wallabago v4.0.0+incompatible h1:RH4M04zH9CY9e9uDgWFiYMPn72Hv1FQUarWnZ6VbwzY=
+github.com/Strubbl/wallabago v4.0.0+incompatible/go.mod h1:wPWK+Ax8jGWGJ0ais4t2cXgcRBIqOkfF+EJzOF07730=
+github.com/dustin/go-humanize v0.0.0-20171111073723-bb3d318650d4 h1:qk/FSDDxo05wdJH28W+p5yivv7LuLYLRXPPD8KQCtZs=
+github.com/dustin/go-humanize v0.0.0-20171111073723-bb3d318650d4/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
+github.com/mattn/go-sqlite3 v1.6.0 h1:TDwTWbeII+88Qy55nWlof0DclgAtI4LqGujkYMzmQII=
+github.com/mattn/go-sqlite3 v1.6.0/go.mod h1:FPy6KqzDD04eiIsT53CuJW3U88zkxoIYsOqkbpncsNc=
+github.com/nightlyone/lockfile v0.0.0-20170804114028-6a197d5ea611 h1:dJA8OtA0V3XJ3MvZKU8tOlrXenaGOypfPHSi2JWgBto=
+github.com/nightlyone/lockfile v0.0.0-20170804114028-6a197d5ea611/go.mod h1:JbxfV1Iifij2yhRjXai0oFrbpxszXHRx1E5RuM26o4Y=
+gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3 h1:AFxeG48hTWHhDTQDk/m2gorfVHUEa9vo3tp3D7TzwjI=
+gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3/go.mod h1:l0ndWWf7gzL7RNwBG7wST/UCcT4T24xpD6X8LsfU/+k=

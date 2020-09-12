@@ -64,6 +64,7 @@ type wallabakoConfig struct {
 	PidFile     string `json:"PidFile"`
 	RetryMax    int    `json:"RetryMax"`
 	Tags        string `json:"Tags"`
+	PlatoConfig PlatoConfig `json:"plato"`
 }
 
 // config is the global configuration, as read from the config file
@@ -102,7 +103,7 @@ var (
 	// this is a generic counter to safely count things across threads
 	// we use it to count how many files we actually downloaded and
 	// other statistics
-	counter = SafeCounter{v: make(map[string]int)}
+	counter = Status{}
 
 	// the regex for the CSRF token in the login page
 	csrfRegexp = regexp.MustCompile(`"_csrf_token" +value="([^"]*)"`)
@@ -228,14 +229,15 @@ func main() {
 	for i := 0; i < cap(sem); i++ {
 		sem <- true
 	}
-	deleted, read := inspectLocalFiles(config.OutputDir, valid)
+
+	inspectLocalFiles(config, valid)
 	log.Printf("processed: %d, downloaded: %d, size: %s, deleted: %d, read: %d",
-		counter.Value("processed"), counter.Value("downloaded"), humanize.IBytes(uint64(counter.Value("bytes"))), len(deleted), len(read))
+		counter.Processed.Value(), counter.Downloaded.Value(), humanize.IBytes(uint64(counter.Bytes.Value())), counter.Deleted.Value(), counter.Read.Value())
 	if config.Debug {
 		fds := listOpenFds()
 		log.Printf("%d open file descriptors: %s", len(fds), fds)
 	}
-	if len(config.Exec) > 0 && (counter.Value("downloaded") > 0 || len(deleted) > 0) {
+	if len(config.Exec) > 0 && (counter.Downloaded.Value() > 0 || counter.Deleted.Value() > 0) {
 		log.Println("running command", config.Exec)
 		out, err := exec.Command(config.Exec).CombinedOutput()
 		if err != nil {
@@ -431,7 +433,7 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 	// XXX: proper way will be through the API, but for now we hardcode this URL
 	// https://github.com/wallabag/wallabag/pull/2372
 	// only in 2.2: /api/entries/123/export.epub
-	counter.Inc("processed")
+	counter.Processed.Inc()
 	//debugln("received entry", entry)
 	err = os.MkdirAll(config.OutputDir, os.ModePerm)
 	if err != nil {
@@ -472,8 +474,8 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 		return fmt.Errorf("can't write file: %v", err)
 	}
 	if n >= 0 {
-		counter.Inc("downloaded")
-		counter.Add("bytes", int(n))
+		counter.Downloaded.Inc()
+		counter.Bytes.Add(uint32(n))
 		log.Printf("wrote %d bytes (%s) in file %s, timestamp %s", n, humanize.IBytes(uint64(n)), output, entry.UpdatedAt.Time)
 	}
 	return nil
@@ -483,7 +485,9 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 // the N.epub pattern where N is a Wallabag content ID, and processes
 // every entry to mark it as read on the wallabag site and delete it
 // (if it's read)
-func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, read []string) {
+func inspectLocalFiles(config wallabakoConfig, valid map[int]bool) {
+	outputDir := config.OutputDir
+
 	files, _ := filepath.Glob(outputDir + "/*.epub")
 	debugln("files:", files, outputDir+"/*.epub")
 	for _, file := range files {
@@ -492,7 +496,7 @@ func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, 
 			log.Println("skipping irreglar file", file)
 			continue
 		}
-		status, err := readStatus(id)
+		status, err := readStatus(id, config)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -505,7 +509,7 @@ func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, 
 				// read books are now up for deletion on next check
 				// anyways, speed that up so we can remove them now
 				valid[id] = false
-				read = append(read, file)
+				counter.Read.Inc()
 			}
 		}
 		if config.Delete && !valid[id] {
@@ -515,11 +519,10 @@ func inspectLocalFiles(outputDir string, valid map[int]bool) (deleted []string, 
 				log.Printf("warning: failed to remove file %s: %s", file, err)
 			} else {
 				log.Println("deleted file", file)
-				deleted = append(deleted, file)
+				counter.Deleted.Inc()
 			}
 		}
 	}
-	return deleted, read
 }
 
 // koboNormalBook is the ContentID code for normal books in the Kobo sqlite database
@@ -549,20 +552,20 @@ const (
 // readStatus will return the read status of the given ID book, which
 // should be either koboBookUnread, koboBookReading or koboBookRead,
 // unless the database format is unexpected.
-func readStatus(ID int) (res bookStatus, err error) {
-	res, err = readPlatoStatus(ID)
+func readStatus(ID int, config wallabakoConfig) (res bookStatus, err error) {
+	res, err = readPlatoStatus(ID, config)
 	if res != bookUnread {
 		return res, err
 	}
-	res, err = readKoreaderStatus(ID)
+	res, err = readKoreaderStatus(ID, config.OutputDir)
 	if res != bookUnread {
 		return res, err
 	}
-	res, err = readKoboStatus(ID)
+	res, err = readKoboStatus(ID, config.OutputDir)
 	return res, err
 }
 
-func readKoreaderStatus(ID int) (res bookStatus, err error) {
+func readKoreaderStatus(ID int, outputDir string) (res bookStatus, err error) {
 	// TODO: for path.epub, look in path.sdr/metadata.txt.lua for regex:
 	//
 	// ^\s*\["percent_finished"\] = [0-9.]+,?$
@@ -572,7 +575,7 @@ func readKoreaderStatus(ID int) (res bookStatus, err error) {
 	return res, err
 }
 
-func readKoboStatus(ID int) (res bookStatus, err error) {
+func readKoboStatus(ID int, outputDir string) (res bookStatus, err error) {
 	if len(config.Database) <= 0 {
 		return res, fmt.Errorf("no database configured")
 	}
@@ -584,7 +587,7 @@ func readKoboStatus(ID int) (res bookStatus, err error) {
 	}
 	defer db.Close()
 
-	path := fmt.Sprintf("file:///mnt/onboard/wallabako/%d.epub", ID)
+	path := fmt.Sprintf("file://%s/%d.epub", outputDir, ID)
 	rows, err := db.Query("SELECT ReadStatus FROM content WHERE ContentID = $1 AND ContentType = $2 LIMIT 1", path, koboNormalBook)
 	if err != nil {
 		return res, err
