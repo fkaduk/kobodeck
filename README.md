@@ -537,7 +537,7 @@ before giving up).
 Uninstalling
 ------------
 
-Unfortunately, there is no easy way to uninstall Wallabako. While Kobo
+Unfortunately, there is no easy way to uninstall Wallabako ([bug 36][]). While Kobo
 provides a way to automatically *install* files on the readers, there
 is no (at least obvious) way of *removing* those files once they are
 installed. To cleanup the install, you need to manually remove the
@@ -552,6 +552,8 @@ usr/local/bin/wallabako
 usr/local/bin/fake-connect-usb
 usr/local/bin/wallabako-run
 ```
+
+[bug 36]: https://gitlab.com/anarcat/wallabako/-/issues/36
 
 Of those, the one likely to cause problems is possibly only
 `/etc/udev/rules.d/90-wallabako.rules`, and only because it calls
