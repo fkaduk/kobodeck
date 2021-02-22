@@ -631,3 +631,6 @@ easier to use than this program.
    instructions](https://github.com/koreader/koreader/wiki#installationupgrading) and [details about Wallabag integration](https://github.com/koreader/koreader/wiki/Wallabag).
  * [Plato](https://github.com/baskerville/plato/) also includes an [article fetcher](https://github.com/baskerville/plato/blob/master/doc/ARTICLE_FETCHER.md) with support for
    Wallabag
+
+Note that Wallabako will also fetch read/unread statuses from KOReader
+and Plato metadata, automatically.
