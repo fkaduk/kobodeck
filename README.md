@@ -626,9 +626,8 @@ Related projects
 Other Kobo-related software has support for Wallabako, and may be
 easier to use than this program.
 
- * [KOReader](https://koreader.rocks/) includes a native Wallabag plug-in that fully
-   integrates with Wallabag applications. The [KOReader wiki](https://github.com/koreader/koreader/wiki) has
-   [installation instructions](https://github.com/koreader/koreader/wiki#installationupgrading) and [details about Wallabag
-   integration](https://github.com/koreader/koreader/wiki/Wallabag).
+ * [KOReader](https://koreader.rocks/) includes a native plug-in that fully integrates with
+   Wallabag servers. The [KOReader wiki](https://github.com/koreader/koreader/wiki) has [installation
+   instructions](https://github.com/koreader/koreader/wiki#installationupgrading) and [details about Wallabag integration](https://github.com/koreader/koreader/wiki/Wallabag).
  * [Plato](https://github.com/baskerville/plato/) also includes an [article fetcher](https://github.com/baskerville/plato/blob/master/doc/ARTICLE_FETCHER.md) with support for
    Wallabag
