@@ -148,6 +148,10 @@ get commandline access. There are also more settings you can set in
 the configuration file, see the [troubleshooting](#troubleshooting)
 section for more information.
 
+Note that there are more configuration settings that can be set, see
+the [configuration file details](#configuration-file-details) section
+for more information.
+
 <img alt="screenshot of the connect dialog on a Kobo Glo HD reader" src="assets/connect-dialog.png" align="right" />
 
 Usage
