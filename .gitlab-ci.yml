@@ -27,3 +27,4 @@ compile:
         paths:
         - build/
         when: always
+        expire_in: never
