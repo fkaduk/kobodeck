@@ -21,6 +21,10 @@ The instructions here are mostly for the Kobo E-readers but may work
 for other platforms. I have tested this on a Debian GNU/Linux 9
 ("stretch") system, a Kobo Glo HD and a Kobo Touch.
 
+>> Please note that KOReader includes a native Wallabag plug-in that fully integrates with Wallabag applications.
+For an installation on a Kobo, please refer to: https://www.mobileread.com/forums/showthread.php?t=314220 and carefully read posts #1  AND  #2.
+KOReader wiki with all details can be found at: https://github.com/koreader/koreader/wiki#installationupgrading, and in particular: https://github.com/koreader/koreader/wiki/Wallabag
+
 [![Say
 Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/anarcat)
 [![Go Report Card](https://goreportcard.com/badge/gitlab.com/anarcat/wallabako)](https://goreportcard.com/report/gitlab.com/anarcat/wallabako)
