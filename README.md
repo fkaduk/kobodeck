@@ -103,6 +103,11 @@ Another more advanced installation method, for power users, can done
 with the KFmon launcher. See the [design](DESIGN.md) document, section
 "Launchers" for more information for this experimental configuration.
 
+Upgrade
+=======
+
+To upgrade wallabako, simply follow install instruction.
+
 Configuration
 =============
 
