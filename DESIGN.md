@@ -132,9 +132,37 @@ Launchers
 ---------
 
 One way to workaround the above started and reload issues would be to
-hook Wallabako into a launcher like KSM or [kfmon][]. I have
-experimented with the latter and it gives interesting results. To try
-it out, do the following:
+hook Wallabako into a launcher like KSM or [kfmon][].
+
+### NickelMenu
+
+[NickelMenu][] is a very cool hack which adds a real, normal menu on
+the Nickel GUI, which is the normal Kobo GUI you see when you start
+your Kobo. This can be used to manually start wallabako whenever you
+wish.
+
+[NickelMenu]: https://pgaskin.net/NickelMenu/
+
+To try this out, follow those steps:
+
+ 1. install [NickelMenu][] by following the instructions on the [main
+    website][NickelMenu]
+ 
+ 2. after it is install, connect your Kobo to your computer and add a
+    file in `.adds/nm/wallabako` with this content:
+    
+        menu_item:main:Wallabako:cmd_spawn:quiet:exec /usr/local/bin/wallabako -output /mnt/onboard/wallabako/ -exec /usr/local/bin/fake-connect-usb
+
+ 3. unmount your Kobo
+
+You should see a Wallabako under the Nickelmenu item at the bottom
+right. You of course need to also configure Wallabako itself normally,
+see the README.md file for more information.
+ 
+### kfmon
+
+I have experimented with KFmon and it gives interesting
+results. To try it out, do the following:
 
 [kfmon]: https://github.com/NiLuJe/kfmon
 

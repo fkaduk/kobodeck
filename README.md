@@ -100,8 +100,9 @@ the top directory of the reader which you can use to diagnose
 problems, see also the [troubleshooting](#troubleshooting) section.
 
 Another more advanced installation method, for power users, can done
-with the KFmon launcher. See the [design](DESIGN.md) document, section
-"Launchers" for more information for this experimental configuration.
+with launchers like KFmon or NickelMenu. See the [design](DESIGN.md)
+document, section "Launchers" for more information for this
+experimental configuration.
 
 Upgrade
 =======
