@@ -682,6 +682,27 @@ in the code that should eventually read from the koreader state
 files. The problem is parsing their silly Lua code, which I haven't
 got around to.
 
+Some courageous soul actually [wrote a full Wallabag plugin for
+koreader][] which makes implementing koreader support in Wallabako a
+much less pressing issue. Compared to the Wallabako implementation
+however, the koreader plugin is much slower, as it downloads articles
+serially instead of concurrently. It is, however, much more usable as
+the user is given a visible feedback of the various steps. I still had
+to enable full debugging to diagnose a problem (which was that I
+shouldn't have a trailing slash, and that some special characters
+don't work in passwords). It's also better to write the config file
+with a normal text editor, over SSH or with the Kobo mounted to your
+computer instead of typing those really long strings over the
+kobo. There's [no sample config file][] which makes that harder but a
+workaround is to save the configuration with dummy values and fix them
+up after. Finally I also found the default setting ("Remotely delete
+finished articles") really dangerous as it can basically [lead to data
+loss][] (Wallabag article being deleted!) for an unsuspecting user...
+
+[lead to data loss]: https://github.com/koreader/koreader/issues/8936
+[no sample config file]: https://github.com/koreader/koreader/issues/7576
+[wrote a fullWallabag plugin for koreader]: https://github.com/koreader/koreader/pull/4271 
+
 There's also a `readPlatoStatus` function, split into its own
 `plato.go` source file which should handle plato status changes. It
 parses the Plato JSON file for state changes and will mark items as
