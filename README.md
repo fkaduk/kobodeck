@@ -638,9 +638,11 @@ easier to use than this program.
 
  * [KOReader](https://koreader.rocks/) includes a native plug-in that fully integrates with
    Wallabag servers. The [KOReader wiki](https://github.com/koreader/koreader/wiki) has [installation
-   instructions](https://github.com/koreader/koreader/wiki#installationupgrading) and [details about Wallabag integration](https://github.com/koreader/koreader/wiki/Wallabag).
+   instructions](https://github.com/koreader/koreader/wiki#installationupgrading) and [details about Wallabag integration](https://github.com/koreader/koreader/wiki/Wallabag). That
+   implementation is discussed in the [design](DESIGN.md) document as well.
  * [Plato](https://github.com/baskerville/plato/) also includes an [article fetcher](https://github.com/baskerville/plato/blob/master/doc/ARTICLE_FETCHER.md) with support for
    Wallabag
 
-Note that Wallabako will also fetch read/unread statuses from KOReader
-and Plato metadata, automatically.
+Note that Wallabako will also automatically fetch read/unread statuses
+Plato metadata, on top of the built-in Nickel interface shipped with
+the Kobo.
