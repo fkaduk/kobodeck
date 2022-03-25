@@ -565,16 +565,6 @@ func readStatus(ID int, config wallabakoConfig) (res bookStatus, err error) {
 	return res, err
 }
 
-func readKoreaderStatus(ID int, outputDir string) (res bookStatus, err error) {
-	// TODO: for path.epub, look in path.sdr/metadata.txt.lua for regex:
-	//
-	// ^\s*\["percent_finished"\] = [0-9.]+,?$
-	//
-	// ... and turn that number in a percentage. presumably if 100.0%
-	// we are done, but maybe define a threshold?
-	return res, err
-}
-
 func readKoboStatus(ID int, outputDir string) (res bookStatus, err error) {
 	if len(config.Database) <= 0 {
 		return res, fmt.Errorf("no database configured")
