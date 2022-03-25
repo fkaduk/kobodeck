@@ -34,8 +34,9 @@ func (f fingerprint) Hex() string {
 	return fmt.Sprintf("%016X", uint64(f))
 }
 
-// the plato-specific configuration that we store in the wallabako
-// configuration, this is part of the wallabakoConfig struct in main.go
+// PlatoConfig hols the plato-specific configuration that we store in
+// the wallabako configuration, this is part of the wallabakoConfig
+// struct in main.go
 type PlatoConfig struct {
 	// LibraryPath corresponds to [[libraries.path]] in Settings.toml for Plato
 	LibraryPath string
