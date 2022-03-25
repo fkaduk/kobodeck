@@ -597,6 +597,8 @@ func readKoboStatus(ID int, outputDir string) (res bookStatus, err error) {
 	if rows.Next() {
 		if err = rows.Scan(&readStatus); err == nil {
 			debugln("found readStatus", readStatus)
+		} else {
+			debugln("error scanning readstatus", err)
 		}
 	} else {
 		err = rows.Err()
