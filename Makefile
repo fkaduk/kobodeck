@@ -1,10 +1,11 @@
-# this is the proper way of doing static linking across architectures,
-# cargo-culted from @tianon on #debian-golang
-#GFLAGS+=-ldflags '-d -s -w' -a -tags netgo -installsuffix netgo
-# i previously tried this, but that's the old way, cargo-culted from:
-# https://dominik.honnef.co/posts/2015/06/go-musl/?
-#GFLAGS+=--ldflags '-linkmode external -extldflags "-static"'
+# to do a static build we need this:
+#LDFLAGS=-d -s -v -w -linkmode external -extldflags -static
+#GFLAGS+=-a -tags netgo -installsuffix netgo -v --tags "linux"
+# in theory, this would allow us to build a working wallabako
+# anywhere, but in practice it doesn't work, see
+# https://gitlab.com/anarcat/wallabako/-/issues/43
 
+# embed the version number in the binary
 GFLAGS+=-ldflags="$(LDFLAGS) -X main.version=$(shell git describe --always --dirty)"
 
 # to build for the Kobo, use:
