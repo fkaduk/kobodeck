@@ -77,6 +77,7 @@ func parsePlatoLegacyMetadata(path string) (meta []platoMetadata, err error) {
 }
 
 func parsePlatoMetadata(metadataPath, readingStatesDirPath string) (meta map[string]platoMetadata, err error) {
+	debugf("parsing Plato metadata file %s and %s", metadataPath, readingStatesDirPath)
 	raw, err := ioutil.ReadFile(metadataPath)
 	if err != nil {
 		return meta, err
@@ -108,7 +109,7 @@ func parsePlatoMetadata(metadataPath, readingStatesDirPath string) (meta map[str
 		entry.Reader = r
 		meta[id] = entry
 	}
-
+	debugf("found %d elements in Plato metadata", len(meta))
 	return meta, err
 }
 
