@@ -20,7 +20,7 @@ const readingStatesDirName = ".reading-states/"
 const fat32EpochFilename = ".fat32-epoch"
 
 // fat32EpochSeconds is the number of seconds between the UNIX epoch (1/1/70) and the FAT32 epoch (1/1/80)
-const fat32EpochSeconds = 315_532_800
+const fat32EpochSeconds = 315532800
 
 type fingerprint uint64
 
@@ -34,6 +34,8 @@ func (f fingerprint) Hex() string {
 	return fmt.Sprintf("%016X", uint64(f))
 }
 
+// the plato-specific configuration that we store in the wallabako
+// configuration, this is part of the wallabakoConfig struct in main.go
 type PlatoConfig struct {
 	// LibraryPath corresponds to [[libraries.path]] in Settings.toml for Plato
 	LibraryPath string
