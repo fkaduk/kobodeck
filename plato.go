@@ -189,7 +189,7 @@ func readPlatoStatus(ID int, config wallabakoConfig) (res bookStatus, err error)
 		parsed = true
 		log.Println("loaded Plato config from ", metadataPath)
 	}
-	// XXX: similar code in readKoreaderStatus, getting messy and hardcode-y
+	// XXX: similar code in readKoboStatus, getting messy and hardcode-y
 	path := fmt.Sprintf("%s/%d.epub", config.OutputDir, ID)
 	return checkPlatoStatus(path), err
 }
