@@ -127,7 +127,6 @@ func checkPlatoStatus(bookPath string) (res bookStatus) {
 
 	entry, ok := meta[fingerprint.String()]
 	if !ok {
-		log.Printf("no entry for fingerprint %s from book path %s in .metadata.json", fingerprint, bookPath)
 		return bookUnread
 	}
 
