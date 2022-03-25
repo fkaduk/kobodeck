@@ -53,17 +53,17 @@ var (
 // commandline
 type wallabakoConfig struct {
 	wallabago.WallabagConfig
-	Debug       bool   `json:"debug"`
-	Delete      bool   `json:"delete"`
-	LogFile     string `json:"logfile"`
-	Database    string `json:"Database"`
-	Concurrency int    `json:"Concurrency"`
-	Count       int    `json:"Count"`
-	Exec        string `json:"Exec"`
-	OutputDir   string `json:"OutputDir"`
-	PidFile     string `json:"PidFile"`
-	RetryMax    int    `json:"RetryMax"`
-	Tags        string `json:"Tags"`
+	Debug       bool        `json:"debug"`
+	Delete      bool        `json:"delete"`
+	LogFile     string      `json:"logfile"`
+	Database    string      `json:"Database"`
+	Concurrency int         `json:"Concurrency"`
+	Count       int         `json:"Count"`
+	Exec        string      `json:"Exec"`
+	OutputDir   string      `json:"OutputDir"`
+	PidFile     string      `json:"PidFile"`
+	RetryMax    int         `json:"RetryMax"`
+	Tags        string      `json:"Tags"`
 	PlatoConfig PlatoConfig `json:"plato"`
 }
 
