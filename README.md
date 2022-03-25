@@ -644,5 +644,5 @@ easier to use than this program.
    Wallabag
 
 Note that Wallabako will also automatically fetch read/unread statuses
-Plato metadata, on top of the built-in Nickel interface shipped with
-the Kobo.
+Plato and Koreader metadata, on top of the built-in Nickel interface
+shipped with the Kobo.
