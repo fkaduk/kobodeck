@@ -85,7 +85,7 @@ var config = wallabakoConfig{
 func init() {
 	flag.BoolVar(&config.Debug, "debug", false, "additional debugging information in logs, including confidential information")
 	flag.BoolVar(&config.Delete, "delete", false, "if we should delete EPUB files not found in feed")
-	flag.StringVar(&config.Database, "database", config.Database, "path to Kobo database")
+	flag.StringVar(&config.Database, "database", config.Database, "path to Kobo Nickel database")
 	// default is from web browsers, which are around 6-10: http://www.browserscope.org/?category=network
 	flag.IntVar(&config.Concurrency, "concurrency", config.Concurrency, "number of downloads to process in parallel")
 	flag.IntVar(&config.Count, "count", config.Count, "number of articles to fetch")
@@ -544,7 +544,7 @@ func readStatus(ID int, config wallabakoConfig) (res bookStatus, err error) {
 	if res != bookUnread {
 		return res, err
 	}
-	res, err = readKoboStatus(ID, config.OutputDir)
+	res, err = readNickelStatus(ID, config.OutputDir)
 	return res, err
 }
 
