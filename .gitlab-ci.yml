@@ -1,4 +1,4 @@
-image: golang:stretch
+image: golang
 
 # The problem is that to be able to use go get, one needs to put
 # the repository in the $GOPATH. So for example if your gitlab domain
@@ -11,7 +11,7 @@ before_script:
     - ln -s /builds /go/src/gitlab.com
     - cd /go/src/gitlab.com/$CI_PROJECT_PATH
     - apt-get update
-    - apt-get install -y -q gcc-arm-linux-gnueabihf golint
+    - apt-get install -y -q golint
 
 stages:
     - build

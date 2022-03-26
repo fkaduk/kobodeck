@@ -12,6 +12,11 @@ etc.
 
 The code simply reads the book status from the sqlite database.
 
+Note that this file relies on an external variable named
+wallabakoSqliteBackend which is defined in one of nickel_*.go files,
+depending on compile-time tags. Those files are also responsible for
+importing the correct modules.
+
 */
 package main
 
@@ -19,8 +24,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 // nickelNormalBook is the ContentID code for normal books in the Nickel sqlite database
@@ -43,7 +46,7 @@ func readNickelStatus(ID int, outputDir string) (res bookStatus, err error) {
 	}
 	// XXX: this should be a singleton if we start calling readStatus
 	// more often
-	db, err := sql.Open("sqlite3", config.Database)
+	db, err := sql.Open(wallabakoSqliteBackend, config.Database)
 	if err != nil {
 		return res, err
 	}

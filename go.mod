@@ -10,4 +10,5 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.12
 	github.com/nightlyone/lockfile v1.0.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
+	modernc.org/sqlite v1.15.3
 )
