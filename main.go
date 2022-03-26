@@ -32,7 +32,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Strubbl/wallabago"
+	"github.com/Strubbl/wallabago/v6"
 	"github.com/dustin/go-humanize"
 	"github.com/nightlyone/lockfile"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -566,11 +566,15 @@ func doAPI(method string, url string, body io.Reader) (data []byte, err error) {
 	// factored out
 
 	client := &http.Client{}
+	token, err := wallabago.GetAuthTokenHeader()
+	if err != nil {
+		return data, err
+	}
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return data, err
 	}
-	req.Header.Add("Authorization", wallabago.GetAuthTokenHeader())
+	req.Header.Add("Authorization", token)
 	req.Header.Add("Content-Type", "application/json")
 	debugln("method, url, body:", method, url, body)
 	dump, err := httputil.DumpRequestOut(req, true)

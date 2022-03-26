@@ -2,6 +2,8 @@ github.com/Strubbl/wallabago v4.0.0+incompatible h1:RH4M04zH9CY9e9uDgWFiYMPn72Hv
 github.com/Strubbl/wallabago v4.0.0+incompatible/go.mod h1:wPWK+Ax8jGWGJ0ais4t2cXgcRBIqOkfF+EJzOF07730=
 github.com/Strubbl/wallabago v6.0.0+incompatible h1:BPfh+Ixpf+azziJ4HVUFIZhEY8lNptxu1gaS91S9Cog=
 github.com/Strubbl/wallabago v6.0.0+incompatible/go.mod h1:wPWK+Ax8jGWGJ0ais4t2cXgcRBIqOkfF+EJzOF07730=
+github.com/Strubbl/wallabago/v6 v6.0.6 h1:ciQYT+oNMcwd/avinG/3rCG1jFYmELaEyOP+uQFeE9A=
+github.com/Strubbl/wallabago/v6 v6.0.6/go.mod h1:JVcHaap9Rw3+8vNi85NMxLOohu0YUfv6iAFUWay1jY8=
 github.com/dustin/go-humanize v0.0.0-20171111073723-bb3d318650d4 h1:qk/FSDDxo05wdJH28W+p5yivv7LuLYLRXPPD8KQCtZs=
 github.com/dustin/go-humanize v0.0.0-20171111073723-bb3d318650d4/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
 github.com/dustin/go-humanize v1.0.0 h1:VSnTsYCnlFHaM2/igO1h6X3HA71jcobQuxemgkq4zYo=
@@ -14,6 +16,8 @@ github.com/nightlyone/lockfile v0.0.0-20170804114028-6a197d5ea611 h1:dJA8OtA0V3X
 github.com/nightlyone/lockfile v0.0.0-20170804114028-6a197d5ea611/go.mod h1:JbxfV1Iifij2yhRjXai0oFrbpxszXHRx1E5RuM26o4Y=
 github.com/nightlyone/lockfile v1.0.0 h1:RHep2cFKK4PonZJDdEl4GmkabuhbsRMgk/k3uAmxBiA=
 github.com/nightlyone/lockfile v1.0.0/go.mod h1:rywoIealpdNse2r832aiD9jRk8ErCatROs6LzC841CI=
+github.com/simonfrey/wallabago/v6 v6.0.7-0.20210117162249-afac782761b4 h1:czsU86gOIM6Y6HxZ26tykDm+MNNweQwHpjLL6iBuq+M=
+github.com/simonfrey/wallabago/v6 v6.0.7-0.20210117162249-afac782761b4/go.mod h1:JVcHaap9Rw3+8vNi85NMxLOohu0YUfv6iAFUWay1jY8=
 gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3 h1:AFxeG48hTWHhDTQDk/m2gorfVHUEa9vo3tp3D7TzwjI=
 gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3/go.mod h1:l0ndWWf7gzL7RNwBG7wST/UCcT4T24xpD6X8LsfU/+k=
 gopkg.in/natefinch/lumberjack.v2 v2.0.0 h1:1Lc07Kr7qY4U2YPouBjpCLxpiyxIVoxqXgkXLknAOE8=
