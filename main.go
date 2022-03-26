@@ -567,6 +567,9 @@ func doAPI(method string, url string, body io.Reader) (data []byte, err error) {
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return data, err
+	}
 	req.Header.Add("Authorization", wallabago.GetAuthTokenHeader())
 	req.Header.Add("Content-Type", "application/json")
 	debugln("method, url, body:", method, url, body)
