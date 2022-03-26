@@ -1,9 +1,30 @@
-# to do a static build we need this:
-#LDFLAGS=-d -s -v -w -linkmode external -extldflags -static
-#GFLAGS+=-a -tags netgo -installsuffix netgo -v --tags "linux"
-# in theory, this would allow us to build a working wallabako
-# anywhere, but in practice it doesn't work, see
-# https://gitlab.com/anarcat/wallabako/-/issues/43
+# flags used to cross-compile to ARM, necessary for Kobo devices
+CROSS_COMPILE_FLAGS=GOARCH=arm GOOS=linux
+
+# comment this out to revert to the old "cgo" implementation that
+# directly links with sqlite3. the "modernc" implementation is a pure
+# go implementation that is much faster to compile and actually
+# cross-compiles correctly for the older kobo kernels (2.6!)
+# GFLAGS+=--tags "sqlite3"
+#
+# this is also necessary, to tell go to use CGO and the right C
+# cross-compiler
+#
+# CROSS_COMPILE_FLAGS+=CGO_ENABLED=1 CC="arm-linux-gnueabihf-gcc"
+#
+# finally, cross-compiling will require the gcc-arm-linux-gnueabihf
+# package as well.
+
+# to do a fully static build we tried this:
+#
+# LDFLAGS=-d -s -v -w -linkmode external -extldflags -static
+# GFLAGS+=-a -tags netgo -installsuffix netgo -v --tags "linux"
+#
+# but this also failed on older kernels, when building on anything
+# older than Debian buster. that is presumably due to a flaw in GCC
+# cross compilation that we couldn't diagnose. we were building the
+# binaries in a debian stretch image (golang:stretch) to work around
+# that problem, but that isn't necessary in "modern" mode.
 
 # embed the version number in the binary
 GFLAGS+=-ldflags="$(LDFLAGS) -X main.version=$(shell git describe --always --dirty)"
@@ -24,7 +45,7 @@ BINARY?=build/wallabako.$(GNUARCH)
 
 tarball:
 	@echo building Kobo tarball
-	$(MAKE) build BINARY=build/wallabako.arm GOARCH=arm GOOS=linux CGO_ENABLED=1 CC="arm-linux-gnueabihf-gcc"
+	$(MAKE) build BINARY=build/wallabako.arm $(CROSS_COMPILE_FLAGS)
 	cp build/wallabako.arm root/usr/local/bin/wallabako
     # make sure we ship a SSL certs file as the Kobo doesn't have any (!)
     # Ensure root/usr modified time is updated to avoid tar 'file changed as we read it' issue in containers
