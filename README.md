@@ -107,7 +107,8 @@ file in the top directory of the reader, with the following content:
     }
 
 Make sure you use a plain text editor like `Gedit` or `Notepad`, as
-LibreOffice will cause you trouble!
+LibreOffice can cause trouble because it doesn't save the file as
+[plain text](https://en.wikipedia.org/wiki/Plain_text) by default.
 
 Let's take this one step at a time. First, the weird curly braces
 syntax is because this is a [JSON](https://en.wikipedia.org/wiki/JSON)
