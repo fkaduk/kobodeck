@@ -31,7 +31,6 @@ Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saytha
 **Table of Contents**
 
 - [Wallabag downloader](#wallabag-downloader)
-- [Warning](#warning)
 - [Download and install](#download-and-install)
 - [Configuration](#configuration)
 - [Usage](#usage)
@@ -55,22 +54,6 @@ Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saytha
 - [Related projects](#related-projects)
 
 <!-- markdown-toc end -->
-
-Warning
-=======
-
-There has been some [reports](https://gitlab.com/anarcat/wallabako/issues/22) of instability introduced by
-Wallabako on Kobo readers. While we have yet to confirm a definite
-correlation, it is possible that installing Wallabako on your reader
-makes it more unstable. In particular, we have confirmed reports of
-lost wifi passwords. We also have unconfirmed reports of trouble
-reconnecting with USB and momentarily disappeared
-collections. Usually, restarting the device fixes the issues, but you
-may want to get familiar with the [uninstallation](#uninstalling) procedures and
-the [bug reports](https://gitlab.com/anarcat/wallabako/issues) before you continue.
-
-That said, the author is using Wallabako on a daily basis and while
-there are sometimes small irritants generally work fine.
 
 <img alt="screenshot of a KoboRoot.tgz file in a Kobo reader" src="assets/kobotgz-screenshot.png" align="right" />
 
