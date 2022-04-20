@@ -24,7 +24,7 @@ for other platforms. I have tested this on a Debian GNU/Linux 9
 [![Say
 Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/anarcat)
 [![Go Report Card](https://goreportcard.com/badge/gitlab.com/anarcat/wallabako)](https://goreportcard.com/report/gitlab.com/anarcat/wallabako)
-[![pipeline status](https://gitlab.com/anarcat/wallabako/badges/master/pipeline.svg)](https://gitlab.com/anarcat/wallabako/commits/master)
+[![pipeline status](https://gitlab.com/anarcat/wallabako/badges/main/pipeline.svg)](https://gitlab.com/anarcat/wallabako/commits/main)
 
 
 <!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-generate-toc again -->
@@ -69,8 +69,8 @@ Quick start for Kobo devices:
 section
  5. disconnect the reader
 
-[latest `KoboRoot.tgz`]: https://gitlab.com/anarcat/wallabako/builds/artifacts/master/file/build/KoboRoot.tgz?job=compile
-[download]: https://gitlab.com/anarcat/wallabako/builds/artifacts/master/file/build/KoboRoot.tgz?job=compile
+[latest `KoboRoot.tgz`]: https://gitlab.com/anarcat/wallabako/builds/artifacts/main/file/build/KoboRoot.tgz?job=compile
+[download]: https://gitlab.com/anarcat/wallabako/builds/artifacts/main/file/build/KoboRoot.tgz?job=compile
 
 When you disconnect the reader, it will perform what looks like an
 upgrade, but it's just the content of the `KoboRoot.tgz` being
@@ -183,8 +183,8 @@ at all, you can also [download the standalone binaries][x86_64] for
 [64 bits][x86_64] (aka `amd64` or `x86_64`) or [ARM][arm]
 (e.g. Raspberry PI).
 
- [x86_64]: https://gitlab.com/anarcat/wallabako/builds/artifacts/master/file/build/wallabako.x86_64?job=compile
- [arm]: https://gitlab.com/anarcat/wallabako/builds/artifacts/master/file/build/wallabako.arm?job=compile
+ [x86_64]: https://gitlab.com/anarcat/wallabako/builds/artifacts/main/file/build/wallabako.x86_64?job=compile
+ [arm]: https://gitlab.com/anarcat/wallabako/builds/artifacts/main/file/build/wallabako.arm?job=compile
  [getting started]: https://golang.org/doc/install
 
 You also need to create a [configuration](#configuration) file as
