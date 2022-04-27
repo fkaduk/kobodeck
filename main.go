@@ -538,13 +538,16 @@ const (
 func readStatus(ID int, config wallabakoConfig) (res bookStatus, err error) {
 	res, err = readPlatoStatus(ID, config)
 	if res != bookUnread {
+		debugf("plato book %d status not unread: %d\n", ID, res)
 		return res, err
 	}
 	res, err = readKoreaderStatus(ID, config.OutputDir)
 	if res != bookUnread {
+		debugf("koreader book %d status not unread: %d\n", ID, res)
 		return res, err
 	}
 	res, err = readNickelStatus(ID, config.OutputDir)
+	debugf("nickel book %d status: %d\n", ID, res)
 	return res, err
 }
 
