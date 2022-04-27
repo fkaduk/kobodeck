@@ -487,7 +487,7 @@ func inspectLocalFiles(config wallabakoConfig, valid map[int]bool) {
 	outputDir := config.OutputDir
 
 	files, _ := filepath.Glob(outputDir + "/*.epub")
-	debugln("files:", files, outputDir+"/*.epub")
+	debugln("local files to inspect:", files, outputDir+"/*.epub")
 	for _, file := range files {
 		id, err := strconv.Atoi(strings.TrimSuffix(filepath.Base(file), filepath.Ext(file)))
 		if err != nil {
