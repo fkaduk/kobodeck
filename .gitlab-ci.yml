@@ -23,6 +23,8 @@ compile:
         - make lint
         - make build
         - make tarball
+        - date -Ins > build/timestamp.txt
+        - git describe > build/git-describe.txt
     artifacts:
         paths:
         - build/
