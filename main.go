@@ -484,7 +484,10 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 // every entry to mark it as read on the wallabag site and delete it
 // (if it's read)
 func inspectLocalFiles(config wallabakoConfig, valid map[int]bool) {
-	outputDir := config.OutputDir
+	// strip the trailing slash to avoid matching problems. this
+	// occurs, for example, when matching files against the Nickel
+	// sqlite database
+	outputDir := strings.TrimSuffix(config.OutputDir, "/")
 
 	files, _ := filepath.Glob(outputDir + "/*.epub")
 	debugln("local files to inspect:", files, outputDir+"/*.epub")
