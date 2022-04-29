@@ -497,7 +497,7 @@ func inspectLocalFiles(config wallabakoConfig, valid map[int]bool) {
 			log.Println("skipping irreglar file", file)
 			continue
 		}
-		status, err := readStatus(id, config)
+		status, err := readStatus(id, outputDir)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -538,18 +538,18 @@ const (
 
 // readStatus will return the read status of the given ID book, which
 // should be either bookUnread, bookReading or bookRead
-func readStatus(ID int, config wallabakoConfig) (res bookStatus, err error) {
-	res, err = readPlatoStatus(ID, config)
+func readStatus(ID int, outputDir string) (res bookStatus, err error) {
+	res, err = readPlatoStatus(ID, outputDir)
 	if res != bookUnread {
 		debugf("plato book %d status not unread: %d\n", ID, res)
 		return res, err
 	}
-	res, err = readKoreaderStatus(ID, config.OutputDir)
+	res, err = readKoreaderStatus(ID, outputDir)
 	if res != bookUnread {
 		debugf("koreader book %d status not unread: %d\n", ID, res)
 		return res, err
 	}
-	res, err = readNickelStatus(ID, config.OutputDir)
+	res, err = readNickelStatus(ID, outputDir)
 	debugf("nickel book %d status: %d\n", ID, res)
 	return res, err
 }
