@@ -166,7 +166,7 @@ var (
 	fat32EpochModTime time.Time
 )
 
-func readPlatoStatus(ID int, config wallabakoConfig) (res bookStatus, err error) {
+func readPlatoStatus(ID int, outputDir string) (res bookStatus, err error) {
 	libraryPath := config.PlatoConfig.LibraryPath
 
 	if libraryPath == "" {
@@ -193,7 +193,7 @@ func readPlatoStatus(ID int, config wallabakoConfig) (res bookStatus, err error)
 		log.Println("loaded Plato config from ", metadataPath)
 	}
 	// XXX: similar code in readKoboStatus, getting messy and hardcode-y
-	path := fmt.Sprintf("%s/%d.epub", config.OutputDir, ID)
+	path := fmt.Sprintf("%s/%d.epub", outputDir, ID)
 	return checkPlatoStatus(path), err
 }
 
