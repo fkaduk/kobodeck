@@ -23,6 +23,7 @@ Features:
   * support reading koreader progress/read status
   * Allow containerized builds, use gomod and avoid GOPATH hell
   * overhaul Dockerfile
+  * switch to `go mod`
 
 Documentation changes:
 
