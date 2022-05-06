@@ -60,7 +60,7 @@ $(BINARY): *.go
 	@echo building main program
 	mkdir -p $$(dirname $(BINARY))
 	go build $(GFLAGS) -o $@
-	strip $@
+	strip $@ || true
 
 clean:
 	rm $(BINARY) || true
