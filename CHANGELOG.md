@@ -1,6 +1,12 @@
 This is a summary of changes in the published releases of
 Wallabako. The format of this change may change without prior notice.
 
+# 1.4.1 / 2022-05-06: Hot rats
+
+Hotfix release to strip binaries that have grown beyond the GitLab.com
+10MB limit. No other change, should be functionally similar to the
+previous release.
+
 # 1.4.0 / 2022-05-06: The Message
 
 Ship a lot of fixes that have accumulated in the 3 years since the
