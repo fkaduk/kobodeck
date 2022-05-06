@@ -1,6 +1,41 @@
 This is a summary of changes in the published releases of
 Wallabako. The format of this change may change without prior notice.
 
+# 1.4.0 / 2022-05-06: The Message
+
+Ship a lot of fixes that have accumulated in the 3 years since the
+last release.
+
+Features:
+
+  * add timestamp and git version to build artifacts
+  * cleanup and improve debugging output
+  * switch to pure go sqlite implementation, which helps 
+  * update all module dependencies
+  * port to wallabago v6
+  * support Plato library changes from 0.8.5+
+  * support reading koreader progress/read status
+  * Allow containerized builds, use gomod and avoid GOPATH hell
+  * overhaul Dockerfile
+
+Documentation changes:
+
+  * remove instability warning: this works well enough
+  * README: replace branch name master by main in links
+  * tweak mention of libreoffice to clarify concern
+  * replace "kobo" references by "nickel" where appropriate
+  * make a section about related projects
+  * mention NickelMenu
+  * quick review of the koreader implementation
+
+Bugfixes:
+
+  * handle errors in http request creation
+  * Use OutputDir configuration instead of hardcoded wallabako paths
+  * do not noisily fail if there's no entry for book in plato
+  * regression: properly detect read status again after koreader (or
+    plato?) support was added
+
 1.3.1 / 2019-10-04: Agnus dei
 =============================
 
