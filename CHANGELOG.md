@@ -36,8 +36,7 @@ Bugfixes:
   * regression: properly detect read status again after koreader (or
     plato?) support was added
 
-1.3.1 / 2019-10-04: Agnus dei
-=============================
+# 1.3.1 / 2019-10-04: Agnus dei
 
 Bugfix release to make read but untouched files be deleted again.
 
@@ -46,8 +45,7 @@ Bugfix release to make read but untouched files be deleted again.
   * support "in reading" state in plato, hopefully
   * fix go dep in CI
 
-1.3.0 / 2019-09-26: Our Collective Consciousness' Psychogenic Fugue
-===================================================================
+# 1.3.0 / 2019-09-26: Our Collective Consciousness' Psychogenic Fugue
 
 Minor release to ship patches accumulated in the last year. This
 release is the first shipping with support for other readers than the
@@ -62,16 +60,14 @@ and other launchers as well.
   * do not hardcode the gcc version, in the futile hope it still works
   * documentation improvements
 
-1.2.1 / 2018-04-12: Never flush a tampon
-========================================
+# 1.2.1 / 2018-04-12: Never flush a tampon
 
 Patch release to fix problem that would make any Wallabag annotation
 crash wallabako.
 
   * update to wallabago v4 to fix change in wallabag annotations
 
-1.2.0 / 2018-03-13: Giving up on writing
-========================================
+# 1.2.0 / 2018-03-13: Giving up on writing
 
 Minor release to ship patches accumulated in the last 9 months.
 
@@ -87,15 +83,13 @@ Minor release to ship patches accumulated in the last 9 months.
     which means no collection/shelf support will be possible on Kobo
     readers
 
-1.1.1 / 2017-06-20: A piece of strange
-======================================
+# 1.1.1 / 2017-06-20: A piece of strange
 
 Merge changes from stable branch, including:
 
   * fix build with latest wallabago API changes
 
-1.1.0 / 2017-03-07: Lost somewhere in time
-==========================================
+# 1.1.0 / 2017-03-07: Lost somewhere in time
 
 This minor release was shipped to tag a bunch of changes that have
 been piling up since the last release, 4 months ago. Mostly
@@ -118,13 +112,11 @@ API and allow for betting debugging output.
 
 Thanks to Martin Trigaux for his contributions in this release!
 
-1.0.2 / 2017-06-20: L'ombre sur la mesure
-=========================================
+# 1.0.2 / 2017-06-20: L'ombre sur la mesure
 
   * fix build with latest wallabago API changes
 
-1.0.1 / 2017-06-20: La rumeur
-=============================
+# 1.0.1 / 2017-06-20: La rumeur
 
 Small bugfix release to help with 2.2 API without breaking backwards
 compatibility.
