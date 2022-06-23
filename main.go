@@ -191,6 +191,7 @@ func main() {
 	// https://play.golang.org/p/hNaeTjLwdv we don't need toplevel
 	// error handling yet, so we stick with the semaphore channel
 	// pattern
+	// other solutions in https://www.sohamkamani.com/golang/data-races/
 	sem := make(chan bool, config.Concurrency)
 	entries, err := listEntries()
 	if err != nil {
