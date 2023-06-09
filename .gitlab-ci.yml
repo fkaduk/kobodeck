@@ -30,3 +30,12 @@ compile:
         - build/
         when: always
         expire_in: never
+
+codespell:
+  image:
+    name: debian:stable
+  before_script:
+    - apt update
+    - apt install -qy codespell
+  script:
+    - codespell *

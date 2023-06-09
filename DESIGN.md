@@ -579,7 +579,7 @@ found the following libraries:
 * [logutils](https://github.com/hashicorp/logutils) - wraps the
   standard library to filter based on strings, a bit too hackish?
 * [logging](https://github.com/op/go-logging) - multi-backend support
-  with differenciated level filtering, colors, seems well-designed and
+  with differentiated level filtering, colors, seems well-designed and
   self-contained, not a drop-in replacement, overkill?
 * [rlog](https://github.com/romana/rlog) - log level filtering and
   file output configurable through config file or environment,
@@ -603,7 +603,7 @@ other projects:
   thread-safe, structured, colors, oh my... 
 * [log4go](https://github.com/Kissaki/log4go) - level filtering,
   rotation, XML, drop-in compatible with log, multi-backend support
-  with differenciated levels, 
+  with differentiated levels,
   [unmaintained](https://github.com/alecthomas/log4go)?
 * [seelog](https://github.com/cihub/seelog) - lots of features, but
   XML config.

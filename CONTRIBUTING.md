@@ -263,7 +263,7 @@ In order to build wallabako, you will need git, GCC and Golang:
 
 Note that Kobo readers might be running a glibc and kernel too old for
 your platform, see below if you get weird error messages when building
-from versions greated than Debian 9 (stretch), with glibc 2.28 or
+from versions greater than Debian 9 (stretch), with glibc 2.28 or
 later.
 
 You will also need the golang dependencies:

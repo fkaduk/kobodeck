@@ -379,7 +379,7 @@ func login(baseURL, username, password string) (*http.Client, error) {
 	}
 	defer resp.Body.Close()
 	// error ignored: if this fails, the CSRF token will be missing
-	// and the error will be catched below
+	// and the error will be caught below
 	body, _ := ioutil.ReadAll(resp.Body)
 	matches := csrfRegexp.FindSubmatch(body)
 	if len(matches) > 0 {

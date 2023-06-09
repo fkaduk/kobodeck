@@ -235,7 +235,7 @@ Detailed changes:
  * delete old files by default: to get back to the old behaviour, you
    need to edit `wallabag-run` to remove the `-delete` flag
  * do not limit ourselves to 10 entries, but instead rely on the site
-   default (usually 30 articles), can be overriden with the `-count`
+   default (usually 30 articles), can be overridden with the `-count`
    flag in the `wallabag-run` file
 
 # 0.2: don't delete that file
