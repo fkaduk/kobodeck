@@ -344,7 +344,7 @@ Some more details about specific settings:
    parsed.
 
 Finally, note that some of those settings are hardcoded in the
-`wallabako-run` wrapper script and therefore cannot be overriden in
+`wallabako-run` wrapper script and therefore cannot be overridden in
 the configuration file. Those are:
 
 | Flag      | Value                             |
@@ -388,7 +388,7 @@ This can happen if you have some sort of a syntax error in the
 configuration file. For example, this can happen if you have a
 double-quote in your password and you didn't properly escape it.
 
-Tthe configuration file is a [JSON file][], parsed by the
+The configuration file is a [JSON file][], parsed by the
 [Unmarshal][] function of the
 [Golang json package][]. [Wikipedia says][] that:
 
@@ -409,7 +409,7 @@ your passwords (e.g. tab or formfeed), double-quote and backslash are
 the only characters you should need to escape.
 
 Another common error is to add an extra comma (`,`) on the final
-entry, or ommitting the brackets (`{` or `}`). Files with
+entry, or omitting the brackets (`{` or `}`). Files with
 [BOM markers][] used to cause issues as well, but that has been fixed
 in the Wallabago library since 0.7.
 
@@ -580,13 +580,13 @@ developers `juliank` and `stapelberg`. `smurf` also helped in
 reviewing the code and answering my million newbie questions about go.
 
 Also thanks to [Norbert Preining][] for pulishing the
-[Kobo firmare images][] that got me started into this path and allowed
+[Kobo firmware images][] that got me started into this path and allowed
 me to easily root my reader. This inspired me to start the related
 [kobo-ssh][] project to build smaller, ssh-only images.
 
 [kobo-ssh]: https://gitlab.com/anarcat/kobo-ssh
 [Norbert Preining]: https://www.preining.info/
-[Kobo firmare images]: https://www.preining.info/blog/2016/01/kobo-firmware-3-19-5761-mega-update-ksm-nickel-patch-ssh-fonts/
+[Kobo firmware images]: https://www.preining.info/blog/2016/01/kobo-firmware-3-19-5761-mega-update-ksm-nickel-patch-ssh-fonts/
 
 This program and documentation is distributed under the AGPLv3
 license, see the LICENSE file for more information.
