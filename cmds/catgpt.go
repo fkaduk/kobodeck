@@ -55,7 +55,7 @@ func ConfigureLogToExternalCommand(command string) {
 }
 
 func main() {
-	ConfigureLogToExternalCommand("myexternalcommand")
+	ConfigureLogToExternalCommand("cat")
 	// Use log.Println or other log functions to send messages to the external command
 	log.Println("Hello, external command!")
 }
