@@ -271,6 +271,10 @@ func debugf(fmt string, args ...interface{}) {
 // need to reconfigure logging on the fly, which is clunky. users can
 // just use shell redirection there anyways.
 func setupLogging(config wallabakoConfig) {
+	fbink := &fbinkWriter{}
+	// todo: don't actually write to screen, just check if fbink is
+	// executable?
+	_, fbink_err := fbink.Write([]byte("wallabako starting"))
 	if len(config.LogFile) > 0 {
 		fileLogger := &lumberjack.Logger{
 			Filename:   config.LogFile,
@@ -278,10 +282,42 @@ func setupLogging(config wallabakoConfig) {
 			MaxBackups: 7, //files
 			MaxAge:     7, //days
 		}
-		log.SetOutput(io.MultiWriter(fileLogger, os.Stdout))
+		if fbink_err != nil {
+			log.SetOutput(io.MultiWriter(fileLogger, os.Stdout))
+		} else {
+			log.SetOutput(io.MultiWriter(fileLogger, os.Stdout, fbink))
+		}
 	} else {
-		log.SetOutput(os.Stdout)
+		if fbink_err != nil {
+			log.SetOutput(os.Stdout)
+		} else {
+			log.SetOutput(io.MultiWriter(os.Stdout, fbink))
+		}
 	}
+}
+
+type fbinkWriter struct{}
+
+func (w *fbinkWriter) Write(p []byte) (n int, err error) {
+	cmd := exec.Command("fbink", "--centered", "--row", "-5", "--overlay", string(p))
+
+	currentPath := os.Getenv("PATH")
+	desiredPath := "/mnt/onboard/.adds/koreader:/mnt/onboard/.niluje/usbnet/bin:/usr/local/kfmon/bin"
+	newPath := fmt.Sprintf("%s:%s", currentPath, desiredPath)
+	cmd.Env = append(os.Environ(), fmt.Sprintf("PATH=%s", newPath))
+
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err = cmd.Run(); err != nil {
+		log.Printf("fbink start failed: %s", err)
+		return 0, err
+	}
+	return len(p), nil
+}
+
+func (w *fbinkWriter) Close() error {
+	return nil
 }
 
 // confPath is the name of the default configuration file
