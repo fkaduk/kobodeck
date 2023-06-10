@@ -68,7 +68,6 @@ clean:
 lint:
 	@echo checking idioms and syntax
 	go vet .
-	golint .
 	gofmt  -s -l .
 	go test
 
