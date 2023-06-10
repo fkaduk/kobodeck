@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"log"
 	"os"
 	"os/exec"
@@ -32,7 +33,7 @@ func ConfigureLogToExternalCommand(command string) {
 
 	// Capture any log messages and write them to the pipe
 	go func() {
-		scanner := log.NewScanner(pipeReader)
+		scanner := bufio.NewScanner(pipeReader)
 		for scanner.Scan() {
 			logLine := scanner.Text()
 			// Modify or process the log line before sending it to the external command, if needed
