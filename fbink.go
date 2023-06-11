@@ -57,8 +57,11 @@ func (w *fbinkWriter) Run(args ...string) (err error) {
 	newPath := fmt.Sprintf("%s:%s", currentPath, desiredPath)
 	cmd.Env = append(os.Environ(), fmt.Sprintf("PATH=%s", newPath))
 
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
+	// output is way to verbose to be useful, really clutters
+	// debugging on SSH. to see what fbink actually says when
+	// debugging, actually comment those out
+	//
+	//cmd.Stdout = os.Stdout
+	//cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
