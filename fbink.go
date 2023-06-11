@@ -39,7 +39,22 @@ func fbinkInitialize() (fbink *fbinkWriter, err error) {
 }
 
 func (w *fbinkWriter) Write(p []byte) (n int, err error) {
-	cmd := exec.Command("fbink", "--centered", "--row", "-5", "--overlay", string(p))
+	err = w.Run("--centered", "--row", "-5", "--overlay", string(p))
+	if err != nil {
+		return 0, err
+	}
+	return len(p), err
+}
+
+func (w *fbinkWriter) Close() error {
+	return nil
+}
+
+// (w *fbinkWriter) fbinkRun calls fbink with the given parameters
+//
+// this is a separate function because of how clunky calling fbink actually is
+func (w *fbinkWriter) Run(args ...string) (err error) {
+	cmd := exec.Command("fbink", args...)
 
 	currentPath := os.Getenv("PATH")
 	desiredPath := "/mnt/onboard/.adds/koreader:/mnt/onboard/.niluje/usbnet/bin:/usr/local/kfmon/bin"
@@ -50,11 +65,7 @@ func (w *fbinkWriter) Write(p []byte) (n int, err error) {
 	cmd.Stderr = os.Stderr
 
 	if err = cmd.Run(); err != nil {
-		return 0, err
+		return err
 	}
-	return len(p), nil
-}
-
-func (w *fbinkWriter) Close() error {
 	return nil
 }
