@@ -151,7 +151,14 @@ func main() {
 	}
 	start := time.Now()
 	defer func() {
-		log.Printf("version %s completed in %s\n", version, time.Since(start))
+		log.Printf("version %s completed in %s, processed: %d, downloaded: %d, size: %s, deleted: %d, read: %d",
+			version,
+			time.Since(start),
+			counter.Processed.Value(),
+			counter.Downloaded.Value(),
+			humanize.IBytes(uint64(counter.Bytes.Value())),
+			counter.Deleted.Value(),
+			counter.Read.Value())
 	}()
 	lock, err := getLock(config.PidFile)
 	if err != nil {
@@ -248,8 +255,6 @@ func main() {
 	}
 
 	inspectLocalFiles(config, valid)
-	log.Printf("processed: %d, downloaded: %d, size: %s, deleted: %d, read: %d",
-		counter.Processed.Value(), counter.Downloaded.Value(), humanize.IBytes(uint64(counter.Bytes.Value())), counter.Deleted.Value(), counter.Read.Value())
 	if config.Debug {
 		fds := listOpenFds()
 		log.Printf("%d open file descriptors: %s", len(fds), fds)
