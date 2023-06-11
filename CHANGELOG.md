@@ -1,5 +1,35 @@
-This is a summary of changes in the published releases of
-Wallabako. The format of this change may change without prior notice.
+# 1.5.0 / 2023-06-10: Here it goes again
+
+First release in over a year, and a major feature release! We have on
+screen display now!
+
+If you have [fbink][] installed on your Kobo reader, you'll get visual
+information displayed as wallabako is doing its thing. A billion
+thanks to [NiLuJe][] for this awesome program.
+
+Features:
+
+ * on screen display
+ * regrouped version information, timing information, and counters
+   (downloaded/deleted/read/etc) in a single line
+ * improved timing output (millisecond precision instead of too
+   verbose nanosecond)
+
+Bug fixes:
+
+ * fix spelling errors found with codespell, hooked in CI to avoid
+   future problems
+ * don't fail on strip failures during build
+
+Documentation:
+
+ * document other concurrency solutions
+ * tweak release process to remove futile step of keeping the latest
+   tag in the README links, we're just linking to the latest code now,
+   if you want the last release, just go to the release page already
+
+[NiLuJe]: https://github.com/NiLuJe/FBInk
+[fbink]: https://github.com/NiLuJe/FBInk
 
 # 1.4.1 / 2022-05-06: Hot rats
 
