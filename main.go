@@ -277,6 +277,9 @@ func setupLogging(config wallabakoConfig) {
 	// others) if the fbink binary is available, see
 	// https://github.com/NiLuJe/FBInk
 	fbink, err := fbinkInitialize()
+	if err != nil {
+		log.Printf("fbink initialization failed: %s", err)
+	}
 	if len(config.LogFile) > 0 {
 		fileLogger := &lumberjack.Logger{
 			Filename:   config.LogFile,
@@ -284,20 +287,9 @@ func setupLogging(config wallabakoConfig) {
 			MaxBackups: 7, //files
 			MaxAge:     7, //days
 		}
-		if err == nil {
-			log.SetOutput(io.MultiWriter(fileLogger, os.Stdout, fbink))
-		} else {
-			log.SetOutput(io.MultiWriter(fileLogger, os.Stdout))
-		}
+		log.SetOutput(io.MultiWriter(fileLogger, os.Stdout, fbink))
 	} else {
-		if err == nil {
-			log.SetOutput(io.MultiWriter(os.Stdout, fbink))
-		} else {
-			log.SetOutput(os.Stdout)
-		}
-	}
-	if err != nil {
-		log.Printf("fbink start failed: %s", err)
+		log.SetOutput(io.MultiWriter(os.Stdout, fbink))
 	}
 }
 
