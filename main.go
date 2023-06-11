@@ -296,30 +296,6 @@ func setupLogging(config wallabakoConfig) {
 	}
 }
 
-type fbinkWriter struct{}
-
-func (w *fbinkWriter) Write(p []byte) (n int, err error) {
-	cmd := exec.Command("fbink", "--centered", "--row", "-5", "--overlay", string(p))
-
-	currentPath := os.Getenv("PATH")
-	desiredPath := "/mnt/onboard/.adds/koreader:/mnt/onboard/.niluje/usbnet/bin:/usr/local/kfmon/bin"
-	newPath := fmt.Sprintf("%s:%s", currentPath, desiredPath)
-	cmd.Env = append(os.Environ(), fmt.Sprintf("PATH=%s", newPath))
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err = cmd.Run(); err != nil {
-		log.Printf("fbink start failed: %s", err)
-		return 0, err
-	}
-	return len(p), nil
-}
-
-func (w *fbinkWriter) Close() error {
-	return nil
-}
-
 // confPath is the name of the default configuration file
 const confPath = "wallabako.js"
 
