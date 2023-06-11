@@ -153,7 +153,7 @@ func main() {
 	defer func() {
 		log.Printf("version %s completed in %s, processed: %d, downloaded: %d, size: %s, deleted: %d, read: %d",
 			version,
-			time.Since(start),
+			time.Since(start).Truncate(time.Millisecond).String(),
 			counter.Processed.Value(),
 			counter.Downloaded.Value(),
 			humanize.IBytes(uint64(counter.Bytes.Value())),
