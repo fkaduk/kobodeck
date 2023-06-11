@@ -230,6 +230,32 @@ You can also run the program straight from source with:
 Building for the Kobo requires more work, see the [contribution
 guide](CONTRIBUTING.md) for details.
 
+On-screen display
+-------------------
+
+Out of the box, wallabako does not know how to give user feedback on
+ebook readers like the Kobo. It can (and will), however, use the
+[fbink][] program if it's found. If you have [koreader][] or [kfmon][]
+installed, it should be able to find it there.
+
+This feature will show wallabako's log in a crude overlay. By default,
+it piles them up on two lines at the bottom of the screen. This is
+less intrusive but can be hard to read.
+
+To get the full experience, try to enable `FbinkInteractive` in the
+configuration file, which will scroll all the messages, one per line,
+from the top of the display, completely clobbering the current
+display. This can be extremely distracting which is why it's off by
+default.
+
+And, of course, if you haven't modified your reader far enough to have
+fbink actually installed, you'll never see that good stuff. If you
+want to *only* install fbink, it seems the canonical installation
+instructions are in [this forum post](https://www.mobileread.com/forums/showthread.php?t=299110).
+
+[fbink]: https://github.com/NiLuJe/FBInk
+[kfmon]: https://github.com/NiLuJe/kfmon/
+
 Support
 =======
 
@@ -305,20 +331,21 @@ Most commandline options (except `-version` and `-config`) can also be
 set in the configuration file. Here are the configuration options and
 their matching configuration file settings:
 
-| Configuration | Flag           | Default           | Meaning |
-| ------------- | -------------- | ----------------- | ------- |
-| `Debug`       | `-debug`       | `false`           | include (lots of!) additional debugging information in logs, including passwords  and confidential data |
-| `Delete`      | `-delete`      | `false`           | delete EPUB files marked as read or missing from Wallabag |
-| `Database`    | `-database`    | `/mnt/onboard/.kobo/KoboReader.sqlite` | path to the Kobo database |
-| `Concurrency` | `-concurrency` | 6                 | number of downloads to process in parallel |
-| `Count`       | `-count`       | -1                | number of articles to fetch, -1 means use Wallabag default |
-| `Exec`        | `-exec`        | nothing           | execute the given command when files have changed |
-| `LogFile`     | N/A            | no logging        | rotated logfile to store debug information |
-| `OutputDir`   | `-output`      | current directory | output directory to save files into |
-| `PidFile`     | `-pidfile`     | `wallabako.pid`   | pidfile to write to avoid multiple runs |
-| `RetryMax`    | `-retry`       | 4                 | number of attempts to login the website, with exponential backoff delay |
-| `Tags`	| `-tags`	 | no tags filtering | a comma-separated list of tags to filter for |
-| `Plato.LibraryPath`	| N/A	 | `/mnt/onboard` | For [plato document reader](https://github.com/baskerville/plato) integration, the value of `[[libraries.path]]` in `Settings.toml`|
+| Configuration       | Flag           | Default                                | Meaning                                                                                                                             |
+|---------------------|----------------|----------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
+| `Debug`             | `-debug`       | `false`                                | include (lots of!) additional debugging information in logs, including passwords  and confidential data                             |
+| `Delete`            | `-delete`      | `false`                                | delete EPUB files marked as read or missing from Wallabag                                                                           |
+| `Database`          | `-database`    | `/mnt/onboard/.kobo/KoboReader.sqlite` | path to the Kobo database                                                                                                           |
+| `Concurrency`       | `-concurrency` | 6                                      | number of downloads to process in parallel                                                                                          |
+| `Count`             | `-count`       | -1                                     | number of articles to fetch, -1 means use Wallabag default                                                                          |
+| `Exec`              | `-exec`        | nothing                                | execute the given command when files have changed                                                                                   |
+| `LogFile`           | N/A            | no logging                             | rotated logfile to store debug information                                                                                          |
+| `OutputDir`         | `-output`      | current directory                      | output directory to save files into                                                                                                 |
+| `PidFile`           | `-pidfile`     | `wallabako.pid`                        | pidfile to write to avoid multiple runs                                                                                             |
+| `RetryMax`          | `-retry`       | 4                                      | number of attempts to login the website, with exponential backoff delay                                                             |
+| `Tags`              | `-tags`        | no tags filtering                      | a comma-separated list of tags to filter for                                                                                        |
+| `Plato.LibraryPath` | N/A            | `/mnt/onboard`                         | For [plato document reader](https://github.com/baskerville/plato) integration, the value of `[[libraries.path]]` in `Settings.toml` |
+| `FbinkInteractive`  | N/A            | `false`                                | use full screen interactive [fbink][] mode, if available                                                                            |
 
 Some more details about specific settings:
 
@@ -368,6 +395,7 @@ Here's an example of a fully-populated configuration file:
       "Delete": false,
       "Database": "/mnt/onboard/.kobo/KoboReader.sqlite",
       "Exec": "/usr/local/bin/fake-connect-usb",
+      "FbinkInteractive": false,
       "LogFile": "/mnt/onboard/wallabako.log.txt",
       "OutputDir": "/mnt/onboard/wallabako",
       "PidFile", "wallabako.pid",
