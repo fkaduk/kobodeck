@@ -27,30 +27,34 @@ Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saytha
 
 
 <!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-generate-toc again -->
+<!-- markdown-toc crashes in newer Emacs version, the section below -->
+<!-- was actually generated with `md_toc github -o . < README.md` instead -->
 **Table of Contents**
 
-- [Wallabag downloader](#wallabag-downloader)
-- [Download and install](#download-and-install)
-- [Configuration](#configuration)
-- [Usage](#usage)
-    - [Kobo devices](#kobo-devices)
-    - [Commandline](#commandline)
-- [Support](#support)
-- [Troubleshooting](#troubleshooting)
-    - [Logging](#logging)
-    - [Configuration file details](#configuration-file-details)
-    - [Configuration file is not found even if present](#configuration-file-is-not-found-even-if-present)
-    - [Some articles are not downloaded or disappear](#some-articles-are-not-downloaded-or-disappear)
-    - [Unable to open database file](#unable-to-open-database-file)
-    - [x509: failed to load system roots and no roots provided](#x509-failed-to-load-system-roots-and-no-roots-provided)
-    - [Command not running](#command-not-running)
-    - [Uninstalling](#uninstalling)
-- [Known issues](#known-issues)
-- [Credits](#credits)
-- [Contributing](#contributing)
-    - [Design notes](#design-notes)
-    - [Remaining issues](#remaining-issues)
-- [Related projects](#related-projects)
+1. [Wallabag downloader](#wallabag-downloader)
+2. [Download and install](#download-and-install)
+3. [Upgrade](#upgrade)
+4. [Configuration](#configuration)
+5. [Usage](#usage)
+   1. [Kobo devices](#kobo-devices)
+   2. [Commandline](#commandline)
+   3. [On-screen display](#on-screen-display)
+6. [Support](#support)
+7. [Troubleshooting](#troubleshooting)
+   1. [Logging](#logging)
+   2. [Configuration file details](#configuration-file-details)
+   3. [Configuration file is not found even if present](#configuration-file-is-not-found-even-if-present)
+   4. [Some articles are not downloaded or disappear](#some-articles-are-not-downloaded-or-disappear)
+   5. [Unable to open database file](#unable-to-open-database-file)
+   6. [x509: failed to load system roots and no roots provided](#x509-failed-to-load-system-roots-and-no-roots-provided)
+   7. [Command not running](#command-not-running)
+   8. [Uninstalling](#uninstalling)
+8. [Known issues](#known-issues)
+9. [Credits](#credits)
+10. [Contributing](#contributing)
+    1. [Design notes](#design-notes)
+    2. [Remaining issues](#remaining-issues)
+11. [Related projects](#related-projects)
 
 <!-- markdown-toc end -->
 
