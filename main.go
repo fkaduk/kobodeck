@@ -51,18 +51,19 @@ var (
 // commandline
 type wallabakoConfig struct {
 	wallabago.WallabagConfig
-	Debug       bool        `json:"debug"`
-	Delete      bool        `json:"delete"`
-	LogFile     string      `json:"logfile"`
-	Database    string      `json:"Database"`
-	Concurrency int         `json:"Concurrency"`
-	Count       int         `json:"Count"`
-	Exec        string      `json:"Exec"`
-	OutputDir   string      `json:"OutputDir"`
-	PidFile     string      `json:"PidFile"`
-	RetryMax    int         `json:"RetryMax"`
-	Tags        string      `json:"Tags"`
-	PlatoConfig PlatoConfig `json:"plato"`
+	Debug            bool        `json:"debug"`
+	Delete           bool        `json:"delete"`
+	LogFile          string      `json:"logfile"`
+	Database         string      `json:"Database"`
+	Concurrency      int         `json:"Concurrency"`
+	Count            int         `json:"Count"`
+	Exec             string      `json:"Exec"`
+	OutputDir        string      `json:"OutputDir"`
+	PidFile          string      `json:"PidFile"`
+	RetryMax         int         `json:"RetryMax"`
+	Tags             string      `json:"Tags"`
+	PlatoConfig      PlatoConfig `json:"plato"`
+	FbinkInteractive bool        `json:"FbinkInteractive"`
 }
 
 // config is the global configuration, as read from the config file
@@ -124,9 +125,14 @@ func main() {
 	// this displays messages in an overlay on the Kobo readers (and
 	// others) if the fbink binary is available, see
 	// https://github.com/NiLuJe/FBInk
-	//fbink, fbink_err := fbinkInitialize()
-	fbink, fbink_err := fbinkInteractiveInitialize()
-	defer fbink.Close()
+	var fbink io.WriteCloser
+	var fbink_err error
+	if config.FbinkInteractive {
+		fbink, fbink_err = fbinkInteractiveInitialize()
+		defer fbink.Close()
+	} else {
+		fbink, fbink_err = fbinkInitialize()
+	}
 	// need to bootstrap logfile first before we handle errors
 	setupLogging(config, fbink)
 	if fbink_err != nil {
@@ -282,7 +288,7 @@ func debugf(fmt string, args ...interface{}) {
 // XXX: we do not support the -logfile argument anymore, as we would
 // need to reconfigure logging on the fly, which is clunky. users can
 // just use shell redirection there anyways.
-func setupLogging(config wallabakoConfig, extraWriter *fbinkInteractiveWriter) {
+func setupLogging(config wallabakoConfig, extraWriter io.Writer) {
 	if len(config.LogFile) > 0 {
 		fileLogger := &lumberjack.Logger{
 			Filename:   config.LogFile,
