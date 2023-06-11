@@ -1,5 +1,4 @@
-Wallabag downloader
-===================
+# Wallabag downloader
 
 <img alt="Logo" src="assets/logo.png" align="right" />
 
@@ -57,8 +56,7 @@ Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saytha
 
 <img alt="screenshot of a KoboRoot.tgz file in a Kobo reader" src="assets/kobotgz-screenshot.png" align="right" />
 
-Download and install
-====================
+# Download and install
 
 Quick start for Kobo devices:
 
@@ -87,13 +85,11 @@ with launchers like KFmon or NickelMenu. See the [design](DESIGN.md)
 document, section "Launchers" for more information for this
 experimental configuration.
 
-Upgrade
-=======
+# Upgrade
 
 To upgrade wallabako, simply follow install instruction.
 
-Configuration
-=============
+# Configuration
 
 The next step is to configure Wallabako by creating a `.wallabako.js`
 file in the top directory of the reader, with the following content:
@@ -144,11 +140,9 @@ for more information.
 
 <img alt="screenshot of the connect dialog on a Kobo Glo HD reader" src="assets/connect-dialog.png" align="right" />
 
-Usage
-=====
+# Usage
 
-Kobo devices
-------------
+## Kobo devices
 
 If everything was deployed correctly, Wallabako should run the next
 time you activate the wireless connection on your device. You will
@@ -169,8 +163,7 @@ will need to remove those files through the reader interface
 yourself. This is to avoid unnecessary synchronisations which are
 distracting to the user.
 
-Commandline
------------
+## Commandline
 
 Wallabako can also be compiled installed on a regular computer,
 provided that you have the go suite installed. Simply do the usual:
@@ -230,8 +223,7 @@ You can also run the program straight from source with:
 Building for the Kobo requires more work, see the [contribution
 guide](CONTRIBUTING.md) for details.
 
-On-screen display
--------------------
+## On-screen display
 
 Out of the box, wallabako does not know how to give user feedback on
 ebook readers like the Kobo. It can (and will), however, use the
@@ -256,8 +248,7 @@ instructions are in [this forum post](https://www.mobileread.com/forums/showthre
 [fbink]: https://github.com/NiLuJe/FBInk
 [kfmon]: https://github.com/NiLuJe/kfmon/
 
-Support
-=======
+# Support
 
 I will provide only limited free support for this tool. I wrote it,
 after all, for my own uses. People are welcome to [file issues][] and
@@ -269,8 +260,7 @@ that format.
  [send patches]: https://gitlab.com/anarcat/wallabako/merge_requests
  [discussion on MobileRead.com]: https://www.mobileread.com/forums/showthread.php?p=3467945
 
-Troubleshooting
-===============
+# Troubleshooting
 
 To troubleshoot issues with the script, you may need to get
 commandline access into it, which is beyond the scope of this
@@ -297,8 +287,7 @@ reproduce this issue.
 
 <!-- markdown-toc end -->
 
-Logging
--------
+## Logging
 
 Versions from 0.3 to 1.0 were writing debugging information in the
 `wallabako.log.txt` on the reader. This is now disabled by default
@@ -324,8 +313,7 @@ commandline flag or configuration option (set to `true`, without
 quotes). WARNING: this *will* include your password and authentication
 tokens, so be careful where you send this output.
 
-Configuration file details
---------------------------
+## Configuration file details
 
 Most commandline options (except `-version` and `-config`) can also be
 set in the configuration file. Here are the configuration options and
@@ -409,8 +397,7 @@ Here's an example of a fully-populated configuration file:
       "WallabagURL": "https://app.wallabag.it"
     }
 
-Configuration file is not found even if present
------------------------------------------------
+## Configuration file is not found even if present
 
 This can happen if you have some sort of a syntax error in the
 configuration file. For example, this can happen if you have a
@@ -450,8 +437,7 @@ in the Wallabago library since 0.7.
 [JSON specification]: http://json.org/
 [issue #16]: https://gitlab.com/anarcat/wallabako/issues/16
 
-Some articles are not downloaded or disappear
----------------------------------------------
+## Some articles are not downloaded or disappear
 
 If you can't seem to synchronize all your articles and you have a
 large number of unread articles, you may want to change the `Count`
@@ -468,8 +454,7 @@ a time. It could make the first listing request slower, however, if
 you have a huge number of articles. We have reports of operation with
 60 articles without significant performance issues.
 
-Unable to open database file
-----------------------------
+## Unable to open database file
 
 If you see this warning message repeated:
 
@@ -492,8 +477,7 @@ attempt to open a database file.
 
 Note that the warnings can also safely be ignored.
 
-x509: failed to load system roots and no roots provided
--------------------------------------------------------
+## x509: failed to load system roots and no roots provided
 
 You may see this error when running on weird environments;
 
@@ -528,8 +512,7 @@ this was never tested from scratch.
 > but I would advise against it, if only for obvious security
 > reasons...
 
-Command not running
--------------------
+## Command not running
 
 If you notice that udev is not running your command, for some reason,
 you can restart it with `--debug` which is very helpful. Example:
@@ -557,8 +540,7 @@ too fast. You can adjust the delay in `wallabako-run`, but really this
 should be automated in the script (which should retry a few times
 before giving up).
 
-Uninstalling
-------------
+## Uninstalling
 
 Unfortunately, there is no easy way to uninstall Wallabako ([bug 36][]). While Kobo
 provides a way to automatically *install* files on the readers, there
@@ -591,8 +573,7 @@ at the root of your Kobo filesystem: this will "unconfigure" Wallabako
 which will still fire automatically when wifi comes up, but it will do
 nothing, which shouldn't cause problems anymore.
 
-Known issues
-============
+# Known issues
 
 Like any program, Wallabako is imperfect. There is a list of [known
 issues](https://gitlab.com/anarcat/wallabako/issues) on the main site, but some issues do not depend on
@@ -600,8 +581,7 @@ Wallabako, as they are problems with Wallabag itself. Most of the
 issues we have found in Wallabag are documented in [issue
 #2821](https://github.com/wallabag/wallabag/issues/2821).
 
-Credits
-=======
+# Credits
 
 Wallabako was written by The Anarcat and reviewed by friendly Debian
 developers `juliank` and `stapelberg`. `smurf` also helped in
@@ -619,21 +599,18 @@ me to easily root my reader. This inspired me to start the related
 This program and documentation is distributed under the AGPLv3
 license, see the LICENSE file for more information.
 
-Contributing
-============
+# Contributing
 
 See the [contribution guide](CONTRIBUTING.md) for more information. In
 short: this is a free software project and you are welcome to join us
 in improving it, both by fixing things, reporting issues or
 documentation.
 
-Design notes
-------------
+## Design notes
 
 Moved a [separate document](DESIGN.md).
 
-Remaining issues
-----------------
+## Remaining issues
 
 There are `XXX` markers in the source code that show other issues that
 need to be checked. The other known issues previously stored in this
@@ -642,8 +619,7 @@ visibility and public collaboration.
 
 [Gitlab issue queue]: https://gitlab.com/anarcat/wallabako/issues
 
-Related projects
-================
+# Related projects
 
 Other Kobo-related software has support for Wallabako, and may be
 easier to use than this program.
