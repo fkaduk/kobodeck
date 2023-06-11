@@ -30,20 +30,20 @@ func fbinkInitialize() (fbink *fbinkWriter, err error) {
 	fbink = &fbinkWriter{}
 	// todo: don't actually write to screen, just check if fbink is
 	// executable?
-	_, err = fbink.Write([]byte("wallabako starting"))
+	err = fbink.Run("--centered", "--row", "-5", "--overlay", "wallabako starting...")
 	return fbink, err
 }
 
 func (w *fbinkWriter) Write(p []byte) (n int, err error) {
-	err = w.Run("--centered", "--row", "-5", "--overlay", string(p))
+	err = w.Run("--centered", "--row", "-4", "--overlay", string(p))
 	if err != nil {
 		return 0, err
 	}
 	return len(p), err
 }
 
-func (w *fbinkWriter) Close() error {
-	return nil
+func (w *fbinkWriter) Close() (err error) {
+	return w.Run("--centered", "--row", "-5", "--overlay", "wallabako finished")
 }
 
 // (w *fbinkWriter) fbinkRun calls fbink with the given parameters
