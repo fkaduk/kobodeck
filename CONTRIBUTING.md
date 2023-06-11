@@ -335,11 +335,10 @@ To make a release:
  6. edit the [tag on Gitlab][], copy-paste the changelog entry and
     attach the signed binaries
 
- 7. if you are happy with the release, update the README file to point
-    to the new tag
-
-The latter step was adopted after the builds broke without me
-noticing, which broke the download links.
+We were previously keeping the download links pointing at the above
+tag in the past, because builds broke without me noticing, which broke
+the download links. But this quickly became impractical and way too
+error prone, so we just link to the latest build now.
 
  [Semantic Versioning]: http://semver.org/
  [tag on Gitlab]: https://gitlab.com/anarcat/wallabako/tags
