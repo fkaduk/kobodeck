@@ -271,10 +271,12 @@ func debugf(fmt string, args ...interface{}) {
 // need to reconfigure logging on the fly, which is clunky. users can
 // just use shell redirection there anyways.
 func setupLogging(config wallabakoConfig) {
-	fbink := &fbinkWriter{}
-	// todo: don't actually write to screen, just check if fbink is
-	// executable?
-	_, fbink_err := fbink.Write([]byte("wallabako starting"))
+	// setup fbink writer if available
+	//
+	// this displays messages in an overlay on the Kobo readers (and
+	// others) if the fbink binary is available, see
+	// https://github.com/NiLuJe/FBInk
+	fbink, err := fbinkInitialize()
 	if len(config.LogFile) > 0 {
 		fileLogger := &lumberjack.Logger{
 			Filename:   config.LogFile,
@@ -282,17 +284,20 @@ func setupLogging(config wallabakoConfig) {
 			MaxBackups: 7, //files
 			MaxAge:     7, //days
 		}
-		if fbink_err != nil {
-			log.SetOutput(io.MultiWriter(fileLogger, os.Stdout))
-		} else {
+		if fbink != nil {
 			log.SetOutput(io.MultiWriter(fileLogger, os.Stdout, fbink))
+		} else {
+			log.SetOutput(io.MultiWriter(fileLogger, os.Stdout))
 		}
 	} else {
-		if fbink_err != nil {
-			log.SetOutput(os.Stdout)
-		} else {
+		if fbink != nil {
 			log.SetOutput(io.MultiWriter(os.Stdout, fbink))
+		} else {
+			log.SetOutput(os.Stdout)
 		}
+	}
+	if err != nil {
+		log.Printf("fbink start failed: %s", err)
 	}
 }
 

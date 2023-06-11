@@ -24,6 +24,20 @@ import "os/exec"
 
 type fbinkWriter struct{}
 
+// fbinkInterface factory, detects if fbink is availble and works, if
+// so return a fbinkWriter object or nil otherwise.
+func fbinkInitialize() (fbink *fbinkWriter, err error) {
+	fbink = &fbinkWriter{}
+	// todo: don't actually write to screen, just check if fbink is
+	// executable?
+	_, err = fbink.Write([]byte("wallabako starting"))
+	if err != nil {
+		return nil, err
+	} else {
+		return fbink, nil
+	}
+}
+
 func (w *fbinkWriter) Write(p []byte) (n int, err error) {
 	cmd := exec.Command("fbink", "--centered", "--row", "-5", "--overlay", string(p))
 
@@ -36,7 +50,6 @@ func (w *fbinkWriter) Write(p []byte) (n int, err error) {
 	cmd.Stderr = os.Stderr
 
 	if err = cmd.Run(); err != nil {
-		log.Printf("fbink start failed: %s", err)
 		return 0, err
 	}
 	return len(p), nil
