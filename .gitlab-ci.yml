@@ -13,10 +13,15 @@ compile:
       - cd /go/src/gitlab.com/$CI_PROJECT_PATH
   stage: build
   script:
+      - date
       - go get
+      - date
       - make lint
+      - date
       - make build
+      - date
       - make tarball
+      - date
       - date -Ins > build/timestamp.txt
       - git describe > build/git-describe.txt
   artifacts:
