@@ -48,7 +48,24 @@ func (w *fbinkWriter) Close() (err error) {
 
 // (w *fbinkWriter) fbinkRun calls fbink with the given parameters
 //
-// this is a separate function because of how clunky calling fbink actually is
+// this is a separate function because of how clunky calling fbink
+// actually is.
+//
+// There's actually an "--interactive" flag that outputs all lines fed
+// on stdin one by one. Problem is it quickly overflows
+// downwards.
+//
+// It's also hellish to implement an io.Writer that pipes into a
+// command. I *think* I've managed to do it - but could never quite
+// confirm it, as I was working with cat(1) which has different
+// behavior than fbink.
+//
+// The basic idea would be to have the fbink command working in the
+// background and having a Writer interface on top of it that would
+// write to the cmd.StdinPipe().
+//
+// See 7974548 (implement basic fbink output (#49), 2023-06-09) for
+// when the prototype working with cat(1) was ripped out.
 func (w *fbinkWriter) Run(args ...string) (err error) {
 	cmd := exec.Command("fbink", args...)
 
