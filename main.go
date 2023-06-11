@@ -284,13 +284,13 @@ func setupLogging(config wallabakoConfig) {
 			MaxBackups: 7, //files
 			MaxAge:     7, //days
 		}
-		if fbink != nil {
+		if err == nil {
 			log.SetOutput(io.MultiWriter(fileLogger, os.Stdout, fbink))
 		} else {
 			log.SetOutput(io.MultiWriter(fileLogger, os.Stdout))
 		}
 	} else {
-		if fbink != nil {
+		if err == nil {
 			log.SetOutput(io.MultiWriter(os.Stdout, fbink))
 		} else {
 			log.SetOutput(os.Stdout)

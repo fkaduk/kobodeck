@@ -31,11 +31,7 @@ func fbinkInitialize() (fbink *fbinkWriter, err error) {
 	// todo: don't actually write to screen, just check if fbink is
 	// executable?
 	_, err = fbink.Write([]byte("wallabako starting"))
-	if err != nil {
-		return nil, err
-	} else {
-		return fbink, nil
-	}
+	return fbink, err
 }
 
 func (w *fbinkWriter) Write(p []byte) (n int, err error) {
