@@ -43,7 +43,7 @@ func fbinkInitialize() (fbink *fbinkCommandWriter, err error) {
 // it will always return the full length of the buffer or zero, if
 // there's an error
 func (w *fbinkCommandWriter) Write(p []byte) (n int, err error) {
-	err = w.Run("--centered", "--row", "-4", string(p))
+	err = w.Run("--padded", "--centered", "--row", "-4", string(p))
 	if err != nil {
 		return 0, err
 	}
@@ -51,7 +51,7 @@ func (w *fbinkCommandWriter) Write(p []byte) (n int, err error) {
 }
 
 func (w *fbinkCommandWriter) Close() (err error) {
-	return w.Run("--centered", "--row", "-5", "wallabako finished")
+	return w.Run("--padded", "--centered", "--row", "-5", "wallabako finished")
 }
 
 // fbinkRun calls fbink with the given parameters
@@ -157,7 +157,7 @@ func (w *fbinkInteractiveWriter) Close() (err error) {
 // defer fbink.Close()
 func fbinkInteractiveInitialize() (fbink *fbinkInteractiveWriter, err error) {
 	fbink = &fbinkInteractiveWriter{}
-	err = fbink.Run("--interactive")
+	err = fbink.Run("--interactive", "--padded")
 	fbink.Write([]byte("wallabako starting..."))
 	return fbink, err
 }
