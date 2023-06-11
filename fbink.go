@@ -26,7 +26,7 @@ import "os/exec"
 
 type fbinkCommandWriter struct{}
 
-// fbinkInterface factory, detects if fbink is availble and works, if
+// fbinkInterface factory, detects if fbink is available and works, if
 // so return a fbinkCommandWriter object or nil otherwise.
 func fbinkInitialize() (fbink *fbinkCommandWriter, err error) {
 	fbink = &fbinkCommandWriter{}
