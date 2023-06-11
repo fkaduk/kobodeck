@@ -119,8 +119,20 @@ func main() {
 	var err error
 	// load defaults from configuration file
 	*configFile, err = findConfig()
+	// setup fbink writer if available
+	//
+	// this displays messages in an overlay on the Kobo readers (and
+	// others) if the fbink binary is available, see
+	// https://github.com/NiLuJe/FBInk
+	//fbink, fbink_err := fbinkInitialize()
+	fbink, fbink_err := fbinkInteractiveInitialize()
+	defer fbink.Close()
 	// need to bootstrap logfile first before we handle errors
-	setupLogging(config)
+	setupLogging(config, fbink)
+	if fbink_err != nil {
+		log.Printf("fbink initialization failed: %s", err)
+	}
+
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -270,16 +282,7 @@ func debugf(fmt string, args ...interface{}) {
 // XXX: we do not support the -logfile argument anymore, as we would
 // need to reconfigure logging on the fly, which is clunky. users can
 // just use shell redirection there anyways.
-func setupLogging(config wallabakoConfig) {
-	// setup fbink writer if available
-	//
-	// this displays messages in an overlay on the Kobo readers (and
-	// others) if the fbink binary is available, see
-	// https://github.com/NiLuJe/FBInk
-	fbink, err := fbinkInitialize()
-	if err != nil {
-		log.Printf("fbink initialization failed: %s", err)
-	}
+func setupLogging(config wallabakoConfig, extraWriter *fbinkInteractiveWriter) {
 	if len(config.LogFile) > 0 {
 		fileLogger := &lumberjack.Logger{
 			Filename:   config.LogFile,
@@ -287,9 +290,9 @@ func setupLogging(config wallabakoConfig) {
 			MaxBackups: 7, //files
 			MaxAge:     7, //days
 		}
-		log.SetOutput(io.MultiWriter(fileLogger, os.Stdout, fbink))
+		log.SetOutput(io.MultiWriter(fileLogger, os.Stdout, extraWriter))
 	} else {
-		log.SetOutput(io.MultiWriter(os.Stdout, fbink))
+		log.SetOutput(io.MultiWriter(os.Stdout, extraWriter))
 	}
 }
 
