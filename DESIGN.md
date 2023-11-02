@@ -211,12 +211,14 @@ next call would download the file and then delete it again.
 Articles that are currently in the "reading" state are never
 deleted.
 
-We use the
-[mattn sqlite library](https://github.com/mattn/go-sqlite3), which is
-the
-[recommended one](https://www.reddit.com/r/golang/comments/2tijbf/which_sqlite3_package_to_use_mattngosqlite3_or/). I
-followed the basic
-[golang wiki](https://github.com/golang/go/wiki/SQLInterface) tutorial
+We use the [mattn sqlite library](https://github.com/mattn/go-sqlite3), which was [recommended on
+reddit](https://www.reddit.com/r/golang/comments/2tijbf/which_sqlite3_package_to_use_mattngosqlite3_or/). Update: actually using a [transpiler now](https://modernc.org/sqlite), as it's
+becoming harder and harder to compile a static binary that works on
+the older kernel running on the older Kobos. Newer glibc cannot run on
+older kernels and that pretty much blocks backwards-compatibility. See
+also [squinn-go](https://github.com/cvilsmeier/sqinn-go).
+
+In any case, I originally followed the basic [golang wiki](https://github.com/golang/go/wiki/SQLInterface) tutorial
 . In the `.kobo/KoboReader.sqlite` database, we look for the book
 status in the `content` table for the `ReadStatus` column, which seems
 to be `0` for unread, `1` for in progress and `2` for read. The file
