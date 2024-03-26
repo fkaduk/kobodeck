@@ -1,3 +1,13 @@
+# 1.5.1 / 2024-03-26: Everything in its right place
+
+Maintenance release. Uncertain attempt at fixing `-config` command
+line flag, feedback welcome.
+
+Bug fixes:
+
+  * fix -config parameter (#29)
+  * fix on-screen display when called automatically
+
 # 1.5.0 / 2023-06-10: Here it goes again
 
 First release in over a year, and a major feature release! We have on
