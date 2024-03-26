@@ -117,30 +117,34 @@ var (
 func main() {
 	// this can't be initialized in the short form below otherwise it
 	// shadows the global config
-	var err error
+	var configErr error
 	// load defaults from configuration file
-	*configFile, err = findConfig()
+	*configFile, configErr = findConfig()
 	// setup fbink writer if available
 	//
 	// this displays messages in an overlay on the Kobo readers (and
 	// others) if the fbink binary is available, see
 	// https://github.com/NiLuJe/FBInk
 	var fbink io.WriteCloser
-	var fbink_err error
+	var fbinkErr error
 	if config.FbinkInteractive {
-		fbink, fbink_err = fbinkInteractiveInitialize()
+		fbink, fbinkErr = fbinkInteractiveInitialize()
 		defer fbink.Close()
 	} else {
-		fbink, fbink_err = fbinkInitialize()
+		fbink, fbinkErr = fbinkInitialize()
 	}
 	// need to bootstrap logfile first before we handle errors
 	setupLogging(config, fbink)
-	if fbink_err != nil {
-		log.Printf("fbink initialization failed: %s", err)
+	if fbinkErr != nil {
+		if config.FbinkInteractive {
+			log.Printf("fbink interactive initialization failed: %s", fbinkErr)
+		} else {
+			log.Printf("fbink initialization failed: %s", fbinkErr)
+		}
 	}
 
-	if err != nil {
-		log.Fatal(err.Error())
+	if configErr != nil {
+		log.Fatal(configErr.Error())
 	}
 	log.Println("loaded configuration from", *configFile)
 	flag.Parse()
