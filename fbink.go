@@ -18,10 +18,8 @@ package main
 
    https://github.com/shermp/go-fbink-v2
 */
-import "fmt"
 import "io"
 import "log"
-import "os"
 import "os/exec"
 
 type fbinkCommandWriter struct{}
@@ -77,11 +75,6 @@ func (w *fbinkCommandWriter) Close() (err error) {
 func (w *fbinkCommandWriter) Run(args ...string) (err error) {
 	cmd := exec.Command("fbink", args...)
 
-	currentPath := os.Getenv("PATH")
-	desiredPath := "/mnt/onboard/.adds/koreader:/mnt/onboard/.niluje/usbnet/bin:/usr/local/kfmon/bin"
-	newPath := fmt.Sprintf("%s:%s", currentPath, desiredPath)
-	cmd.Env = append(os.Environ(), fmt.Sprintf("PATH=%s", newPath))
-
 	// output is way to verbose to be useful, really clutters
 	// debugging on SSH. to see what fbink actually says when
 	// debugging, actually comment those out
@@ -106,12 +99,6 @@ type fbinkInteractiveWriter struct {
 // correctly
 func (w *fbinkInteractiveWriter) Run(args ...string) (err error) {
 	w.cmd = *exec.Command("fbink", args...)
-
-	currentPath := os.Getenv("PATH")
-	desiredPath := "/mnt/onboard/.adds/koreader:/mnt/onboard/.niluje/usbnet/bin:/usr/local/kfmon/bin"
-	newPath := fmt.Sprintf("%s:%s", currentPath, desiredPath)
-	w.cmd.Env = append(os.Environ(), fmt.Sprintf("PATH=%s", newPath))
-
 	w.stdin, err = w.cmd.StdinPipe()
 	if err != nil {
 		log.Printf("cannot create StdinPipe to fbink: %s", err)
