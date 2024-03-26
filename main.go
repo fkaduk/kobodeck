@@ -40,8 +40,6 @@ import (
 
 // commandline flags that are not in the config file
 var (
-	// XXX: we shouldn't need to write the password down in the config:
-	// https://github.com/wallabag/wallabag/issues/2800
 	configFile  = flag.String("config", "", "path to the configuration file")
 	showVersion = flag.Bool("version", false, "show program version and exit")
 )
@@ -50,6 +48,8 @@ var (
 // read from the config file. others are only specified on the
 // commandline
 type wallabakoConfig struct {
+	// XXX: we shouldn't need to write the password down in the config:
+	// https://github.com/wallabag/wallabag/issues/2800
 	wallabago.WallabagConfig
 	Debug            bool        `json:"debug"`
 	Delete           bool        `json:"delete"`
