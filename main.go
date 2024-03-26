@@ -40,8 +40,8 @@ import (
 
 // commandline flags that are not in the config file
 var (
-	configFile  = flag.String("config", "", "path to the configuration file")
-	showVersion = flag.Bool("version", false, "show program version and exit")
+	configFileFlag = flag.String("config", "", "path to the configuration file")
+	showVersion    = flag.Bool("version", false, "show program version and exit")
 )
 
 // wallabakoConfig represents all configuration settings that can be
@@ -115,11 +115,20 @@ var (
 )
 
 func main() {
-	// this can't be initialized in the short form below otherwise it
-	// shadows the global config
-	var configErr error
+	// parse commandline first to get a possible -config
+	// argument. we'll parse them *again* to allow users to override
+	// config settings with commandline flags.
+	flag.Parse()
 	// load defaults from configuration file
-	*configFile, configErr = findConfig()
+	configFile, configErr := findConfig()
+	// now allow users to override
+	flag.Parse()
+	debugf("config after commandline parsing: %#v", config)
+	if *showVersion {
+		fmt.Println(version)
+		return
+	}
+
 	// setup fbink writer if available
 	//
 	// this displays messages in an overlay on the Kobo readers (and
@@ -146,13 +155,8 @@ func main() {
 	if configErr != nil {
 		log.Fatal(configErr.Error())
 	}
-	log.Println("loaded configuration from", *configFile)
-	flag.Parse()
-	debugf("config after commandline parsing: %#v", config)
-	if *showVersion {
-		fmt.Println(version)
-		return
-	}
+	log.Println("loaded configuration from", configFile)
+
 	start := time.Now()
 	defer func() {
 		log.Printf("version %s completed in %s, processed: %d, downloaded: %d, size: %s, deleted: %d, read: %d",
@@ -170,7 +174,7 @@ func main() {
 	}
 	defer lock.Unlock()
 
-	if err = wallabago.ReadConfig(*configFile); err != nil {
+	if err = wallabago.ReadConfig(configFile); err != nil {
 		log.Fatal("cannot load configuration file: ", err.Error())
 	}
 
@@ -337,11 +341,19 @@ func loadConfig(configFile string) (err error) {
 // provided as `path` or, if that is empty, is searched for in a set
 // of standard directories
 func findConfig() (path string, err error) {
+	// special case: check configFileFlag first, the -config flag from
+	// the command line
+	if err = loadConfig(*configFileFlag); err == nil {
+		return *configFileFlag, nil
+	} else {
+		debugf("can't load config path from flag: %v", err)
+	}
+	// if not specified, fallback to predefined list
 	for _, path = range confPaths {
 		if err = loadConfig(path); err == nil {
 			break
 		} else {
-			debugf("can't load config path %v: %v", path, err)
+			debugf("can't load config path: %v", err)
 		}
 	}
 	return path, err
