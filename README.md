@@ -244,10 +244,15 @@ from the top of the display, completely clobbering the current
 display. This can be extremely distracting which is why it's off by
 default.
 
+Even without that setting, `fbink` will be used to display messages,
+if available. The difference is `fbink` will be called repeatedly,
+clobbering previous messages but limiting the amount of text flooding
+the display.
+
 And, of course, if you haven't modified your reader far enough to have
-fbink actually installed, you'll never see that good stuff. If you
-want to *only* install fbink, it seems the canonical installation
-instructions are in [this forum post](https://www.mobileread.com/forums/showthread.php?t=299110).
+`fbink` actually installed, you'll never see that good stuff. If you
+want to *only* install `fbink` (without koreader of kfmon), it seems
+the canonical installation instructions are in [this forum post](https://www.mobileread.com/forums/showthread.php?t=299110).
 
 [fbink]: https://github.com/NiLuJe/FBInk
 [kfmon]: https://github.com/NiLuJe/kfmon/
