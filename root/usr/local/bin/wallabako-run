@@ -9,4 +9,8 @@ echo starting wallabako
 PATH=$PATH:/mnt/onboard/.adds/koreader:/mnt/onboard/.niluje/usbnet/bin:/usr/local/kfmon/bin:/usr/local/bin:/sbin:/usr/sbin:/bin:/usr/bin
 export PATH
 
-/usr/local/bin/wallabako -output /mnt/onboard/wallabako/ -exec /usr/local/bin/fake-connect-usb &
+if ps ax | grep -i nickel; then
+    /usr/local/bin/wallabako -output /mnt/onboard/wallabako/ -exec /usr/local/bin/fake-connect-usb &
+else
+    /usr/local/bin/wallabako -output /mnt/onboard/wallabako/ &
+fi
