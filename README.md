@@ -395,7 +395,7 @@ Here's an example of a fully-populated configuration file:
       "FbinkInteractive": false,
       "LogFile": "/mnt/onboard/wallabako.log.txt",
       "OutputDir": "/mnt/onboard/wallabako",
-      "PidFile", "wallabako.pid",
+      "PidFile": "wallabako.pid",
       "Plato": {
         "LibraryPath": "/mnt/onboard"
       },
