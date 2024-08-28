@@ -32,7 +32,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Strubbl/wallabago/v6"
+	"github.com/Strubbl/wallabago/v9"
 	"github.com/dustin/go-humanize"
 	"github.com/nightlyone/lockfile"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -448,7 +448,7 @@ func login(baseURL, username, password string) (*http.Client, error) {
 
 // get the unread entries, most recent first, limited to the given count
 func listEntries() ([]wallabago.Item, error) {
-	entries, err := wallabago.GetEntries(wallabago.APICall, 0, -1, "updated", "desc", -1, config.Count, "")
+	entries, err := wallabago.GetEntries(wallabago.APICall, 0, -1, "updated", "desc", -1, config.Count, "", 0, 0, "", "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list entries in wallabag: %v", err)
 	}
