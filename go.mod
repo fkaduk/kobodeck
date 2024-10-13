@@ -5,7 +5,7 @@ go 1.23
 toolchain go1.23.2
 
 require (
-	github.com/Strubbl/wallabago/v9 v9.0.5
+	github.com/Strubbl/wallabago/v9 v9.0.6
 	github.com/dustin/go-humanize v1.0.1
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/nightlyone/lockfile v1.0.0
@@ -47,7 +47,7 @@ require (
 	golang.org/x/sys v0.24.0 // indirect
 	golang.org/x/telemetry v0.0.0-20240521205824-bda55230c457 // indirect
 	golang.org/x/term v0.23.0 // indirect
-	golang.org/x/text v0.18.0 // indirect
+	golang.org/x/text v0.19.0 // indirect
 	golang.org/x/tools v0.24.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240716161551-93cc26a95ae9 // indirect
 	lukechampine.com/uint128 v1.3.0 // indirect
