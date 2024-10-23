@@ -333,7 +333,7 @@ their matching configuration file settings:
 | `Debug`             | `-debug`       | `false`                                | include (lots of!) additional debugging information in logs, including passwords  and confidential data                             |
 | `Delete`            | `-delete`      | `false`                                | delete EPUB files marked as read or missing from Wallabag                                                                           |
 | `Database`          | `-database`    | `/mnt/onboard/.kobo/KoboReader.sqlite` | path to the Kobo database                                                                                                           |
-| `Concurrency`       | `-concurrency` | 6                                      | number of downloads to process in parallel                                                                                          |
+| `Concurrency`       | `-concurrency` | 2                                      | number of downloads to process in parallel                                                                                          |
 | `Count`             | `-count`       | -1                                     | number of articles to fetch, -1 means use Wallabag default                                                                          |
 | `Exec`              | `-exec`        | nothing                                | execute the given command when files have changed                                                                                   |
 | `LogFile`           | N/A            | no logging                             | rotated logfile to store debug information                                                                                          |
@@ -384,7 +384,7 @@ integer).
 Here's an example of a fully-populated configuration file:
 
     {
-      "Concurrency": 6,
+      "Concurrency": 2,
       "Count": -1,
       "ClientId": "14_2vun20ernfy880wgkk88gsoosk4csocs4ccw4sgwk84gc84o4k",
       "ClientSecret": "69k0alx9bdcsc0c44o84wk04wkgw0c0g4wkww8c0wwok0sk4ok",
