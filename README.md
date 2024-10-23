@@ -342,7 +342,8 @@ their matching configuration file settings:
 | `RetryMax`          | `-retry`       | 4                                      | number of attempts to login the website, with exponential backoff delay                                                             |
 | `Tags`              | `-tags`        | no tags filtering                      | a comma-separated list of tags to filter for                                                                                        |
 | `Plato.LibraryPath` | N/A            | `/mnt/onboard`                         | For [plato document reader](https://github.com/baskerville/plato) integration, the value of `[[libraries.path]]` in `Settings.toml` |
-| `FbinkInteractive`  | N/A            | `false`                                | use full screen interactive [fbink][] mode, if available                                                                            |
+| `Fbink`             | N/A            | `false`                                | use [fbink][] to overlay logs directly on the kobo screen, can be noisy                                                             |
+| `FbinkInteractive`  | N/A            | `false`                                | use full screen interactive [fbink][] mode                                                                                          |
 
 Some more details about specific settings:
 
@@ -366,6 +367,9 @@ Some more details about specific settings:
    logging for configuration file discovery while at the same time
    allowing the logfile to be changed when commandline flags are
    parsed.
+
+ * The `Fbink` settings only work if `fbink` is installed and
+   available in the `$PATH`, wallabako doesn't ship fbink itself.
 
 Finally, note that some of those settings are hardcoded in the
 `wallabako-run` wrapper script and therefore cannot be overridden in
@@ -392,6 +396,7 @@ Here's an example of a fully-populated configuration file:
       "Delete": false,
       "Database": "/mnt/onboard/.kobo/KoboReader.sqlite",
       "Exec": "/usr/local/bin/fake-connect-usb",
+      "Fbink": false,
       "FbinkInteractive": false,
       "LogFile": "/mnt/onboard/wallabako.log.txt",
       "OutputDir": "/mnt/onboard/wallabako",
