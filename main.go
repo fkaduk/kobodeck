@@ -75,8 +75,11 @@ type wallabakoConfig struct {
 // only some of those flags are set because the zero values are good
 // enough for the other flags
 var config = wallabakoConfig{
-	Database:    "/mnt/onboard/.kobo/KoboReader.sqlite",
-	Concurrency: 6,
+	Database: "/mnt/onboard/.kobo/KoboReader.sqlite",
+	// original default was from web browsers, which are around 6-10:
+	// http://www.browserscope.org/?category=network
+	// but we reduced this because our use is heavier
+	Concurrency: 2,
 	Count:       -1,
 	RetryMax:    4,
 }
@@ -87,7 +90,6 @@ func init() {
 	flag.BoolVar(&config.Debug, "debug", false, "additional debugging information in logs, including confidential information")
 	flag.BoolVar(&config.Delete, "delete", false, "if we should delete EPUB files not found in feed")
 	flag.StringVar(&config.Database, "database", config.Database, "path to Kobo Nickel database")
-	// default is from web browsers, which are around 6-10: http://www.browserscope.org/?category=network
 	flag.IntVar(&config.Concurrency, "concurrency", config.Concurrency, "number of downloads to process in parallel")
 	flag.IntVar(&config.Count, "count", config.Count, "number of articles to fetch")
 	flag.StringVar(&config.Exec, "exec", "", "execute the given command when files have changed")
