@@ -63,6 +63,7 @@ type wallabakoConfig struct {
 	RetryMax         int         `json:"RetryMax"`
 	Tags             string      `json:"Tags"`
 	PlatoConfig      PlatoConfig `json:"plato"`
+	Fbink            bool        `json:"Fbink"`
 	FbinkInteractive bool        `json:"FbinkInteractive"`
 }
 
@@ -123,6 +124,10 @@ func main() {
 	flag.Parse()
 	// load defaults from configuration file
 	configFile, configErr := findConfig()
+
+	// note that we handle the config error later, because need to
+	// bootstrap the logfile first before we handle errors
+
 	// now allow users to override
 	flag.Parse()
 	debugf("config after commandline parsing: %#v", config)
@@ -130,27 +135,30 @@ func main() {
 		fmt.Println(version)
 		return
 	}
+	setupLogging(config)
 
 	// setup fbink writer if available
 	//
 	// this displays messages in an overlay on the Kobo readers (and
 	// others) if the fbink binary is available, see
 	// https://github.com/NiLuJe/FBInk
-	var fbink io.WriteCloser
-	var fbinkErr error
-	if config.FbinkInteractive {
-		fbink, fbinkErr = fbinkInteractiveInitialize()
-		defer fbink.Close()
-	} else {
-		fbink, fbinkErr = fbinkInitialize()
-	}
-	// need to bootstrap logfile first before we handle errors
-	setupLogging(config, fbink)
-	if fbinkErr != nil {
+	if config.Fbink {
+		var fbink io.WriteCloser
+		var fbinkErr error
 		if config.FbinkInteractive {
-			log.Printf("fbink interactive initialization failed: %s", fbinkErr)
+			fbink, fbinkErr = fbinkInteractiveInitialize()
+			defer fbink.Close()
 		} else {
-			log.Printf("fbink initialization failed: %s", fbinkErr)
+			fbink, fbinkErr = fbinkInitialize()
+		}
+		if fbinkErr != nil {
+			if config.FbinkInteractive {
+				log.Printf("fbink interactive initialization failed: %s", fbinkErr)
+			} else {
+				log.Printf("fbink initialization failed: %s", fbinkErr)
+			}
+		} else {
+			setupLogging(config, fbink)
 		}
 	}
 
@@ -299,11 +307,9 @@ func debugf(fmt string, args ...interface{}) {
 
 // setupLogging configures logging to a rotate file using the
 // lumberjack package, if it is configured in the config file
-//
-// XXX: we do not support the -logfile argument anymore, as we would
-// need to reconfigure logging on the fly, which is clunky. users can
-// just use shell redirection there anyways.
-func setupLogging(config wallabakoConfig, extraWriter io.Writer) {
+func setupLogging(config wallabakoConfig, extraWriters ...io.Writer) {
+	var writers []io.Writer
+
 	if len(config.LogFile) > 0 {
 		fileLogger := &lumberjack.Logger{
 			Filename:   config.LogFile,
@@ -311,10 +317,12 @@ func setupLogging(config wallabakoConfig, extraWriter io.Writer) {
 			MaxBackups: 7, //files
 			MaxAge:     7, //days
 		}
-		log.SetOutput(io.MultiWriter(fileLogger, os.Stdout, extraWriter))
-	} else {
-		log.SetOutput(io.MultiWriter(os.Stdout, extraWriter))
+		writers = append(writers, fileLogger)
 	}
+	writers = append(writers, os.Stdout)
+	writers = append(writers, extraWriters...)
+
+	log.SetOutput(io.MultiWriter(writers...))
 }
 
 // confPath is the name of the default configuration file
