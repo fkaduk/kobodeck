@@ -592,19 +592,22 @@ const (
 // readStatus will return the read status of the given ID book, which
 // should be either bookUnread, bookReading or bookRead
 func readStatus(ID int, outputDir string) (res bookStatus, err error) {
-	res, err = readPlatoStatus(ID, outputDir)
+	res, _ = readPlatoStatus(ID, outputDir)
 	if res != bookUnread {
 		debugf("plato book %d status not unread: %d\n", ID, res)
-		return res, err
+		return res, nil
 	}
-	res, err = readKoreaderStatus(ID, outputDir)
+	res, _ = readKoreaderStatus(ID, outputDir)
 	if res != bookUnread {
 		debugf("koreader book %d status not unread: %d\n", ID, res)
-		return res, err
+		return res, nil
 	}
-	res, err = readNickelStatus(ID, outputDir)
-	debugf("nickel book %d status: %d\n", ID, res)
-	return res, err
+	if len(config.Database) > 0 {
+		res, _ = readNickelStatus(ID, outputDir)
+		debugf("nickel book %d status: %d\n", ID, res)
+		return res, nil
+	}
+	return res, nil
 }
 
 // markAsRead marks the given wallabag article ID as read through the API
