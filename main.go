@@ -92,6 +92,7 @@ func init() {
 	flag.BoolVar(&config.Delete, "delete", false, "if we should delete EPUB files not found in feed")
 	flag.StringVar(&config.Database, "database", config.Database, "path to Kobo Nickel database")
 	flag.IntVar(&config.Concurrency, "concurrency", config.Concurrency, "number of downloads to process in parallel")
+	flag.StringVar(&config.LogFile, "logfile", config.LogFile, "write logs to the given file as well, rotated automatically")
 	flag.IntVar(&config.Count, "count", config.Count, "number of articles to fetch")
 	flag.StringVar(&config.Exec, "exec", "", "execute the given command when files have changed")
 	flag.StringVar(&config.OutputDir, "output", ".", "output directory to save files into")

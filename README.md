@@ -336,7 +336,7 @@ their matching configuration file settings:
 | `Concurrency`       | `-concurrency` | 2                                      | number of downloads to process in parallel                                                                                          |
 | `Count`             | `-count`       | -1                                     | number of articles to fetch, -1 means use Wallabag default                                                                          |
 | `Exec`              | `-exec`        | nothing                                | execute the given command when files have changed                                                                                   |
-| `LogFile`           | N/A            | no logging                             | rotated logfile to store debug information                                                                                          |
+| `LogFile`           | `-logfile`     | no logging                             | rotated logfile to store debug information                                                                                          |
 | `OutputDir`         | `-output`      | current directory                      | output directory to save files into                                                                                                 |
 | `PidFile`           | `-pidfile`     | `wallabako.pid`                        | pidfile to write to avoid multiple runs                                                                                             |
 | `RetryMax`          | `-retry`       | 4                                      | number of attempts to login the website, with exponential backoff delay                                                             |
@@ -360,13 +360,6 @@ Some more details about specific settings:
     2. `/run`
     3. `/run/user/UID`
     4. `/home/USER/.`
-
- * There's no `-logfile` flag anymore since this was not really
-   useful: you can just redirect output to a file using shell
-   redirection (`> logfile`). Also, it was difficult to implement
-   logging for configuration file discovery while at the same time
-   allowing the logfile to be changed when commandline flags are
-   parsed.
 
  * The `Fbink` settings only work if `fbink` is installed and
    available in the `$PATH`, wallabako doesn't ship fbink itself.
