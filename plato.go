@@ -181,7 +181,7 @@ func readPlatoStatus(ID int, outputDir string) (res bookStatus, err error) {
 		if err != nil {
 			legacyMeta, err = parsePlatoLegacyMetadata(metadataPath)
 			if err != nil {
-				log.Println("could not load Plato metadata", err)
+				debugf("could not load Plato metadata: %s\n", err)
 				parsed = true
 				return res, err
 			}
