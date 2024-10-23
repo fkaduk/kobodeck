@@ -6,11 +6,12 @@ import (
 
 // Status holds all of our counters
 type Status struct {
-	Processed SafeCounter `json:"processed"`
+	Processed  SafeCounter `json:"processed"`
 	Downloaded SafeCounter `json:"downloaded"`
-	Bytes SafeCounter `json:"bytes"`
-	Deleted SafeCounter `json:"deleted"`
-	Read SafeCounter `json:"read"`
+	Bytes      SafeCounter `json:"bytes"`
+	Deleted    SafeCounter `json:"deleted"`
+	Read       SafeCounter `json:"read"`
+	Unread     SafeCounter `json:"unread"`
 }
 
 // SafeCounter is safe to use concurrently.
@@ -18,7 +19,6 @@ type Status struct {
 type SafeCounter struct {
 	count uint32
 }
-
 
 // Inc increments the counter for the given key.
 func (c *SafeCounter) Inc() {
@@ -33,4 +33,8 @@ func (c *SafeCounter) Add(value uint32) {
 // Value returns the current value of the counter for the given key.
 func (c *SafeCounter) Value() uint32 {
 	return atomic.LoadUint32(&c.count)
+}
+
+func (c *SafeCounter) Store(value uint32) {
+	atomic.StoreUint32(&c.count, value)
 }

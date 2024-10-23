@@ -169,14 +169,15 @@ func main() {
 
 	start := time.Now()
 	defer func() {
-		log.Printf("version %s completed in %s, processed: %d, downloaded: %d, size: %s, deleted: %d, read: %d",
+		log.Printf("version %s completed in %s, processed: %d, downloaded: %d, size: %s, deleted: %d, read: %d, unread: %d",
 			version,
 			time.Since(start).Truncate(time.Millisecond).String(),
 			counter.Processed.Value(),
 			counter.Downloaded.Value(),
 			humanize.IBytes(uint64(counter.Bytes.Value())),
 			counter.Deleted.Value(),
-			counter.Read.Value())
+			counter.Read.Value(),
+			counter.Unread.Value())
 	}()
 	lock, err := getLock(config.PidFile)
 	if err != nil {
@@ -462,7 +463,8 @@ func listEntries() ([]wallabago.Item, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to list entries in wallabag: %v", err)
 	}
-	log.Printf("found %d unread entries", entries.Total)
+	log.Printf("found %d unread entries, will check %d", entries.Total, config.Count)
+	counter.Unread.Store(uint32(entries.Total))
 	return entries.Embedded.Items, err
 }
 
