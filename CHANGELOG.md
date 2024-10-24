@@ -4,7 +4,7 @@ Lots of small changes that piled up in the last year.
 
 Features:
 
-  * readd the -logfile parameter
+  * re-add the -logfile parameter
   * report the number of unread entries near the end of the log too
   * stop yelling about missing nickel or plato configurations
   * trigger the fake-connect-usb script only if nickel is running
