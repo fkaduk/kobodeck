@@ -1,3 +1,27 @@
+# 1.6.0 / 2024-10-24: Here's your future
+
+Lots of small changes that piled up in the last year.
+
+Features:
+
+  * readd the -logfile parameter
+  * report the number of unread entries near the end of the log too
+  * stop yelling about missing nickel or plato configurations
+  * trigger the fake-connect-usb script only if nickel is running
+  * disable fbink by default
+
+Bug fixes:
+
+  * reduce default concurrency drastically
+  * README: fix typo in configuration file sample
+
+Chores:
+
+  * Added renovate-bot to the pipeline, which generates lots of
+    changes and noises in the Git history, mostly redacted here
+  * Port to wallabago 9
+  * Update all dependencies to latest
+
 # 1.5.1 / 2024-03-26: Everything in its right place
 
 Maintenance release. Uncertain attempt at fixing `-config` command
