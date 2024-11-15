@@ -25,11 +25,13 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Strubbl/wallabago/v9"
@@ -238,6 +240,11 @@ func main() {
 	// pattern
 	// other solutions in https://www.sohamkamani.com/golang/data-races/
 	sem := make(chan bool, config.Concurrency)
+
+	// signal handling
+	sigc := make(chan os.Signal, 1)
+	signal.Notify(sigc, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
+
 	entries, err := listEntries()
 	if err != nil {
 		log.Fatal(err)
@@ -249,6 +256,7 @@ func main() {
 			tags[strings.TrimSpace(tag)] = true
 		}
 	}
+OuterLoop:
 	for _, entry := range entries {
 		if len(config.Tags) > 0 {
 			if checkTags(tags, entry.Tags) == false {
@@ -258,16 +266,21 @@ func main() {
 		}
 		debugln("dispatching", entry.ID)
 		valid[entry.ID] = true
+		select {
 		// try to get a slot in the semaphore
-		sem <- true
-		// we got it, fork off a thread
-		go func(e wallabago.Item) {
-			// release the slot when finished
-			defer func() { <-sem }()
-			if err = download(client, config.WallabagURL, e); err != nil {
-				log.Println("error downloading entry", e.ID, err)
-			}
-		}(entry)
+		case sem <- true:
+			// we got it, fork off a thread
+			go func(e wallabago.Item) {
+				// release the slot when finished
+				defer func() { <-sem }()
+				if err = download(client, config.WallabagURL, e); err != nil {
+					log.Println("error downloading entry", e.ID, err)
+				}
+			}(entry)
+		case sig := <-sigc:
+			log.Println("got signal:", sig, ", waiting for downloads to finish...")
+			break OuterLoop
+		}
 	}
 	// refill all the semaphore slots to make sure we wait for everyone
 	for i := 0; i < cap(sem); i++ {
