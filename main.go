@@ -436,6 +436,7 @@ func login(baseURL, username, password string) (*http.Client, error) {
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
+		Timeout: 60 * time.Second,
 	}
 	resp, err := client.Get(baseURL + "/login")
 	if err != nil {
