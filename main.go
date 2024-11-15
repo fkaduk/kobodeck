@@ -536,7 +536,8 @@ func download(client *http.Client, baseURL string, entry wallabago.Item) (err er
 	defer resp.Body.Close()
 	n, err := io.Copy(out, resp.Body)
 	if err != nil {
-		return fmt.Errorf("can't write file: %v", err)
+		os.Remove(output)
+		return fmt.Errorf("can't write file, removed: %v", err)
 	}
 	if n >= 0 {
 		counter.Downloaded.Inc()
