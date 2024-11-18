@@ -340,6 +340,7 @@ their matching configuration file settings:
 | `OutputDir`         | `-output`      | current directory                      | output directory to save files into                                                                                                 |
 | `PidFile`           | `-pidfile`     | `wallabako.pid`                        | pidfile to write to avoid multiple runs                                                                                             |
 | `RetryMax`          | `-retry`       | 4                                      | number of attempts to login the website, with exponential backoff delay                                                             |
+| `Timeout`           | `-timeout`     | 60                                     | timeout for HTTP requests, in seconds                                                                                               |
 | `Tags`              | `-tags`        | no tags filtering                      | a comma-separated list of tags to filter for                                                                                        |
 | `Plato.LibraryPath` | N/A            | `/mnt/onboard`                         | For [plato document reader](https://github.com/baskerville/plato) integration, the value of `[[libraries.path]]` in `Settings.toml` |
 | `Fbink`             | N/A            | `false`                                | use [fbink][] to overlay logs directly on the kobo screen, can be noisy                                                             |
