@@ -63,6 +63,7 @@ type wallabakoConfig struct {
 	OutputDir        string      `json:"OutputDir"`
 	PidFile          string      `json:"PidFile"`
 	RetryMax         int         `json:"RetryMax"`
+	Timeout          int         `json:"Timeout"`
 	Tags             string      `json:"Tags"`
 	PlatoConfig      PlatoConfig `json:"plato"`
 	Fbink            bool        `json:"Fbink"`
@@ -85,6 +86,7 @@ var config = wallabakoConfig{
 	Concurrency: 2,
 	Count:       -1,
 	RetryMax:    4,
+	Timeout:     60,
 }
 
 // init sets up the commandline flags. when you change this, also
@@ -100,6 +102,7 @@ func init() {
 	flag.StringVar(&config.OutputDir, "output", ".", "output directory to save files into")
 	flag.StringVar(&config.PidFile, "pidfile", "", "pidfile to write to avoid multiple runs")
 	flag.IntVar(&config.RetryMax, "retry", config.RetryMax, "number of attempts to login the website, with exponential backoff delay")
+	flag.IntVar(&config.Timeout, "timeout", config.Timeout, "timeout for HTTP requests, in seconds")
 	flag.StringVar(&config.Tags, "tags", "", "a comma-separated list of tags to filter for")
 }
 
@@ -196,9 +199,16 @@ func main() {
 	debugf("username: %v, password: %v", config.UserName, config.UserPassword)
 	// retryCount is the number of logins wallabako will attempt
 	// first attempt is 1 second and first attempt double the delay at each attempt
-	var client *http.Client
+	jar, _ := cookiejar.New(nil)
+	var client = &http.Client{
+		Jar: jar,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+		Timeout: time.Duration(config.Timeout) * time.Second,
+	}
 	for retryCount := 0; retryCount <= config.RetryMax; retryCount++ {
-		client, err = login(config.WallabagURL, config.UserName, config.UserPassword)
+		err = login(client, config.WallabagURL, config.UserName, config.UserPassword)
 		if err == nil {
 			break
 		} else {
@@ -429,18 +439,10 @@ OuterLoop:
 }
 
 // XXX: this is necessary because < 2.2 don't have a EPUB API
-func login(baseURL, username, password string) (*http.Client, error) {
-	jar, _ := cookiejar.New(nil)
-	client := &http.Client{
-		Jar: jar,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-		Timeout: 60 * time.Second,
-	}
+func login(client *http.Client, baseURL, username, password string) error {
 	resp, err := client.Get(baseURL + "/login")
 	if err != nil {
-		return client, fmt.Errorf("failed to get login page: %v", err)
+		return fmt.Errorf("failed to get login page: %v", err)
 	}
 	defer resp.Body.Close()
 	// error ignored: if this fails, the CSRF token will be missing
@@ -450,7 +452,7 @@ func login(baseURL, username, password string) (*http.Client, error) {
 	if len(matches) > 0 {
 		log.Println("CSRF token found:", resp.Status)
 	} else {
-		return client, fmt.Errorf("no CSRF token found? is this a wallabag instance?")
+		return fmt.Errorf("no CSRF token found? is this a wallabag instance?")
 	}
 	form := url.Values{}
 	form.Set("_username", username)
@@ -462,14 +464,14 @@ func login(baseURL, username, password string) (*http.Client, error) {
 	if err == nil && resp.StatusCode == 302 {
 		loc, e := resp.Location()
 		if e != nil || strings.HasSuffix(loc.String(), "/login") {
-			return client, fmt.Errorf("login failed: wrong password?")
+			return fmt.Errorf("login failed: wrong password?")
 		}
 	} else {
 		// we *always* get a 302, this shouldn't happen
-		return client, fmt.Errorf("login failed: %s (%v)", resp.Status, err)
+		return fmt.Errorf("login failed: %s (%v)", resp.Status, err)
 	}
 	log.Println("logged in successful:", resp.Status)
-	return client, nil
+	return nil
 }
 
 // get the unread entries, most recent first, limited to the given count
