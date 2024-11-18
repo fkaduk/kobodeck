@@ -86,7 +86,7 @@ var config = wallabakoConfig{
 	Concurrency: 2,
 	Count:       -1,
 	RetryMax:    4,
-	Timeout:     60,
+	Timeout:     300,
 }
 
 // init sets up the commandline flags. when you change this, also
