@@ -10,7 +10,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/nightlyone/lockfile v1.0.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
-	modernc.org/sqlite v1.34.2
+	modernc.org/sqlite v1.34.4
 )
 
 require (
