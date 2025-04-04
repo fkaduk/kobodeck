@@ -1,5 +1,4 @@
 /*
-
 Parse read status from the Nickel UI database.
 
 Nickel is Kobo's builtin and proprietary UI which stores book details
@@ -16,7 +15,6 @@ Note that this file relies on an external variable named
 wallabakoSqliteBackend which is defined in one of nickel_*.go files,
 depending on compile-time tags. Those files are also responsible for
 importing the correct modules.
-
 */
 package main
 
