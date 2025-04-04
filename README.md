@@ -39,8 +39,9 @@ Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saytha
    1. [Kobo devices](#kobo-devices)
    2. [Commandline](#commandline)
    3. [On-screen display](#on-screen-display)
-6. [Support](#support)
-7. [Troubleshooting](#troubleshooting)
+6. [Uninstalling](#uninstalling)
+7. [Support](#support)
+8. [Troubleshooting](#troubleshooting)
    1. [Logging](#logging)
    2. [Configuration file details](#configuration-file-details)
    3. [Configuration file is not found even if present](#configuration-file-is-not-found-even-if-present)
@@ -48,13 +49,12 @@ Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saytha
    5. [Unable to open database file](#unable-to-open-database-file)
    6. [x509: failed to load system roots and no roots provided](#x509-failed-to-load-system-roots-and-no-roots-provided)
    7. [Command not running](#command-not-running)
-   8. [Uninstalling](#uninstalling)
-8. [Known issues](#known-issues)
-9. [Credits](#credits)
-10. [Contributing](#contributing)
+9. [Known issues](#known-issues)
+10. [Credits](#credits)
+11. [Contributing](#contributing)
     1. [Design notes](#design-notes)
     2. [Remaining issues](#remaining-issues)
-11. [Related projects](#related-projects)
+12. [Related projects](#related-projects)
 
 <!-- markdown-toc end -->
 
@@ -257,6 +257,69 @@ the canonical installation instructions are in [this forum post](https://www.mob
 [fbink]: https://github.com/NiLuJe/FBInk
 [kfmon]: https://github.com/NiLuJe/kfmon/
 
+# Uninstalling
+
+Because of the peculiar way Kobo devices are provisioned, uninstalling
+Wallabako can be tricky. For that reason, Wallabako supports a special
+setting called `Uninstall` in its configuration file. For example, the
+following, minimal configuration file in `.wallabako.js` at the root
+of your Kobo directory (when plugged in your computer) will tell
+Wallabako to uninstall itself:
+
+```
+{ "Uninstall": false }
+```
+
+It's also possible to pass the `-uninstall` flag on the command-line.
+
+Note that this uninstall procedure is not *fully* complete: the file
+`etc/ssl/certs/ca-certificates.crt` is left installed on the
+machine. That's because that's a critical system file that we feel
+relatively comfortable shipping, but removing it from some systems
+could be catastrophic. It's typically a small file (around 223KB) so
+it is not considered to be a big problem. If you *really* want to
+remove that as well, you need to specify an extra flag:
+
+```
+{
+  "Uninstall": false,
+  "UninstallCerts": true
+}
+```
+
+Similarly, we do not delete the configuration file created by the user
+or the files downloaded by Wallabako. We assume that, if the user is
+able to edit the configuration file or deploy the `KoboRoot.tgz` file,
+the user is also capable of removing those files themselves, as they
+are accessible when connecting the Kobo to a computer.
+
+Uninstalling Wallabako with itself has been supported since
+1.7.0. Before that, only manual uninstallation methods were available.
+
+## Manual uninstall
+
+If you have command-line access, you can likely remove the affected
+files yourself. At the time of writing, the files deployed by the
+`KoboRoot.tgz` installer are:
+
+```
+etc/udev/rules.d/90-wallabako.rules
+etc/wallabako.js
+etc/ssl/certs/ca-certificates.crt
+usr/local/bin/wallabako
+usr/local/bin/fake-connect-usb
+usr/local/bin/wallabako-run
+```
+
+Of those, the most important is `/etc/udev/rules.d/90-wallabako.rules`
+because that is where `wallabako` gets called automatically on network
+changes. So removing the `.rules` file should be enough to keep
+Wallabako from starting at all as well.
+
+Another option is to remove the `.wallabako.js` file altogether. That
+will "unconfigure" Wallabako which will still fire automatically when
+the network comes up, but it will do nothing.
+
 # Support
 
 I will provide only limited free support for this tool. I wrote it,
@@ -328,23 +391,25 @@ Most commandline options (except `-version` and `-config`) can also be
 set in the configuration file. Here are the configuration options and
 their matching configuration file settings:
 
-| Configuration       | Flag           | Default                                | Meaning                                                                                                                             |
-|---------------------|----------------|----------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
-| `Debug`             | `-debug`       | `false`                                | include (lots of!) additional debugging information in logs, including passwords  and confidential data                             |
-| `Delete`            | `-delete`      | `false`                                | delete EPUB files marked as read or missing from Wallabag                                                                           |
-| `Database`          | `-database`    | `/mnt/onboard/.kobo/KoboReader.sqlite` | path to the Kobo database                                                                                                           |
-| `Concurrency`       | `-concurrency` | 2                                      | number of downloads to process in parallel                                                                                          |
-| `Count`             | `-count`       | -1                                     | number of articles to fetch, -1 means use Wallabag default                                                                          |
-| `Exec`              | `-exec`        | nothing                                | execute the given command when files have changed                                                                                   |
-| `LogFile`           | `-logfile`     | no logging                             | rotated logfile to store debug information                                                                                          |
-| `OutputDir`         | `-output`      | current directory                      | output directory to save files into                                                                                                 |
-| `PidFile`           | `-pidfile`     | `wallabako.pid`                        | pidfile to write to avoid multiple runs                                                                                             |
-| `RetryMax`          | `-retry`       | 4                                      | number of attempts to login the website, with exponential backoff delay                                                             |
-| `Timeout`           | `-timeout`     | 300                                    | timeout for HTTP requests, in seconds                                                                                               |
-| `Tags`              | `-tags`        | no tags filtering                      | a comma-separated list of tags to filter for                                                                                        |
-| `Plato.LibraryPath` | N/A            | `/mnt/onboard`                         | For [plato document reader](https://github.com/baskerville/plato) integration, the value of `[[libraries.path]]` in `Settings.toml` |
-| `Fbink`             | N/A            | `false`                                | use [fbink][] to overlay logs directly on the kobo screen, can be noisy                                                             |
-| `FbinkInteractive`  | N/A            | `false`                                | use full screen interactive [fbink][] mode                                                                                          |
+| Configuration       | Flag              | Default                                | Meaning                                                                                                                             |
+|---------------------|-------------------|----------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
+| `Debug`             | `-debug`          | `false`                                | include (lots of!) additional debugging information in logs, including passwords  and confidential data                             |
+| `Delete`            | `-delete`         | `false`                                | delete EPUB files marked as read or missing from Wallabag                                                                           |
+| `Database`          | `-database`       | `/mnt/onboard/.kobo/KoboReader.sqlite` | path to the Kobo database                                                                                                           |
+| `Concurrency`       | `-concurrency`    | 2                                      | number of downloads to process in parallel                                                                                          |
+| `Count`             | `-count`          | -1                                     | number of articles to fetch, -1 means use Wallabag default                                                                          |
+| `Exec`              | `-exec`           | nothing                                | execute the given command when files have changed                                                                                   |
+| `LogFile`           | `-logfile`        | no logging                             | rotated logfile to store debug information                                                                                          |
+| `OutputDir`         | `-output`         | current directory                      | output directory to save files into                                                                                                 |
+| `PidFile`           | `-pidfile`        | `wallabako.pid`                        | pidfile to write to avoid multiple runs                                                                                             |
+| `RetryMax`          | `-retry`          | 4                                      | number of attempts to login the website, with exponential backoff delay                                                             |
+| `Timeout`           | `-timeout`        | 300                                    | timeout for HTTP requests, in seconds                                                                                               |
+| `Tags`              | `-tags`           | no tags filtering                      | a comma-separated list of tags to filter for                                                                                        |
+| `Plato.LibraryPath` | N/A               | `/mnt/onboard`                         | For [plato document reader](https://github.com/baskerville/plato) integration, the value of `[[libraries.path]]` in `Settings.toml` |
+| `Fbink`             | N/A               | `false`                                | use [fbink][] to overlay logs directly on the kobo screen, can be noisy                                                             |
+| `FbinkInteractive`  | N/A               | `false`                                | use full screen interactive [fbink][] mode                                                                                          |
+| `Uninstall`         | `-uninstall`      | `false`                                | uninstall Wallabako (!)                                                                                                             |
+| `UninstallCerts`    | `-uninstallcerts` | `false`                                | also uninstall `ca-certificates.crt`                                                                                                |
 
 Some more details about specific settings:
 
@@ -400,6 +465,8 @@ Here's an example of a fully-populated configuration file:
       },
       "RetryMax": 4,
       "Tags": "",
+      "Uninstall": false,
+      "UninstallCerts": false,
       "UserName": "joelle",
       "UserPassword": "your super password goes here",
       "WallabagURL": "https://app.wallabag.it"
@@ -547,39 +614,6 @@ In the above case, network is down, probably because the command ran
 too fast. You can adjust the delay in `wallabako-run`, but really this
 should be automated in the script (which should retry a few times
 before giving up).
-
-## Uninstalling
-
-Unfortunately, there is no easy way to uninstall Wallabako ([bug 36][]). While Kobo
-provides a way to automatically *install* files on the readers, there
-is no (at least obvious) way of *removing* those files once they are
-installed. To cleanup the install, you need to manually remove the
-files provided in the `KoboRoot.tgz` file, which are, at the time of
-writing:
-
-```
-etc/udev/rules.d/90-wallabako.rules
-etc/wallabako.js
-etc/ssl/certs/ca-certificates.crt
-usr/local/bin/wallabako
-usr/local/bin/fake-connect-usb
-usr/local/bin/wallabako-run
-```
-
-[bug 36]: https://gitlab.com/anarcat/wallabako/-/issues/36
-
-Of those, the one likely to cause problems is possibly only
-`/etc/udev/rules.d/90-wallabako.rules`, and only because it calls
-`/usr/local/bin/wallabako-run` which in turns calls
-`/usr/local/bin/fake-connect-usb`. So removing the `.rules` file
-should be enough to keep Wallabako from starting at all.
-
-If you cannot access those files directly (which is likely, unless you
-have [SSH access](https://gitlab.com/anarcat/kobo-ssh) or have [KSM](https://www.mobileread.com/forums/showthread.php?t=266821) installed), a workaround disable
-the configuration file. Remove the `.wallabako.js` configuration file
-at the root of your Kobo filesystem: this will "unconfigure" Wallabako
-which will still fire automatically when wifi comes up, but it will do
-nothing, which shouldn't cause problems anymore.
 
 # Known issues
 
