@@ -1,3 +1,23 @@
+# 1.7.0 / 2025-04-04: Man from the future
+
+Maintenance / feature release.
+
+Features:
+
+  * add support for uninstalling wallabako, finally!
+
+Bug fixes:
+
+  * tweak output about numbers of entries we're checking
+  * recover from Nickel database reads crashes
+  * add timeout to HTTP client, default to 5 minutes
+  * remove files on I/O errors, fixes partial files
+  * handle interrupts in download routine
+
+Chores:
+
+  * Update dependencies (go, sqlite, wallabago)
+
 # 1.6.0 / 2024-10-24: Here's your future
 
 Lots of small changes that piled up in the last year.
