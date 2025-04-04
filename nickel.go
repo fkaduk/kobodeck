@@ -39,6 +39,11 @@ const (
 )
 
 func readNickelStatus(ID int, outputDir string) (res bookStatus, err error) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Println("failed to read Nickel status:", err)
+		}
+	}()
 	if len(config.Database) <= 0 {
 		return res, fmt.Errorf("no database configured")
 	}

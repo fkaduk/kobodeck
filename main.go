@@ -29,6 +29,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"syscall"
@@ -142,6 +143,11 @@ func main() {
 		return
 	}
 	setupLogging(config)
+
+	// this is necessary for recover() to work with SIGBUS, which it
+	// seems we now get on the Kobo Glo HD with our SQLite backend,
+	// see the recover() call in nickel.go
+	debug.SetPanicOnFault(true)
 
 	// setup fbink writer if available
 	//
