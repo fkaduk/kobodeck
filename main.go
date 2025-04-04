@@ -486,7 +486,11 @@ func listEntries() ([]wallabago.Item, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to list entries in wallabag: %v", err)
 	}
-	log.Printf("found %d unread entries, will check %d", entries.Total, config.Count)
+	min := config.Count
+	if entries.Total < config.Count {
+		min = entries.Total
+	}
+	log.Printf("found %d unread entries, will check %d", entries.Total, min)
 	counter.Unread.Store(uint32(entries.Total))
 	return entries.Embedded.Items, err
 }
