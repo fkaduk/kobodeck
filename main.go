@@ -69,6 +69,8 @@ type wallabakoConfig struct {
 	PlatoConfig      PlatoConfig `json:"plato"`
 	Fbink            bool        `json:"Fbink"`
 	FbinkInteractive bool        `json:"FbinkInteractive"`
+	Uninstall        bool        `json:"Uninstall"`
+	UninstallCerts   bool        `json:"UninstallCerts"`
 }
 
 // config is the global configuration, as read from the config file
@@ -105,6 +107,8 @@ func init() {
 	flag.IntVar(&config.RetryMax, "retry", config.RetryMax, "number of attempts to login the website, with exponential backoff delay")
 	flag.IntVar(&config.Timeout, "timeout", config.Timeout, "timeout for HTTP requests, in seconds")
 	flag.StringVar(&config.Tags, "tags", "", "a comma-separated list of tags to filter for")
+	flag.BoolVar(&config.Uninstall, "uninstall", false, "uninstall wallabako")
+	flag.BoolVar(&config.UninstallCerts, "uninstallcerts", false, "also uninstall ca-certificates.crt")
 }
 
 // various global variables
@@ -191,6 +195,11 @@ func main() {
 			counter.Read.Value(),
 			counter.Unread.Value())
 	}()
+
+	if config.Uninstall {
+		uninstall()
+	}
+
 	lock, err := getLock(config.PidFile)
 	if err != nil {
 		log.Fatal("Cannot lock PID file: ", err)
@@ -398,6 +407,43 @@ func findConfig() (path string, err error) {
 		}
 	}
 	return path, err
+}
+
+func uninstall() {
+	log.Println("uninstall requested, clearing myself out")
+	var files []string
+	if strings.HasPrefix(os.Args[0], "/usr/local") {
+		// do *not* delete etc/ssl/certs/ca-certificates.crt
+		// because that feels really too dangerous
+		files = []string{
+			"/etc/wallabako.js",
+			"/etc/udev/rules.d/90-wallabako.rules",
+			"/usr/local/bin/fake-connect-usb",
+			"/usr/local/bin/wallabako-run",
+			"/usr/local/bin/wallabako-run-direct",
+			"/usr/local/bin/wallabako",
+		}
+	} else {
+		log.Fatal("unexpected command path, aborting uninstall:", os.Args[0])
+	}
+	if config.UninstallCerts {
+		files = append(files, "/etc/ssl/certs/ca-certificates.crt")
+	}
+	var err error
+	for _, file := range files {
+		err = os.Remove(file)
+		if err != nil {
+			log.Printf("Failed: %s", err)
+		} else {
+			log.Printf("Successfully deleted %s\n", file)
+		}
+	}
+	if err != nil {
+		log.Fatal("failed to remove some files, uninstall partly failed")
+	} else {
+		log.Fatal("uninstall finished, thanks for trying out Wallabako")
+	}
+	return
 }
 
 // the base name of the pidfile
