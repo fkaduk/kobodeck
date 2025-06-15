@@ -10,7 +10,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.28
 	github.com/nightlyone/lockfile v1.0.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
-	modernc.org/sqlite v1.37.1
+	modernc.org/sqlite v1.38.0
 )
 
 require (
@@ -57,13 +57,13 @@ require (
 	modernc.org/ccgo/v4 v4.28.0 // indirect
 	modernc.org/ccorpus v1.11.6 // indirect
 	modernc.org/ccorpus2 v1.5.2 // indirect
-	modernc.org/fileutil v1.3.1 // indirect
+	modernc.org/fileutil v1.3.3 // indirect
 	modernc.org/gc/v2 v2.6.5 // indirect
 	modernc.org/gc/v3 v3.0.0-20240801135723-a856999a2e4a // indirect
 	modernc.org/httpfs v1.0.6 // indirect
 	modernc.org/lex v1.1.1 // indirect
 	modernc.org/lexer v1.0.4 // indirect
-	modernc.org/libc v1.65.7 // indirect
+	modernc.org/libc v1.65.10 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/opt v0.1.4 // indirect
