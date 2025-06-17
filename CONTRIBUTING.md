@@ -15,14 +15,27 @@ code of conduct, how to submit issues, bug reports and patches.
 <!-- may need to be adapted. the above URLs will also need to be -->
 <!-- changed, obviously. -->
 
-<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-generate-toc again -->
+<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
 **Table of Contents**
 
 - [Contributor Covenant Code of Conduct](#contributor-covenant-code-of-conduct)
+    - [Our Pledge](#our-pledge)
+    - [Our Standards](#our-standards)
+    - [Our Responsibilities](#our-responsibilities)
+    - [Scope](#scope)
+    - [Enforcement](#enforcement)
+    - [Contacts](#contacts)
+    - [Attribution](#attribution)
+    - [Changes](#changes)
+- [Positive feedback](#positive-feedback)
 - [Patches](#patches)
+    - [Patch triage](#patch-triage)
 - [Documentation](#documentation)
 - [Issues and bug reports](#issues-and-bug-reports)
+    - [Issue triage](#issue-triage)
 - [Membership](#membership)
+- [Building](#building)
+    - [Building on Debian versions greater than 9 (stretch)](#building-on-debian-versions-greater-than-9-stretch)
 - [Release process](#release-process)
 
 <!-- markdown-toc end -->
