@@ -197,10 +197,10 @@ help if you need to.
 
 # Issues and bug reports
 
-We want you to report issuess you find in the software. It is a
+We want you to report issues you find in the software. It is a
 recognized and important part of contributing to this project. All
 issues will be read and replied to politely and
-professionnally. Issues and bug reports should be filed on the
+professionally. Issues and bug reports should be filed on the
 [issue tracker][issues].
 
 ## Issue triage
