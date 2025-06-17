@@ -1,6 +1,10 @@
 This document outlines how to contribute to this project. It details a
 code of conduct, how to submit issues, bug reports and patches.
 
+The code of conduct is a variation of the Contributor Covenant Code of
+Conduct, which you are probably familiar with. The rest of the
+document is different.
+
  [GitLab project]: https://gitlab.com/anarcat/wallabako/
  [merge requests]: https://gitlab.com/anarcat/wallabako/merge_requests
  [issues]: https://gitlab.com/anarcat/wallabako/issues
