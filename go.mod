@@ -7,7 +7,7 @@ toolchain go1.24.5
 require (
 	github.com/Strubbl/wallabago/v9 v9.0.12
 	github.com/dustin/go-humanize v1.0.1
-	github.com/mattn/go-sqlite3 v1.14.28
+	github.com/mattn/go-sqlite3 v1.14.30
 	github.com/nightlyone/lockfile v1.0.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	modernc.org/sqlite v1.38.2
