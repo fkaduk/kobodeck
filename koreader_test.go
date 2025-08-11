@@ -17,7 +17,7 @@ func TestReadKoreaderStatus(t *testing.T) {
 			t.Fatalf("failed to parse known good file %s: %s", path, err)
 		}
 		if res != status {
-			t.Errorf("metatadata %s should have been %d, was %d", path, status, res)
+			t.Errorf("metadata %s should have been %d, was %d", path, status, res)
 		}
 	}
 }
