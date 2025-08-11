@@ -629,7 +629,7 @@ Wallabako was written by The Anarcat and reviewed by friendly Debian
 developers `juliank` and `stapelberg`. `smurf` also helped in
 reviewing the code and answering my million newbie questions about go.
 
-Also thanks to [Norbert Preining][] for pulishing the
+Also thanks to [Norbert Preining][] for publishing the
 [Kobo firmware images][] that got me started into this path and allowed
 me to easily root my reader. This inspired me to start the related
 [kobo-ssh][] project to build smaller, ssh-only images.

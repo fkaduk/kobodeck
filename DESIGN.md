@@ -585,7 +585,7 @@ found the following libraries:
   self-contained, not a drop-in replacement, overkill?
 * [rlog](https://github.com/romana/rlog) - log level filtering and
   file output configurable through config file or environment,
-  standlone, no rotation, not a drop-in replacement
+  standalone, no rotation, not a drop-in replacement
 * [glog](https://godoc.org/github.com/golang/glog) - level filtering,
   hooks into the flags package for output control, Google's simple
   implementation, can hook into the builtin log package but not send
