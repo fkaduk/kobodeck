@@ -703,7 +703,7 @@ loss][] (Wallabag article being deleted!) for an unsuspecting user...
 
 [lead to data loss]: https://github.com/koreader/koreader/issues/8936
 [no sample config file]: https://github.com/koreader/koreader/issues/7576
-[wrote a fullWallabag plugin for koreader]: https://github.com/koreader/koreader/pull/4271 
+[wrote a full Wallabag plugin for koreader]: https://github.com/koreader/koreader/pull/4271 
 
 There's also a `readPlatoStatus` function, split into its own
 `plato.go` source file which should handle plato status changes. It
