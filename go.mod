@@ -10,7 +10,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.33
 	github.com/nightlyone/lockfile v1.0.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
-	modernc.org/sqlite v1.39.1
+	modernc.org/sqlite v1.44.1
 )
 
 require (
@@ -33,14 +33,14 @@ require (
 	github.com/ledongthuc/pdf v0.0.0-20220302134840-0c2507a12d80 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/ncruces/go-strftime v0.1.9 // indirect
+	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/orisano/pixelmatch v0.0.0-20220722002657-fb0b55479cde // indirect
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/yuin/goldmark v1.4.13 // indirect
 	golang.org/x/crypto v0.43.0 // indirect
-	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
+	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546 // indirect
 	golang.org/x/mod v0.29.0 // indirect
 	golang.org/x/net v0.46.0 // indirect
 	golang.org/x/sync v0.18.0 // indirect
@@ -52,18 +52,18 @@ require (
 	golang.org/x/xerrors v0.0.0-20240716161551-93cc26a95ae9 // indirect
 	lukechampine.com/uint128 v1.3.0 // indirect
 	modernc.org/cc/v3 v3.41.0 // indirect
-	modernc.org/cc/v4 v4.26.5 // indirect
+	modernc.org/cc/v4 v4.27.1 // indirect
 	modernc.org/ccgo/v3 v3.17.0 // indirect
-	modernc.org/ccgo/v4 v4.28.1 // indirect
+	modernc.org/ccgo/v4 v4.30.1 // indirect
 	modernc.org/ccorpus v1.11.6 // indirect
-	modernc.org/ccorpus2 v1.5.4 // indirect
+	modernc.org/ccorpus2 v1.5.8 // indirect
 	modernc.org/fileutil v1.3.40 // indirect
 	modernc.org/gc/v2 v2.6.5 // indirect
-	modernc.org/gc/v3 v3.0.0-20240801135723-a856999a2e4a // indirect
+	modernc.org/gc/v3 v3.1.1 // indirect
 	modernc.org/httpfs v1.0.6 // indirect
 	modernc.org/lex v1.1.1 // indirect
 	modernc.org/lexer v1.0.4 // indirect
-	modernc.org/libc v1.66.10 // indirect
+	modernc.org/libc v1.67.6 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/opt v0.1.4 // indirect
