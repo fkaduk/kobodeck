@@ -2,7 +2,7 @@ module gitlab.com/anarcat/wallabako
 
 go 1.24.2
 
-toolchain go1.25.3
+toolchain go1.25.6
 
 require (
 	github.com/Strubbl/wallabago/v9 v9.0.20
