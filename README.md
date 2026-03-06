@@ -267,7 +267,7 @@ of your Kobo directory (when plugged in your computer) will tell
 Wallabako to uninstall itself:
 
 ```
-{ "Uninstall": false }
+{ "Uninstall": true }
 ```
 
 It's also possible to pass the `-uninstall` flag on the command-line.
@@ -282,7 +282,7 @@ remove that as well, you need to specify an extra flag:
 
 ```
 {
-  "Uninstall": false,
+  "Uninstall": true,
   "UninstallCerts": true
 }
 ```
