@@ -1,3 +1,16 @@
+# Deprecation notice
+
+This software is now officially abandoned by its original author.
+
+I have switched away from [Wallabag](https://wallabag.org/) to [Readeck](https://readeck.org/) and will not
+be developing or maintaining Wallabako any further.
+
+This repository will remain publicly accessible, but archived, for the
+foreseeable future. If you're interested in taking over stewardship
+for this project, [contact me](https://anarc.at/contact/).
+
+See [this blog post](https://anarc.at/blog/2026-03-05-wallabako-retirement/) for details.
+
 # Wallabag downloader
 
 <img alt="Logo" src="assets/logo.png" align="right" />
