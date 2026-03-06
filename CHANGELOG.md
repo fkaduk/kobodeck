@@ -1,3 +1,21 @@
+# 1.8.0 / 2026-03-05: Angine de poitrine
+
+Retirement / bugfix release.
+
+Features:
+
+  * announce retirement: wallabako is now abandoned and/or looking for
+    a maintainer
+
+Bugfixes:
+
+  * fix uninstall instructions
+  * fix typos and broken links
+
+Chores:
+
+  * update a lot of dependencies
+
 # 1.7.0 / 2025-04-04: Man from the future
 
 Maintenance / feature release.
