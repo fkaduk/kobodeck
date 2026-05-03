@@ -26,6 +26,7 @@ type readeckBookmark struct {
 }
 
 func listEntries() ([]readeckBookmark, error) {
+	client := &http.Client{Timeout: time.Duration(config.Timeout) * time.Second}
 	var all []readeckBookmark
 	page := 1
 	const limit = 100
@@ -39,7 +40,7 @@ func listEntries() ([]readeckBookmark, error) {
 		req.Header.Set("Authorization", "Bearer "+config.Token)
 		req.Header.Set("Accept", "application/json")
 
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := client.Do(req)
 		if err != nil {
 			return nil, fmt.Errorf("list bookmarks: %w", err)
 		}
