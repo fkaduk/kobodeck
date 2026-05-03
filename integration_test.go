@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"testing"
 	"time"
@@ -87,6 +89,8 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// --- Helpers ---
+
 // bootstrapToken logs in via the Readeck web UI and creates an API token,
 // returning the raw token string. Token creation has no CLI equivalent in
 // Readeck v0.22+, so we use a web session.
@@ -146,21 +150,17 @@ func apiRequest(t *testing.T, method, path string, body io.Reader) *http.Respons
 	return resp
 }
 
-// --- Tests ---
-
-// TestSmoke verifies that the container is up, authentication works, and the
-// bookmark round-trip (create → list → delete) succeeds. This test uses only
-// direct HTTP calls so it passes before the wallabag→Readeck port is done.
-func TestSmoke(t *testing.T) {
-	// Create a bookmark.
-	body, _ := json.Marshal(map[string]string{"url": testBookmarkURL})
+// createLoadedBookmark posts a bookmark and blocks until Readeck has fetched and
+// parsed it (loaded: true). It registers a cleanup that deletes the bookmark.
+func createLoadedBookmark(t *testing.T, bookmarkURL string) string {
+	t.Helper()
+	body, _ := json.Marshal(map[string]string{"url": bookmarkURL})
 	resp := apiRequest(t, http.MethodPost, "/api/bookmarks", bytes.NewBuffer(body))
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusAccepted {
 		t.Fatalf("create bookmark: expected 202, got %d", resp.StatusCode)
 	}
 
-	// Poll until it appears in the list and is loaded.
 	var id string
 	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
@@ -173,7 +173,7 @@ func TestSmoke(t *testing.T) {
 		json.NewDecoder(resp.Body).Decode(&bookmarks)
 		resp.Body.Close()
 		for _, bm := range bookmarks {
-			if bm.URL == testBookmarkURL && bm.Loaded {
+			if bm.URL == bookmarkURL && bm.Loaded {
 				id = bm.ID
 				break
 			}
@@ -184,14 +184,146 @@ func TestSmoke(t *testing.T) {
 		time.Sleep(500 * time.Millisecond)
 	}
 	if id == "" {
-		t.Fatalf("bookmark did not appear or load within 30s")
+		t.Fatalf("bookmark %s did not load within 30s", bookmarkURL)
 	}
+	t.Cleanup(func() {
+		resp := apiRequest(t, http.MethodDelete, "/api/bookmarks/"+id, nil)
+		resp.Body.Close()
+	})
+	return id
+}
+
+// createNickelDB creates a minimal Nickel-schema SQLite database in dir and
+// returns its path. The caller can insert rows to simulate Kobo read status.
+func createNickelDB(t *testing.T, dir string) string {
+	t.Helper()
+	dbPath := filepath.Join(dir, "KoboReader.sqlite")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("create nickel db: %v", err)
+	}
+	defer db.Close()
+	_, err = db.Exec(`CREATE TABLE content (
+		ContentID   TEXT NOT NULL,
+		ContentType TEXT NOT NULL,
+		ReadStatus  INTEGER DEFAULT 0
+	)`)
+	if err != nil {
+		t.Fatalf("create content table: %v", err)
+	}
+	return dbPath
+}
+
+// --- Tests ---
+
+// TestSmoke verifies that the container is up, authentication works, and the
+// bookmark round-trip (create → list → delete) succeeds.
+func TestSmoke(t *testing.T) {
+	id := createLoadedBookmark(t, testBookmarkURL)
 	t.Logf("bookmark loaded: %s", id)
 
-	// Clean up.
-	resp = apiRequest(t, http.MethodDelete, "/api/bookmarks/"+id, nil)
+	resp := apiRequest(t, http.MethodGet, "/api/bookmarks/"+id, nil)
+	defer resp.Body.Close()
+	var bm struct {
+		URL    string `json:"url"`
+		Loaded bool   `json:"loaded"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&bm); err != nil {
+		t.Fatalf("decode bookmark: %v", err)
+	}
+	if bm.URL != testBookmarkURL {
+		t.Errorf("bookmark URL: got %q, want %q", bm.URL, testBookmarkURL)
+	}
+	if !bm.Loaded {
+		t.Error("bookmark should be loaded")
+	}
+}
+
+// TestFullSync exercises the complete sync flow end-to-end:
+// list → download → simulate read in Nickel DB → inspectLocalFiles → verify archived + deleted.
+func TestFullSync(t *testing.T) {
+	id := createLoadedBookmark(t, testBookmarkURL)
+	t.Logf("bookmark loaded: %s", id)
+
+	outputDir := t.TempDir()
+	dbPath := createNickelDB(t, t.TempDir())
+
+	// Override config for this test, restore on cleanup.
+	origOutputDir := config.OutputDir
+	origDatabase := config.Database
+	origDelete := config.Delete
+	t.Cleanup(func() {
+		config.OutputDir = origOutputDir
+		config.Database = origDatabase
+		config.Delete = origDelete
+	})
+	config.OutputDir = outputDir
+	config.Database = dbPath
+	config.Delete = true
+
+	// 1. listEntries must include our bookmark.
+	entries, err := listEntries()
+	if err != nil {
+		t.Fatalf("listEntries: %v", err)
+	}
+	var entry readeckBookmark
+	for _, e := range entries {
+		if e.ID == id {
+			entry = e
+			break
+		}
+	}
+	if entry.ID == "" {
+		t.Fatalf("bookmark %s not found in listEntries output", id)
+	}
+
+	// 2. download must produce a non-empty EPUB file.
+	client := &http.Client{Timeout: 30 * time.Second}
+	if err := download(client, entry); err != nil {
+		t.Fatalf("download: %v", err)
+	}
+	epubPath := filepath.Join(outputDir, id+".epub")
+	info, err := os.Stat(epubPath)
+	if err != nil {
+		t.Fatalf("epub not found after download: %v", err)
+	}
+	if info.Size() == 0 {
+		t.Fatal("downloaded epub is empty")
+	}
+	t.Logf("downloaded %s (%d bytes)", epubPath, info.Size())
+
+	// 3. Simulate reading: insert ReadStatus=2 into the Nickel DB.
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open nickel db: %v", err)
+	}
+	contentID := fmt.Sprintf("file://%s/%s.epub", outputDir, id)
+	_, err = db.Exec(
+		"INSERT INTO content (ContentID, ContentType, ReadStatus) VALUES (?, ?, 2)",
+		contentID, nickelNormalBook,
+	)
+	db.Close()
+	if err != nil {
+		t.Fatalf("insert read status: %v", err)
+	}
+
+	// 4. inspectLocalFiles must mark the bookmark archived and delete the file.
+	valid := map[string]bool{id: true}
+	inspectLocalFiles(config, valid)
+
+	// 5. Verify archived in Readeck.
+	resp := apiRequest(t, http.MethodGet, "/api/bookmarks/"+id, nil)
+	var bm struct {
+		IsArchived bool `json:"is_archived"`
+	}
+	json.NewDecoder(resp.Body).Decode(&bm)
 	resp.Body.Close()
-	if resp.StatusCode != http.StatusNoContent {
-		t.Errorf("delete bookmark: expected 204, got %d", resp.StatusCode)
+	if !bm.IsArchived {
+		t.Error("bookmark should be archived after sync")
+	}
+
+	// 6. Verify file deleted from output dir.
+	if _, err := os.Stat(epubPath); !os.IsNotExist(err) {
+		t.Errorf("epub should have been deleted from %s", epubPath)
 	}
 }
