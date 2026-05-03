@@ -63,7 +63,7 @@ func (c *readeckoboConfig) validate() error {
 var (
 	filesChanged atomic.Bool
 	home         = os.Getenv("HOME")
-	version      = "undefined"
+	version      = "dev"
 	nickelDB     = "/mnt/onboard/.kobo/KoboReader.sqlite"
 )
 
