@@ -215,9 +215,10 @@ func loadConfig(path string) error {
 
 func findConfig() (string, error) {
 	if *configFileFlag != "" {
-		if err := loadConfig(*configFileFlag); err == nil {
-			return *configFileFlag, nil
+		if err := loadConfig(*configFileFlag); err != nil {
+			return "", fmt.Errorf("load config %s: %w", *configFileFlag, err)
 		}
+		return *configFileFlag, nil
 	}
 	for _, path := range confPaths {
 		if err := loadConfig(path); err == nil {
