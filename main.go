@@ -16,11 +16,11 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/dustin/go-humanize"
 	"github.com/nightlyone/lockfile"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -76,10 +76,10 @@ type readeckBookmark struct {
 }
 
 var (
-	counter  = Status{}
-	home     = os.Getenv("HOME")
-	version  = "undefined"
-	nickelDB = "/mnt/onboard/.kobo/KoboReader.sqlite"
+	filesChanged atomic.Bool
+	home         = os.Getenv("HOME")
+	version      = "undefined"
+	nickelDB     = "/mnt/onboard/.kobo/KoboReader.sqlite"
 )
 
 func main() {
@@ -107,15 +107,7 @@ func main() {
 
 	start := time.Now()
 	defer func() {
-		log.Printf("version %s completed in %s, processed: %d, downloaded: %d, size: %s, deleted: %d, read: %d, unread: %d",
-			version,
-			time.Since(start).Truncate(time.Millisecond),
-			counter.Processed.Value(),
-			counter.Downloaded.Value(),
-			humanize.IBytes(uint64(counter.Bytes.Value())),
-			counter.Deleted.Value(),
-			counter.Read.Value(),
-			counter.Unread.Value())
+		log.Printf("version %s completed in %s", version, time.Since(start).Truncate(time.Millisecond))
 	}()
 
 	if config.Uninstall {
@@ -186,7 +178,7 @@ OuterLoop:
 		log.Printf("%d open file descriptors: %s", len(fds), fds)
 	}
 	const fakeConnectUSB = "/usr/local/bin/fake-connect-usb"
-	if counter.Downloaded.Value() > 0 || counter.Deleted.Value() > 0 {
+	if filesChanged.Load() {
 		if _, err := os.Stat(fakeConnectUSB); err == nil {
 			log.Println("triggering Nickel rescan")
 			out, err := exec.Command(fakeConnectUSB).CombinedOutput()
@@ -348,7 +340,6 @@ func listEntries() ([]readeckBookmark, error) {
 		all = all[:config.Limit]
 	}
 	log.Printf("found %d unread bookmarks, will process %d", total, len(all))
-	counter.Unread.Store(uint32(total))
 	return all, nil
 }
 
@@ -409,7 +400,6 @@ func checkTags(tags map[string]bool, labels []string) bool {
 }
 
 func download(client *http.Client, entry readeckBookmark) error {
-	counter.Processed.Inc()
 	if err := os.MkdirAll(config.Output, os.ModePerm); err != nil {
 		return fmt.Errorf("create output dir: %w", err)
 	}
@@ -451,9 +441,8 @@ func download(client *http.Client, entry readeckBookmark) error {
 		os.Remove(output)
 		return fmt.Errorf("write %s: %w", output, err)
 	}
-	counter.Downloaded.Inc()
-	counter.Bytes.Add(uint32(n))
-	log.Printf("wrote %s (%s) timestamp %s", output, humanize.IBytes(uint64(n)), entry.Updated)
+	filesChanged.Store(true)
+	log.Printf("wrote %s (%d bytes) timestamp %s", output, n, entry.Updated)
 	return nil
 }
 
@@ -494,7 +483,6 @@ func inspectLocalFiles(cfg readeckoboConfig, valid map[string]bool) {
 				log.Println("failed to mark as read:", err)
 			} else {
 				valid[uid] = false
-				counter.Read.Inc()
 			}
 		}
 		if cfg.Delete && !valid[uid] {
@@ -504,7 +492,7 @@ func inspectLocalFiles(cfg readeckoboConfig, valid map[string]bool) {
 				log.Printf("warning: failed to remove %s: %s", file, err)
 			} else {
 				log.Println("deleted", file)
-				counter.Deleted.Inc()
+				filesChanged.Store(true)
 			}
 		}
 	}
