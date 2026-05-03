@@ -24,10 +24,10 @@ func readNickelStatus(ID string, outputDir string) (res bookStatus, err error) {
 			log.Println("failed to read Nickel status:", r)
 		}
 	}()
-	if len(config.Database) <= 0 {
+	if len(nickelDB) <= 0 {
 		return res, fmt.Errorf("no database configured")
 	}
-	db, err := sql.Open("sqlite", config.Database)
+	db, err := sql.Open("sqlite", nickelDB)
 	if err != nil {
 		return res, err
 	}

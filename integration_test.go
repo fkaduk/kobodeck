@@ -269,15 +269,15 @@ func TestFullSync(t *testing.T) {
 
 	// Override config for this test, restore on cleanup.
 	origOutput := config.Output
-	origDatabase := config.Database
+	origNickelDB := nickelDB
 	origDelete := config.Delete
 	t.Cleanup(func() {
 		config.Output = origOutput
-		config.Database = origDatabase
+		nickelDB = origNickelDB
 		config.Delete = origDelete
 	})
 	config.Output = outputDir
-	config.Database = dbPath
+	nickelDB = dbPath
 	config.Delete = true
 
 	// 1. listEntries must include our bookmark.
