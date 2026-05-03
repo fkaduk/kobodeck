@@ -75,6 +75,8 @@ type readeckBookmark struct {
 	Loaded     bool      `json:"loaded"`
 }
 
+var checkFlag = flag.Bool("check", false, "validate config and show what would be synced, then exit")
+
 func init() {
 	flag.BoolVar(&config.Uninstall, "uninstall", false, "uninstall readeckobo")
 }
@@ -106,6 +108,13 @@ func main() {
 		log.Fatal("invalid configuration: ", err)
 	}
 	log.Println("readeckobo version", version, "loaded configuration from", configFile)
+
+	if *checkFlag {
+		if err := runCheck(os.Stdout); err != nil {
+			log.Fatal("check failed: ", err)
+		}
+		return
+	}
 
 	start := time.Now()
 	defer func() {
@@ -357,6 +366,53 @@ func listEntries() ([]readeckBookmark, error) {
 	log.Printf("found %d unread bookmarks, will process %d", total, len(all))
 	counter.Unread.Store(uint32(total))
 	return all, nil
+}
+
+func runCheck(w io.Writer) error {
+	fmt.Fprintln(w, "Configuration:")
+	fmt.Fprintf(w, "  URL:     %s\n", config.URL)
+	fmt.Fprintf(w, "  Output:  %s\n", config.Output)
+	fmt.Fprintf(w, "  Workers: %d\n", config.Workers)
+	fmt.Fprintf(w, "  Limit:   %d\n", config.Limit)
+	fmt.Fprintf(w, "  Delete:  %v\n", config.Delete)
+	if config.Labels != "" {
+		fmt.Fprintf(w, "  Labels:  %s\n", config.Labels)
+	} else {
+		fmt.Fprintln(w, "  Labels:  (all)")
+	}
+	fmt.Fprintln(w)
+
+	fmt.Fprint(w, "Connecting to Readeck... ")
+	entries, err := listEntries()
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(w, "OK")
+	fmt.Fprintln(w)
+
+	labelFilter := make(map[string]bool)
+	if config.Labels != "" {
+		for _, l := range strings.Split(strings.ToLower(config.Labels), ",") {
+			labelFilter[strings.TrimSpace(l)] = true
+		}
+	}
+
+	var matched, skipped int
+	for _, entry := range entries {
+		if len(labelFilter) > 0 && !checkTags(labelFilter, entry.Labels) {
+			skipped++
+			continue
+		}
+		matched++
+		fmt.Fprintf(w, "  %s — %s\n", entry.ID, entry.Title)
+	}
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "%d bookmarks to sync", matched)
+	if skipped > 0 {
+		fmt.Fprintf(w, ", %d skipped (label filter)", skipped)
+	}
+	fmt.Fprintln(w)
+	return nil
 }
 
 func checkTags(tags map[string]bool, labels []string) bool {

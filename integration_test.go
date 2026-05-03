@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -236,6 +237,24 @@ func TestSmoke(t *testing.T) {
 	}
 	if !bm.Loaded {
 		t.Error("bookmark should be loaded")
+	}
+}
+
+// TestCheckMode verifies that runCheck connects to Readeck and reports
+// the expected bookmark in its output.
+func TestCheckMode(t *testing.T) {
+	id := createLoadedBookmark(t, testBookmarkURL)
+
+	var buf bytes.Buffer
+	if err := runCheck(&buf); err != nil {
+		t.Fatalf("runCheck: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, id) {
+		t.Errorf("runCheck output does not contain bookmark ID %s:\n%s", id, out)
+	}
+	if !strings.Contains(out, "OK") {
+		t.Errorf("runCheck output missing connection OK:\n%s", out)
 	}
 }
 
