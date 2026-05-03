@@ -13,9 +13,9 @@ const nickelNormalBook = 6
 type nickelBookStatus int
 
 const (
-	nickelBookUnread nickelBookStatus = iota
-	nickelBookReading
-	nickelBookRead
+	nickelBookUnread  nickelBookStatus = 0
+	nickelBookReading nickelBookStatus = 1
+	nickelBookRead    nickelBookStatus = 2
 )
 
 func readNickelStatus(ID string, outputDir string) (res bookStatus, err error) {
