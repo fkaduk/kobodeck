@@ -36,7 +36,6 @@ type readeckoboConfig struct {
 	Workers   int    `toml:"Workers"`
 	Limit     int    `toml:"Limit"`
 	Output    string `toml:"Output"`
-	PIDFile   string `toml:"PIDFile"`
 	Timeout   int    `toml:"Timeout"`
 	Labels    string `toml:"Labels"`
 	Uninstall bool   `toml:"Uninstall"`
@@ -132,7 +131,7 @@ func main() {
 		uninstall()
 	}
 
-	lock, err := getLock(config.PIDFile)
+	lock, err := getLock()
 	if err != nil {
 		log.Fatal("cannot lock PID file: ", err)
 	}
@@ -301,14 +300,7 @@ var pidPaths = []string{
 	home + "/." + pidPath,
 }
 
-func getLock(path string) (lock lockfile.Lockfile, err error) {
-	if len(path) > 0 {
-		if path, err = filepath.Abs(path); err != nil {
-			return lock, err
-		}
-		lock, _ = lockfile.New(path)
-		return lock, lock.TryLock()
-	}
+func getLock() (lock lockfile.Lockfile, err error) {
 OuterLoop:
 	for _, path := range pidPaths {
 		debugln("trying lockfile path", path)
