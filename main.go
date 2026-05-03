@@ -30,7 +30,7 @@ var configFileFlag = flag.String("config", "", "path to the configuration file")
 type readeckoboConfig struct {
 	URL       string `toml:"URL"`
 	Token     string `toml:"Token"`
-	Debug     bool   `toml:"Debug"`
+	Verbose   bool   `toml:"Verbose"`
 	Delete    bool   `toml:"Delete"`
 	Log       string `toml:"Log"`
 	Workers   int    `toml:"Workers"`
@@ -191,7 +191,7 @@ OuterLoop:
 
 	inspectLocalFiles(config, valid)
 
-	if config.Debug {
+	if config.Verbose {
 		fds := listOpenFds()
 		log.Printf("%d open file descriptors: %s", len(fds), fds)
 	}
@@ -210,13 +210,13 @@ OuterLoop:
 }
 
 func debugln(args ...interface{}) {
-	if config.Debug {
+	if config.Verbose {
 		log.Println(args...)
 	}
 }
 
 func debugf(format string, args ...interface{}) {
-	if config.Debug {
+	if config.Verbose {
 		log.Printf(format, args...)
 	}
 }
@@ -541,7 +541,7 @@ func doAPI(method, apiURL string, body io.Reader) ([]byte, error) {
 	}
 	req.Header.Set("Authorization", "Bearer "+config.Token)
 	req.Header.Set("Content-Type", "application/json")
-	if config.Debug {
+	if config.Verbose {
 		dump, _ := httputil.DumpRequestOut(req, true)
 		debugf("request: %q", dump)
 	}
@@ -550,7 +550,7 @@ func doAPI(method, apiURL string, body io.Reader) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if config.Debug {
+	if config.Verbose {
 		dump, _ := httputil.DumpResponse(resp, true)
 		debugf("response: %q", dump)
 	}
