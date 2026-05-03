@@ -1,6 +1,7 @@
 # Readeck Article Downloader for Kobo
 
 **readeckobo** is a minimalist article downloader for Kobo devices.
+
 It can fetch content from a Readeck instance,
 and sync its status (read/archived) from the Kobo device
 to the Readeck server.
@@ -15,7 +16,7 @@ This plugin could be useful for you if you
 - are ok with mixing ebooks and with articles in the UI, ie if
 - are fine with a lack of ui. Content fetching and downloads happen in the background.
 
-## how to use readeckobo
+## how to use it
 
 When the wifi is turned on, readeckobo fakes a USB connection.
 ...
