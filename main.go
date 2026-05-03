@@ -1,182 +1,105 @@
 package main
 
-/*
-
-This program is designed to download Wallabag entries on to the
-local disk, and particularly Kobo ebook readers.
-
-More details in the README.md file that comes with this program.
-
-This is my first go program. Forgive me, because I have probably sinned.
-
-*/
-
 import (
 	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
-	"net/http/cookiejar"
 	"net/http/httputil"
-	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
-	"path"
 	"path/filepath"
-	"regexp"
 	"runtime/debug"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/Strubbl/wallabago/v9"
 	"github.com/dustin/go-humanize"
 	"github.com/nightlyone/lockfile"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-// commandline flags that are not in the config file
 var (
 	configFileFlag = flag.String("config", "", "path to the configuration file")
 	showVersion    = flag.Bool("version", false, "show program version and exit")
 )
 
-// wallabakoConfig represents all configuration settings that can be
-// read from the config file. others are only specified on the
-// commandline
-type wallabakoConfig struct {
-	// XXX: we shouldn't need to write the password down in the config:
-	// https://github.com/wallabag/wallabag/issues/2800
-	wallabago.WallabagConfig
-	Debug            bool        `json:"debug"`
-	Delete           bool        `json:"delete"`
-	LogFile          string      `json:"logfile"`
-	Database         string      `json:"Database"`
-	Concurrency      int         `json:"Concurrency"`
-	Count            int         `json:"Count"`
-	Exec             string      `json:"Exec"`
-	OutputDir        string      `json:"OutputDir"`
-	PidFile          string      `json:"PidFile"`
-	RetryMax         int         `json:"RetryMax"`
-	Timeout          int         `json:"Timeout"`
-	Tags             string      `json:"Tags"`
-	PlatoConfig      PlatoConfig `json:"plato"`
-	Fbink            bool        `json:"Fbink"`
-	FbinkInteractive bool        `json:"FbinkInteractive"`
-	Uninstall        bool        `json:"Uninstall"`
-	UninstallCerts   bool        `json:"UninstallCerts"`
+type readeckoboConfig struct {
+	ReadeckURL     string `json:"ReadeckURL"`
+	Token          string `json:"Token"`
+	Debug          bool   `json:"debug"`
+	Delete         bool   `json:"delete"`
+	LogFile        string `json:"logfile"`
+	Database       string `json:"Database"`
+	Concurrency    int    `json:"Concurrency"`
+	Count          int    `json:"Count"`
+	Exec           string `json:"Exec"`
+	OutputDir      string `json:"OutputDir"`
+	PidFile        string `json:"PidFile"`
+	Timeout        int    `json:"Timeout"`
+	Tags           string `json:"Tags"`
+	Uninstall      bool   `json:"Uninstall"`
+	UninstallCerts bool   `json:"UninstallCerts"`
 }
 
-// config is the global configuration, as read from the config file
-// and overridden by commandline flags
-//
-// the values we set here will be used by default by the UnmarshalJSON
-// function, so they are in effect the default values for those flags
-//
-// only some of those flags are set because the zero values are good
-// enough for the other flags
-var config = wallabakoConfig{
-	Database: "/mnt/onboard/.kobo/KoboReader.sqlite",
-	// original default was from web browsers, which are around 6-10:
-	// http://www.browserscope.org/?category=network
-	// but we reduced this because our use is heavier
+var config = readeckoboConfig{
+	Database:    "/mnt/onboard/.kobo/KoboReader.sqlite",
 	Concurrency: 2,
 	Count:       -1,
-	RetryMax:    4,
 	Timeout:     300,
 }
 
-// init sets up the commandline flags. when you change this, also
-// change the matching README section
+type readeckBookmark struct {
+	ID         string    `json:"id"`
+	Title      string    `json:"title"`
+	URL        string    `json:"url"`
+	Updated    time.Time `json:"updated"`
+	IsArchived bool      `json:"is_archived"`
+	Labels     []string  `json:"labels"`
+	Loaded     bool      `json:"loaded"`
+}
+
 func init() {
-	flag.BoolVar(&config.Debug, "debug", false, "additional debugging information in logs, including confidential information")
-	flag.BoolVar(&config.Delete, "delete", false, "if we should delete EPUB files not found in feed")
+	flag.BoolVar(&config.Debug, "debug", false, "additional debugging information in logs")
+	flag.BoolVar(&config.Delete, "delete", false, "delete EPUB files not found in feed")
 	flag.StringVar(&config.Database, "database", config.Database, "path to Kobo Nickel database")
-	flag.IntVar(&config.Concurrency, "concurrency", config.Concurrency, "number of downloads to process in parallel")
-	flag.StringVar(&config.LogFile, "logfile", config.LogFile, "write logs to the given file as well, rotated automatically")
-	flag.IntVar(&config.Count, "count", config.Count, "number of articles to fetch")
-	flag.StringVar(&config.Exec, "exec", "", "execute the given command when files have changed")
-	flag.StringVar(&config.OutputDir, "output", ".", "output directory to save files into")
-	flag.StringVar(&config.PidFile, "pidfile", "", "pidfile to write to avoid multiple runs")
-	flag.IntVar(&config.RetryMax, "retry", config.RetryMax, "number of attempts to login the website, with exponential backoff delay")
-	flag.IntVar(&config.Timeout, "timeout", config.Timeout, "timeout for HTTP requests, in seconds")
-	flag.StringVar(&config.Tags, "tags", "", "a comma-separated list of tags to filter for")
-	flag.BoolVar(&config.Uninstall, "uninstall", false, "uninstall wallabako")
+	flag.IntVar(&config.Concurrency, "concurrency", config.Concurrency, "number of parallel downloads")
+	flag.StringVar(&config.LogFile, "logfile", config.LogFile, "write logs to file, rotated automatically")
+	flag.IntVar(&config.Count, "count", config.Count, "number of articles to fetch (-1 = all)")
+	flag.StringVar(&config.Exec, "exec", "", "command to run when files have changed")
+	flag.StringVar(&config.OutputDir, "output", ".", "output directory for EPUB files")
+	flag.StringVar(&config.PidFile, "pidfile", "", "pidfile to prevent concurrent runs")
+	flag.IntVar(&config.Timeout, "timeout", config.Timeout, "HTTP request timeout in seconds")
+	flag.StringVar(&config.Tags, "tags", "", "comma-separated list of labels to filter for")
+	flag.StringVar(&config.ReadeckURL, "url", config.ReadeckURL, "Readeck server URL")
+	flag.StringVar(&config.Token, "token", config.Token, "Readeck API token")
+	flag.BoolVar(&config.Uninstall, "uninstall", false, "uninstall readeckobo")
 	flag.BoolVar(&config.UninstallCerts, "uninstallcerts", false, "also uninstall ca-certificates.crt")
 }
 
-// various global variables
 var (
-	// this is a generic counter to safely count things across threads
-	// we use it to count how many files we actually downloaded and
-	// other statistics
 	counter = Status{}
-
-	// the regex for the CSRF token in the login page
-	csrfRegexp = regexp.MustCompile(`"_csrf_token" +value="([^"]*)"`)
-
-	// the home directory
-	home = os.Getenv("HOME")
-
-	// version is the program's version
+	home    = os.Getenv("HOME")
 	version = "undefined"
 )
 
 func main() {
-	// parse commandline first to get a possible -config
-	// argument. we'll parse them *again* to allow users to override
-	// config settings with commandline flags.
 	flag.Parse()
-	// load defaults from configuration file
 	configFile, configErr := findConfig()
-
-	// note that we handle the config error later, because need to
-	// bootstrap the logfile first before we handle errors
-
-	// now allow users to override
 	flag.Parse()
-	debugf("config after commandline parsing: %#v", config)
+	debugf("config: %#v", config)
+
 	if *showVersion {
 		fmt.Println(version)
 		return
 	}
 	setupLogging(config)
-
-	// this is necessary for recover() to work with SIGBUS, which it
-	// seems we now get on the Kobo Glo HD with our SQLite backend,
-	// see the recover() call in nickel.go
 	debug.SetPanicOnFault(true)
-
-	// setup fbink writer if available
-	//
-	// this displays messages in an overlay on the Kobo readers (and
-	// others) if the fbink binary is available, see
-	// https://github.com/NiLuJe/FBInk
-	if config.Fbink {
-		var fbink io.WriteCloser
-		var fbinkErr error
-		if config.FbinkInteractive {
-			fbink, fbinkErr = fbinkInteractiveInitialize()
-			defer fbink.Close()
-		} else {
-			fbink, fbinkErr = fbinkInitialize()
-		}
-		if fbinkErr != nil {
-			if config.FbinkInteractive {
-				log.Printf("fbink interactive initialization failed: %s", fbinkErr)
-			} else {
-				log.Printf("fbink initialization failed: %s", fbinkErr)
-			}
-		} else {
-			setupLogging(config, fbink)
-		}
-	}
 
 	if configErr != nil {
 		log.Fatal(configErr.Error())
@@ -187,7 +110,7 @@ func main() {
 	defer func() {
 		log.Printf("version %s completed in %s, processed: %d, downloaded: %d, size: %s, deleted: %d, read: %d, unread: %d",
 			version,
-			time.Since(start).Truncate(time.Millisecond).String(),
+			time.Since(start).Truncate(time.Millisecond),
 			counter.Processed.Value(),
 			counter.Downloaded.Value(),
 			humanize.IBytes(uint64(counter.Bytes.Value())),
@@ -202,71 +125,20 @@ func main() {
 
 	lock, err := getLock(config.PidFile)
 	if err != nil {
-		log.Fatal("Cannot lock PID file: ", err)
+		log.Fatal("cannot lock PID file: ", err)
 	}
 	defer lock.Unlock()
 
-	if err = wallabago.ReadConfig(configFile); err != nil {
-		log.Fatal("cannot load configuration file: ", err.Error())
+	log.Println("connecting to", config.ReadeckURL)
+	if config.Token == "" {
+		log.Fatal("no Token configured; create one in the Readeck UI and add it to the config file")
 	}
 
-	log.Println("logging in to", config.WallabagURL)
-	debugf("username: %v, password: %v", config.UserName, config.UserPassword)
-	// retryCount is the number of logins wallabako will attempt
-	// first attempt is 1 second and first attempt double the delay at each attempt
-	jar, _ := cookiejar.New(nil)
-	var client = &http.Client{
-		Jar: jar,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
+	client := &http.Client{
 		Timeout: time.Duration(config.Timeout) * time.Second,
 	}
-	for retryCount := 0; retryCount <= config.RetryMax; retryCount++ {
-		err = login(client, config.WallabagURL, config.UserName, config.UserPassword)
-		if err == nil {
-			break
-		} else {
-			str := err.Error()
-			switch {
-			case strings.Contains(str, "login failed"), strings.Contains(str, "CSRF token"):
-				log.Fatal(err)
-			case strings.Contains(str, "login page"):
-				// "exponential backoff time", but not random
-				// this will sleep:
-				// 1s (total 1s)
-				// 2s (3s)
-				// 5s (8s)
-				// 10s (18s)
-				// 17s (35s)
-				// so 35 seconds max.
-				// linear would be:
-				// 1
-				// 3 4
-				// 5 9
-				// 7 16
-				// 9 25
-				// but second retry is one second later, we want that one faster.
-				delay := time.Duration((1 + (retryCount * retryCount))) * time.Second
-				log.Printf("%s, sleeping %s (%d/%d)", err, delay, retryCount, config.RetryMax)
-				time.Sleep(delay)
-			}
-		}
-	}
-	if err != nil {
-		log.Fatal(err)
-	}
-	// this is a semaphore buffer that will limit the number of
-	// threads running. taken from
-	// http://jmoiron.net/blog/limiting-concurrency-in-go/ an
-	// alternative is to use sync/errgroup:
-	// https://play.golang.org/p/hNaeTjLwdv we don't need toplevel
-	// error handling yet, so we stick with the semaphore channel
-	// pattern
-	// other solutions in https://www.sohamkamani.com/golang/data-races/
-	sem := make(chan bool, config.Concurrency)
 
-	// signal handling
+	sem := make(chan bool, config.Concurrency)
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 
@@ -274,31 +146,28 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	valid := make(map[int]bool)
+
+	valid := make(map[string]bool)
 	tags := make(map[string]bool)
 	if len(config.Tags) > 0 {
 		for _, tag := range strings.Split(strings.ToLower(config.Tags), ",") {
 			tags[strings.TrimSpace(tag)] = true
 		}
 	}
+
 OuterLoop:
 	for _, entry := range entries {
-		if len(config.Tags) > 0 {
-			if checkTags(tags, entry.Tags) == false {
-				debugf("skipping %d (not in Tags)", entry.ID)
-				continue
-			}
+		if len(tags) > 0 && !checkTags(tags, entry.Labels) {
+			debugf("skipping %s (not in tags)", entry.ID)
+			continue
 		}
 		debugln("dispatching", entry.ID)
 		valid[entry.ID] = true
 		select {
-		// try to get a slot in the semaphore
 		case sem <- true:
-			// we got it, fork off a thread
-			go func(e wallabago.Item) {
-				// release the slot when finished
+			go func(e readeckBookmark) {
 				defer func() { <-sem }()
-				if err = download(client, config.WallabagURL, e); err != nil {
+				if err := download(client, e); err != nil {
 					log.Println("error downloading entry", e.ID, err)
 				}
 			}(entry)
@@ -307,12 +176,12 @@ OuterLoop:
 			break OuterLoop
 		}
 	}
-	// refill all the semaphore slots to make sure we wait for everyone
 	for i := 0; i < cap(sem); i++ {
 		sem <- true
 	}
 
 	inspectLocalFiles(config, valid)
+
 	if config.Debug {
 		fds := listOpenFds()
 		log.Printf("%d open file descriptors: %s", len(fds), fds)
@@ -329,127 +198,98 @@ OuterLoop:
 	}
 }
 
-// debugln will log the given arguments using log.Println only if
-// debugging (config.Debug) is enabled
 func debugln(args ...interface{}) {
 	if config.Debug {
 		log.Println(args...)
 	}
 }
 
-// debugf will log the given arguments using log.Printf only if
-// debugging (config.Debug) is enabled
-func debugf(fmt string, args ...interface{}) {
+func debugf(format string, args ...interface{}) {
 	if config.Debug {
-		log.Printf(fmt, args...)
+		log.Printf(format, args...)
 	}
 }
 
-// setupLogging configures logging to a rotate file using the
-// lumberjack package, if it is configured in the config file
-func setupLogging(config wallabakoConfig, extraWriters ...io.Writer) {
+func setupLogging(cfg readeckoboConfig, extraWriters ...io.Writer) {
 	var writers []io.Writer
-
-	if len(config.LogFile) > 0 {
-		fileLogger := &lumberjack.Logger{
-			Filename:   config.LogFile,
-			MaxSize:    1, //megabytes - ouch, too big! https://github.com/natefinch/lumberjack/issues/37
-			MaxBackups: 7, //files
-			MaxAge:     7, //days
-		}
-		writers = append(writers, fileLogger)
+	if len(cfg.LogFile) > 0 {
+		writers = append(writers, &lumberjack.Logger{
+			Filename:   cfg.LogFile,
+			MaxSize:    1,
+			MaxBackups: 7,
+			MaxAge:     7,
+		})
 	}
 	writers = append(writers, os.Stdout)
 	writers = append(writers, extraWriters...)
-
 	log.SetOutput(io.MultiWriter(writers...))
 }
 
-// confPath is the name of the default configuration file
-const confPath = "wallabako.js"
+const confPath = "readeckobo.js"
 
-// the actual list of config paths to check
 var confPaths = []string{
 	home + "/.config/" + confPath,
 	home + "/." + confPath,
-	// special: for Kobo readers, this is the user-visible directory,
-	// allow users to store the config file there
 	"/mnt/onboard/." + confPath,
 	"/etc/" + confPath,
 }
 
-// loadConfig parses the given configuration file and returns it
-func loadConfig(configFile string) (err error) {
-	raw, err := ioutil.ReadFile(configFile)
+func loadConfig(path string) error {
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
 	return json.Unmarshal(raw, &config)
 }
 
-// findConfig looks for and loads the configuration file. it is either
-// provided as `path` or, if that is empty, is searched for in a set
-// of standard directories
-func findConfig() (path string, err error) {
-	// special case: check configFileFlag first, the -config flag from
-	// the command line
-	if err = loadConfig(*configFileFlag); err == nil {
-		return *configFileFlag, nil
-	} else {
-		debugf("can't load config path from flag: %v", err)
-	}
-	// if not specified, fallback to predefined list
-	for _, path = range confPaths {
-		if err = loadConfig(path); err == nil {
-			break
-		} else {
-			debugf("can't load config path: %v", err)
+func findConfig() (string, error) {
+	if *configFileFlag != "" {
+		if err := loadConfig(*configFileFlag); err == nil {
+			return *configFileFlag, nil
 		}
 	}
-	return path, err
+	for _, path := range confPaths {
+		if err := loadConfig(path); err == nil {
+			return path, nil
+		}
+		debugf("can't load config path: %v", path)
+	}
+	return "", fmt.Errorf("no config file found")
 }
 
 func uninstall() {
 	log.Println("uninstall requested, clearing myself out")
-	var files []string
-	if strings.HasPrefix(os.Args[0], "/usr/local") {
-		// do *not* delete etc/ssl/certs/ca-certificates.crt
-		// because that feels really too dangerous
-		files = []string{
-			"/etc/wallabako.js",
-			"/etc/udev/rules.d/90-wallabako.rules",
-			"/usr/local/bin/fake-connect-usb",
-			"/usr/local/bin/wallabako-run",
-			"/usr/local/bin/wallabako-run-direct",
-			"/usr/local/bin/wallabako",
-		}
-	} else {
+	if !strings.HasPrefix(os.Args[0], "/usr/local") {
 		log.Fatal("unexpected command path, aborting uninstall:", os.Args[0])
+	}
+	files := []string{
+		"/etc/readeckobo.js",
+		"/etc/udev/rules.d/90-readeckobo.rules",
+		"/usr/local/bin/fake-connect-usb",
+		"/usr/local/bin/readeckobo-run",
+		"/usr/local/bin/readeckobo-run-direct",
+		"/usr/local/bin/readeckobo",
 	}
 	if config.UninstallCerts {
 		files = append(files, "/etc/ssl/certs/ca-certificates.crt")
 	}
-	var err error
+	var lastErr error
 	for _, file := range files {
-		err = os.Remove(file)
-		if err != nil {
-			log.Printf("Failed: %s", err)
+		if err := os.Remove(file); err != nil {
+			log.Printf("failed: %s", err)
+			lastErr = err
 		} else {
-			log.Printf("Successfully deleted %s\n", file)
+			log.Printf("deleted %s", file)
 		}
 	}
-	if err != nil {
-		log.Fatal("failed to remove some files, uninstall partly failed")
-	} else {
-		log.Fatal("uninstall finished, thanks for trying out Wallabako")
+	if lastErr != nil {
+		log.Fatal("uninstall partially failed")
 	}
-	return
+	log.Fatal("uninstall complete")
 }
 
-// the base name of the pidfile
-const pidPath = "wallabako.pid"
+const pidPath = "readeckobo.pid"
 
-// the actual pathnames to check
 var pidPaths = []string{
 	"/var/run/" + pidPath,
 	"/run/" + pidPath,
@@ -457,21 +297,13 @@ var pidPaths = []string{
 	home + "/." + pidPath,
 }
 
-// getLock creates a lock file with the given path or, if empty, in an
-// appropriate location in a series of predefined locations.
-//
-// WARNING: this does *not* defer the Unlock method, since it's out of
-// scope - that should be done by the caller
 func getLock(path string) (lock lockfile.Lockfile, err error) {
 	if len(path) > 0 {
 		if path, err = filepath.Abs(path); err != nil {
 			return lock, err
 		}
-		// only error possible is if we don't have an absolute path,
-		// already handled
 		lock, _ = lockfile.New(path)
-		err = lock.TryLock()
-		return lock, err
+		return lock, lock.TryLock()
 	}
 OuterLoop:
 	for _, path := range pidPaths {
@@ -480,7 +312,6 @@ OuterLoop:
 		err = lock.TryLock()
 		switch err.(type) {
 		case *os.PathError:
-			// permission denied, wrong path and so on
 			debugln(err)
 			continue OuterLoop
 		default:
@@ -490,170 +321,108 @@ OuterLoop:
 	return lock, err
 }
 
-// XXX: this is necessary because < 2.2 don't have a EPUB API
-func login(client *http.Client, baseURL, username, password string) error {
-	resp, err := client.Get(baseURL + "/login")
-	if err != nil {
-		return fmt.Errorf("failed to get login page: %v", err)
-	}
-	defer resp.Body.Close()
-	// error ignored: if this fails, the CSRF token will be missing
-	// and the error will be caught below
-	body, _ := ioutil.ReadAll(resp.Body)
-	matches := csrfRegexp.FindSubmatch(body)
-	if len(matches) > 0 {
-		log.Println("CSRF token found:", resp.Status)
-	} else {
-		return fmt.Errorf("no CSRF token found? is this a wallabag instance?")
-	}
-	form := url.Values{}
-	form.Set("_username", username)
-	form.Set("_password", password)
-	form.Set("_csrf_token", string(matches[1]))
-	form.Set("_remember_me", "on")
-	form.Set("send", "")
-	resp, err = client.PostForm(baseURL+"/login_check", form)
-	if err == nil && resp.StatusCode == 302 {
-		loc, e := resp.Location()
-		if e != nil || strings.HasSuffix(loc.String(), "/login") {
-			return fmt.Errorf("login failed: wrong password?")
+func listEntries() ([]readeckBookmark, error) {
+	var all []readeckBookmark
+	page := 1
+	const limit = 100
+	for {
+		url := fmt.Sprintf("%s/api/bookmarks?status=unread&limit=%d&page=%d",
+			config.ReadeckURL, limit, page)
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return nil, fmt.Errorf("build list request: %w", err)
 		}
-	} else {
-		// we *always* get a 302, this shouldn't happen
-		return fmt.Errorf("login failed: %s (%v)", resp.Status, err)
+		req.Header.Set("Authorization", "Bearer "+config.Token)
+		req.Header.Set("Accept", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("list bookmarks: %w", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("list bookmarks: unexpected status %s", resp.Status)
+		}
+
+		var pageItems []readeckBookmark
+		if err = json.NewDecoder(resp.Body).Decode(&pageItems); err != nil {
+			return nil, fmt.Errorf("decode bookmarks: %w", err)
+		}
+		all = append(all, pageItems...)
+
+		tp, err := strconv.Atoi(resp.Header.Get("Total-Pages"))
+		if err != nil || page >= tp || (config.Count > 0 && len(all) >= config.Count) {
+			break
+		}
+		page++
 	}
-	log.Println("logged in successful:", resp.Status)
-	return nil
+	total := len(all)
+	if config.Count > 0 && len(all) > config.Count {
+		all = all[:config.Count]
+	}
+	log.Printf("found %d unread bookmarks, will process %d", total, len(all))
+	counter.Unread.Store(uint32(total))
+	return all, nil
 }
 
-// get the unread entries, most recent first, limited to the given count
-func listEntries() ([]wallabago.Item, error) {
-	entries, err := wallabago.GetEntries(wallabago.APICall, 0, -1, "updated", "desc", -1, config.Count, "", 0, 0, "", "")
-	if err != nil {
-		return nil, fmt.Errorf("failed to list entries in wallabag: %v", err)
-	}
-	min := config.Count
-	if entries.Total < config.Count {
-		min = entries.Total
-	}
-	log.Printf("found %d unread entries, will check %d", entries.Total, min)
-	counter.Unread.Store(uint32(entries.Total))
-	return entries.Embedded.Items, err
-}
-
-// check item tags against tags set in config
-func checkTags(tags map[string]bool, itemTags []wallabago.Tag) bool {
-	for _, tag := range itemTags {
-		if tags[strings.ToLower(tag.Label)] {
+func checkTags(tags map[string]bool, labels []string) bool {
+	for _, label := range labels {
+		if tags[strings.ToLower(label)] {
 			return true
 		}
 	}
 	return false
 }
 
-// download a given entry in the right place
-func download(client *http.Client, baseURL string, entry wallabago.Item) (err error) {
-	// XXX: proper way will be through the API, but for now we hardcode this URL
-	// https://github.com/wallabag/wallabag/pull/2372
-	// only in 2.2: /api/entries/123/export.epub
+func download(client *http.Client, entry readeckBookmark) error {
 	counter.Processed.Inc()
-	//debugln("received entry", entry)
-	err = os.MkdirAll(config.OutputDir, os.ModePerm)
-	if err != nil {
-		return fmt.Errorf("failed to create directory: %v", err)
+	if err := os.MkdirAll(config.OutputDir, os.ModePerm); err != nil {
+		return fmt.Errorf("create output dir: %w", err)
 	}
-	epubURL := baseURL + "/export/" + strconv.Itoa(entry.ID) + ".epub"
-	output := filepath.Join(config.OutputDir, path.Base(epubURL))
+	epubURL := config.ReadeckURL + "/api/bookmarks/" + entry.ID + "/article.epub"
+	output := filepath.Join(config.OutputDir, entry.ID+".epub")
+
 	info, err := os.Stat(output)
-	if err == nil && info.ModTime().After(entry.UpdatedAt.Time) && info.Size() > 0 {
-		debugf("URL %s older than local file %s, skipped (%s > %s)\n", epubURL, output, info.ModTime(), entry.UpdatedAt.Time)
+	if err == nil && info.ModTime().After(entry.Updated) && info.Size() > 0 {
+		debugf("skipping %s: local file newer than bookmark (%s > %s)", output, info.ModTime(), entry.Updated)
 		return nil
-	} else if os.IsNotExist(err) {
-		debugln("missing:", err)
-	} else if err != nil {
-		return fmt.Errorf("unexpected error checking existing file: %v", err)
+	} else if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("stat %s: %w", output, err)
 	}
-	if err != nil && info != nil {
-		debugf("out of date: err: %s, modtime: %s", err, info.ModTime())
-		debugf("changed: %s, before: %v", entry.UpdatedAt.Time, info.ModTime().Before(entry.UpdatedAt.Time))
+
+	log.Printf("downloading %s to %s", epubURL, output)
+	req, err := http.NewRequest("GET", epubURL, nil)
+	if err != nil {
+		return fmt.Errorf("build download request: %w", err)
 	}
-	log.Printf("downloading %s in %s", epubURL, output)
+	req.Header.Set("Authorization", "Bearer "+config.Token)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("download %s: %w", epubURL, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("download %s: %s", epubURL, resp.Status)
+	}
+
 	out, err := os.Create(output)
 	if err != nil {
-		return fmt.Errorf("failed to create output file: %v", err)
+		return fmt.Errorf("create %s: %w", output, err)
 	}
 	defer out.Close()
-	// XXX: see above. doesn't work through API yet.
-	//body = wallabago.GetBodyOfAPIURL(epubURL)
-	//out.Write(body)
-	resp, err := client.Get(epubURL)
-	if err != nil {
-		return fmt.Errorf("download of %s failed: %v", epubURL, err)
-	}
-	//debugln("received response:", resp, err)
-	defer resp.Body.Close()
+
 	n, err := io.Copy(out, resp.Body)
 	if err != nil {
 		os.Remove(output)
-		return fmt.Errorf("can't write file, removed: %v", err)
+		return fmt.Errorf("write %s: %w", output, err)
 	}
-	if n >= 0 {
-		counter.Downloaded.Inc()
-		counter.Bytes.Add(uint32(n))
-		log.Printf("wrote %d bytes (%s) in file %s, timestamp %s", n, humanize.IBytes(uint64(n)), output, entry.UpdatedAt.Time)
-	}
+	counter.Downloaded.Inc()
+	counter.Bytes.Add(uint32(n))
+	log.Printf("wrote %s (%s) timestamp %s", output, humanize.IBytes(uint64(n)), entry.Updated)
 	return nil
 }
 
-// inspectLocalFiles looks into the given outputDir for files matching
-// the N.epub pattern where N is a Wallabag content ID, and processes
-// every entry to mark it as read on the wallabag site and delete it
-// (if it's read)
-func inspectLocalFiles(config wallabakoConfig, valid map[int]bool) {
-	// strip the trailing slash to avoid matching problems. this
-	// occurs, for example, when matching files against the Nickel
-	// sqlite database
-	outputDir := strings.TrimSuffix(config.OutputDir, "/")
-
-	files, _ := filepath.Glob(outputDir + "/*.epub")
-	debugln("local files to inspect:", files, outputDir+"/*.epub")
-	for _, file := range files {
-		id, err := strconv.Atoi(strings.TrimSuffix(filepath.Base(file), filepath.Ext(file)))
-		if err != nil {
-			log.Println("skipping irreglar file", file)
-			continue
-		}
-		status, err := readStatus(id, outputDir)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		if status == bookRead {
-			err = markAsRead(id)
-			if err != nil {
-				log.Println("failed to mark as read:", err)
-			} else {
-				// read books are now up for deletion on next check
-				// anyways, speed that up so we can remove them now
-				valid[id] = false
-				counter.Read.Inc()
-			}
-		}
-		if config.Delete && !valid[id] {
-			if status == bookReading {
-				log.Printf("not deleting book currently being read: %s", file)
-			} else if err = os.Remove(file); err != nil {
-				log.Printf("warning: failed to remove file %s: %s", file, err)
-			} else {
-				log.Println("deleted file", file)
-				counter.Deleted.Inc()
-			}
-		}
-	}
-}
-
-// the book statuses we know of, internal to wallabako. this currently
-// is the same as koboBookStatus but might change in the future
 type bookStatus int
 
 const (
@@ -662,88 +431,95 @@ const (
 	bookRead
 )
 
-// readStatus will return the read status of the given ID book, which
-// should be either bookUnread, bookReading or bookRead
-func readStatus(ID int, outputDir string) (res bookStatus, err error) {
-	res, _ = readPlatoStatus(ID, outputDir)
-	if res != bookUnread {
-		debugf("plato book %d status not unread: %d\n", ID, res)
-		return res, nil
-	}
-	res, _ = readKoreaderStatus(ID, outputDir)
-	if res != bookUnread {
-		debugf("koreader book %d status not unread: %d\n", ID, res)
-		return res, nil
-	}
+func readStatus(ID string, outputDir string) (bookStatus, error) {
 	if len(config.Database) > 0 {
-		res, _ = readNickelStatus(ID, outputDir)
-		debugf("nickel book %d status: %d\n", ID, res)
-		return res, nil
+		res, err := readNickelStatus(ID, outputDir)
+		debugf("nickel book %s status: %d", ID, res)
+		return res, err
 	}
-	return res, nil
+	return bookUnread, nil
 }
 
-// markAsRead marks the given wallabag article ID as read through the API
-func markAsRead(id int) (err error) {
-	log.Printf("marking entry %d as read", id)
-	tmp := map[string]int{"archive": 1}
-	body, _ := json.Marshal(tmp)
-	_, err = doAPI("PATCH", config.WallabagURL+"/api/entries/"+strconv.Itoa(id)+".json", bytes.NewBuffer(body))
+func inspectLocalFiles(cfg readeckoboConfig, valid map[string]bool) {
+	outputDir := strings.TrimSuffix(cfg.OutputDir, "/")
+	files, _ := filepath.Glob(outputDir + "/*.epub")
+	debugln("local files to inspect:", files)
+	for _, file := range files {
+		uid := strings.TrimSuffix(filepath.Base(file), ".epub")
+		if uid == "" {
+			log.Println("skipping file with empty name:", file)
+			continue
+		}
+		status, err := readStatus(uid, outputDir)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		if status == bookRead {
+			if err = markAsRead(uid); err != nil {
+				log.Println("failed to mark as read:", err)
+			} else {
+				valid[uid] = false
+				counter.Read.Inc()
+			}
+		}
+		if cfg.Delete && !valid[uid] {
+			if status == bookReading {
+				log.Printf("not deleting book currently being read: %s", file)
+			} else if err = os.Remove(file); err != nil {
+				log.Printf("warning: failed to remove %s: %s", file, err)
+			} else {
+				log.Println("deleted", file)
+				counter.Deleted.Inc()
+			}
+		}
+	}
+}
+
+func markAsRead(id string) error {
+	log.Printf("marking entry %s as archived", id)
+	body, _ := json.Marshal(map[string]bool{"is_archived": true})
+	_, err := doAPI("PATCH", config.ReadeckURL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
 	return err
 }
 
-// doAPI sends an arbitrary API call to the Wallabag API, getting a
-// new token in the process. it returns the body of the response in
-// bytes and any possible errors returned by the API, particularly if
-// the returned status code is not 200.
-func doAPI(method string, url string, body io.Reader) (data []byte, err error) {
-	// this is copied from getBodyOfAPIURL(), should probably be
-	// factored out
-
-	client := &http.Client{}
-	token, err := wallabago.GetAuthTokenHeader()
+func doAPI(method, apiURL string, body io.Reader) ([]byte, error) {
+	req, err := http.NewRequest(method, apiURL, body)
 	if err != nil {
-		return data, err
+		return nil, err
 	}
-	req, err := http.NewRequest(method, url, body)
-	if err != nil {
-		return data, err
+	req.Header.Set("Authorization", "Bearer "+config.Token)
+	req.Header.Set("Content-Type", "application/json")
+	if config.Debug {
+		dump, _ := httputil.DumpRequestOut(req, true)
+		debugf("request: %q", dump)
 	}
-	req.Header.Add("Authorization", token)
-	req.Header.Add("Content-Type", "application/json")
-	debugln("method, url, body:", method, url, body)
-	dump, err := httputil.DumpRequestOut(req, true)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return data, err
-	}
-	debugf("sending request: %q", dump)
-	resp, err := client.Do(req)
-	if err != nil {
-		return data, err
+		return nil, err
 	}
 	defer resp.Body.Close()
-	dump, err = httputil.DumpResponse(resp, true)
+	if config.Debug {
+		dump, _ := httputil.DumpResponse(resp, true)
+		debugf("response: %q", dump)
+	}
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return data, err
+		return nil, err
 	}
-	//debugf("received response: %q", dump)
-	data, err = ioutil.ReadAll(resp.Body)
-	if resp.StatusCode != 200 {
-		return data, fmt.Errorf("error from the API: %s", resp.Status)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return data, fmt.Errorf("API %s %s: %s", method, apiURL, resp.Status)
 	}
-	return data, err
+	return data, nil
 }
 
-// listOpenFds is a simple debug tool to show the currently opened files.
-func listOpenFds() (fds []string) {
-	fds, _ = filepath.Glob("/proc/self/fd/*")
+func listOpenFds() []string {
+	fds, _ := filepath.Glob("/proc/self/fd/*")
+	var result []string
 	for _, fd := range fds {
-		link, err := os.Readlink(fd)
-		if err != nil {
-			fds = append(fds, err.Error())
-		} else {
-			fds = append(fds, link)
+		if link, err := os.Readlink(fd); err == nil {
+			result = append(result, link)
 		}
 	}
-	return fds
+	return result
 }
