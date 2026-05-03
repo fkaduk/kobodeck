@@ -44,11 +44,25 @@ type readeckoboConfig struct {
 	Uninstall   bool   `toml:"Uninstall"`
 }
 
-var config = readeckoboConfig{
-	Database:    "/mnt/onboard/.kobo/KoboReader.sqlite",
-	Concurrency: 2,
-	Count:       -1,
-	Timeout:     300,
+var config readeckoboConfig
+
+func (c *readeckoboConfig) validate() error {
+	if c.ReadeckURL == "" {
+		return fmt.Errorf("ReadeckURL is required")
+	}
+	if c.Token == "" {
+		return fmt.Errorf("Token is required")
+	}
+	if c.OutputDir == "" {
+		return fmt.Errorf("OutputDir is required")
+	}
+	if c.Concurrency <= 0 {
+		return fmt.Errorf("Concurrency must be greater than 0")
+	}
+	if c.Timeout <= 0 {
+		return fmt.Errorf("Timeout must be greater than 0")
+	}
+	return nil
 }
 
 type readeckBookmark struct {
@@ -87,6 +101,9 @@ func main() {
 
 	if configErr != nil {
 		log.Fatal(configErr.Error())
+	}
+	if err := config.validate(); err != nil {
+		log.Fatal("invalid configuration: ", err)
 	}
 	log.Println("readeckobo version", version, "loaded configuration from", configFile)
 
