@@ -1,0 +1,33 @@
+# Readeck server
+ReadeckURL = "https://example.com/readeck"
+Token      = ""
+
+# Where to store downloaded EPUB files
+OutputDir = "/mnt/onboard/readeckobo"
+
+# Path to the Kobo Nickel SQLite database (for read-status sync)
+Database = "/mnt/onboard/.kobo/KoboReader.sqlite"
+
+# Number of articles to fetch (-1 = all)
+Count = -1
+
+# Number of parallel downloads
+Concurrency = 2
+
+# HTTP request timeout in seconds
+Timeout = 300
+
+# Delete local EPUBs that are no longer in the unread feed
+Delete = false
+
+# Only sync articles with these labels (comma-separated, empty = all)
+Tags = ""
+
+# Path to a log file (empty = stdout only), rotated automatically
+LogFile = ""
+
+# Path to a PID file to prevent concurrent runs (empty = auto)
+PidFile = ""
+
+# Extra debug logging (prints Bearer token — keep off in production)
+Debug = false

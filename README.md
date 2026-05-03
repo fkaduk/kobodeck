@@ -319,33 +319,7 @@ the `-output` directory while enabling `-delete` could delete files
 unexpectedly if they match the magic pattern (`N.epub` where N is an
 integer).
 
-Here's an example of a fully-populated configuration file:
-
-    {
-      "Concurrency": 2,
-      "Count": -1,
-      "ClientId": "14_2vun20ernfy880wgkk88gsoosk4csocs4ccw4sgwk84gc84o4k",
-      "ClientSecret": "69k0alx9bdcsc0c44o84wk04wkgw0c0g4wkww8c0wwok0sk4ok",
-      "Debug": false,
-      "Delete": false,
-      "Database": "/mnt/onboard/.kobo/KoboReader.sqlite",
-      "Exec": "/usr/local/bin/fake-connect-usb",
-      "Fbink": false,
-      "FbinkInteractive": false,
-      "LogFile": "/mnt/onboard/wallabako.log.txt",
-      "OutputDir": "/mnt/onboard/wallabako",
-      "PidFile": "wallabako.pid",
-      "Plato": {
-        "LibraryPath": "/mnt/onboard"
-      },
-      "RetryMax": 4,
-      "Tags": "",
-      "Uninstall": false,
-      "UninstallCerts": false,
-      "UserName": "joelle",
-      "UserPassword": "your super password goes here",
-      "WallabagURL": "https://app.wallabag.it"
-    }
+See [`root/etc/readeckobo.toml`](root/etc/readeckobo.toml) for the full annotated example configuration file.
 
 ## Configuration file is not found even if present
 
@@ -535,6 +509,12 @@ file have been moved to the [Gitlab issue queue][] to allow for better
 visibility and public collaboration.
 
 [Gitlab issue queue]: https://gitlab.com/anarcat/wallabako/issues
+
+- The integration test creates the Nickel SQLite database with a
+  minimal 3-column schema. It should instead use the full real Kobo
+  schema (stored as `testdata/nickel-schema.sql`) so that tests fail
+  if the code makes assumptions that break on a schema change after a
+  firmware update.
 
 # Related projects
 
