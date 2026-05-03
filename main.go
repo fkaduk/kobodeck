@@ -85,12 +85,6 @@ var (
 func main() {
 	flag.Parse()
 	configFile, configErr := findConfig()
-	if v := os.Getenv("READECKOBO_URL"); v != "" {
-		config.URL = v
-	}
-	if v := os.Getenv("READECKOBO_TOKEN"); v != "" {
-		config.Token = v
-	}
 	debugf("config: %#v", config)
 
 	setupLogging(config)
