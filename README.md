@@ -529,6 +529,11 @@ visibility and public collaboration.
 - Sync reading progress (current position) from the Kobo to Readeck,
   once Readeck exposes a progress field in its API.
 
+- Add a `check-config` command or script that validates the configuration
+  (reachability of the Readeck server, token validity, output directory
+  writable) before deploying to the Kobo. This could be a `-check` flag
+  on the main binary rather than a separate tool.
+
 # Related projects
 
 Other Kobo-related software has support for Wallabako, and may be
