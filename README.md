@@ -1,164 +1,46 @@
-# Deprecation notice
+# Readeck Article Downloader for Kobo
 
-This software is now officially abandoned by its original author.
+**readeckobo** is a minimalist article downloader for Kobo devices.
+It can fetch content from a Readeck instance,
+and sync its status (read/archived) from the Kobo device
+to the Readeck server.
 
-I have switched away from [Wallabag](https://wallabag.org/) to [Readeck](https://readeck.org/) and will not
-be developing or maintaining Wallabako any further.
+The code is forked from
+[wallabako](https://gitlab.com/anarcat/wallabako).
 
-This repository will remain publicly accessible, but archived, for the
-foreseeable future. If you're interested in taking over stewardship
-for this project, [contact me](https://anarc.at/contact/).
+## who is this for ?
 
-See [this blog post](https://anarc.at/blog/2026-03-05-wallabako-retirement/) for details.
+This plugin could be useful for you if you
+- do not want to use [KOReader](https://koreader.rocks/). If you do, check out the readeck plugin [xx](xx) or OPDS, which KOReader and Readeck natively support.
+- are ok with mixing ebooks and with articles in the UI, ie if
+- are fine with a lack of ui. Content fetching and downloads happen in the background.
 
-# Wallabag downloader
+## how to use readeckobo
 
-<img alt="Logo" src="assets/logo.png" align="right" />
+When the wifi is turned on, readeckobo fakes a USB connection.
+...
+When you press **Connect**, the fake USB connection will close immediately and a rescan of the database will be triggered.
+If you press **Cancel**, ...
 
-This tool is designed to automatically download Wallabag articles into
-your local computer or Kobo ebook reader.
+<img alt="screenshot of the connect dialog on a Kobo Glo HD reader" src="assets/connect-dialog.png" align="right" />
 
-Features:
-
-* **fast**: downloads only files that have changed, in parallel
-* **unattended**: runs in the background, when the wifi is turned on, only
-  requires you to tap the fake USB connection screen for the Kobo to
-  rescan its database
-* **status synchronization**: read books are marked as
-  read in the Wallabag instance
-* **easy install**: just drop the magic file in your kobo reader like any
-  other book, edit one configuration file and you're done
+# Testing
 
 The instructions here are mostly for the Kobo E-readers but may work
 for other platforms. I have tested this on a Debian GNU/Linux 9
 ("stretch") system, a Kobo Glo HD and a Kobo Touch.
 
-[![Say
-Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/anarcat)
-[![Go Report Card](https://goreportcard.com/badge/gitlab.com/anarcat/wallabako)](https://goreportcard.com/report/gitlab.com/anarcat/wallabako)
-[![pipeline status](https://gitlab.com/anarcat/wallabako/badges/main/pipeline.svg)](https://gitlab.com/anarcat/wallabako/commits/main)
+## Installation or Upgrade
 
+To install or upgrade, 
 
-<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-generate-toc again -->
-<!-- markdown-toc crashes in newer Emacs version, the section below -->
-<!-- was actually generated with `md_toc github -o . < README.md` instead -->
-**Table of Contents**
-
-1. [Wallabag downloader](#wallabag-downloader)
-2. [Download and install](#download-and-install)
-3. [Upgrade](#upgrade)
-4. [Configuration](#configuration)
-5. [Usage](#usage)
-   1. [Kobo devices](#kobo-devices)
-   2. [Commandline](#commandline)
-   3. [On-screen display](#on-screen-display)
-6. [Uninstalling](#uninstalling)
-7. [Support](#support)
-8. [Troubleshooting](#troubleshooting)
-   1. [Logging](#logging)
-   2. [Configuration file details](#configuration-file-details)
-   3. [Configuration file is not found even if present](#configuration-file-is-not-found-even-if-present)
-   4. [Some articles are not downloaded or disappear](#some-articles-are-not-downloaded-or-disappear)
-   5. [Unable to open database file](#unable-to-open-database-file)
-   6. [x509: failed to load system roots and no roots provided](#x509-failed-to-load-system-roots-and-no-roots-provided)
-   7. [Command not running](#command-not-running)
-9. [Known issues](#known-issues)
-10. [Credits](#credits)
-11. [Contributing](#contributing)
-    1. [Design notes](#design-notes)
-    2. [Remaining issues](#remaining-issues)
-12. [Related projects](#related-projects)
-
-<!-- markdown-toc end -->
-
-<img alt="screenshot of a KoboRoot.tgz file in a Kobo reader" src="assets/kobotgz-screenshot.png" align="right" />
-
-# Download and install
-
-Quick start for Kobo devices:
-
- 1. connect your reader to your computer with a USB cable
- 2. [download][] the [latest `KoboRoot.tgz`][]
- 3. save the file in the `.kobo` directory of your e-reader
- 4. create the configuration file as explained in the [configuration](#configuration)
-section
- 5. disconnect the reader
-
-[latest `KoboRoot.tgz`]: https://gitlab.com/anarcat/wallabako/builds/artifacts/main/file/build/KoboRoot.tgz?job=compile
-[download]: https://gitlab.com/anarcat/wallabako/builds/artifacts/main/file/build/KoboRoot.tgz?job=compile
-
-When you disconnect the reader, it will perform what looks like an
-upgrade, but it's just the content of the `KoboRoot.tgz` being
-automatically deployed. If you connect the reader again, the
-`KoboRoot.tgz` file should have disappeared.
-
-When you connect your reader to a Wifi access point, the wallabako
-program should run, which should create a `wallabako.log.txt` file at
-the top directory of the reader which you can use to diagnose
-problems, see also the [troubleshooting](#troubleshooting) section.
-
-Another more advanced installation method, for power users, can done
-with launchers like KFmon or NickelMenu. See the [design](DESIGN.md)
-document, section "Launchers" for more information for this
-experimental configuration.
-
-# Upgrade
-
-To upgrade wallabako, simply follow install instruction.
-
-# Configuration
-
-The next step is to configure Wallabako by creating a `.wallabako.js`
-file in the top directory of the reader, with the following content:
-
-    {
-      "WallabagURL": "https://app.wallabag.it",
-      "ClientId": "14_2vun20ernfy880wgkk88gsoosk4csocs4ccw4sgwk84gc84o4k",
-      "ClientSecret": "69k0alx9bdcsc0c44o84wk04wkgw0c0g4wkww8c0wwok0sk4ok",
-      "UserName": "joelle",
-      "UserPassword": "your super password goes here"
-    }
-
-Make sure you use a plain text editor like `Gedit` or `Notepad`, as
-LibreOffice can cause trouble because it doesn't save the file as
-[plain text](https://en.wikipedia.org/wiki/Plain_text) by default.
-
-Let's take this one step at a time. First, the weird curly braces
-syntax is because this is a [JSON](https://en.wikipedia.org/wiki/JSON)
-configuration file. Make sure you keep all the curly braces, quotes,
-colons and commas (`{`, `}`, `"`, `:`, `,`).
-
- 1. The first item is the `WallabagURL`. This is the address of the
-    service you are using. In the above example, we use the official
-    [Wallabag.it](https://wallabag.it/) service, but this will change
-    depending on your provider. Make sure there is *no* trailing slash
-    (`/`).
-
- 2. The second and third items are the "client tokens". Those are
-    tokens that you need to create in the Wallabag web interface, in
-    the `Developer` section. Simply copy paste those values in place.
- 
- 3. The fourth and fifth items are your username and passwords. We
-    would prefer to not ask you your password, but unfortunately, that
-    is [still required by the Wallabag API][password requirement of the API]
-
- [password requirement of the API]: https://github.com/wallabag/wallabag/issues/2800
-
-Also note that some commandline flags are hardcoded in the
-`wallabag-run` script. To modify those, you will
-need to modify the file in the `KoboRoot.tgz` file or hack the kobo to
-get commandline access. There are also more settings you can set in
-the configuration file, see the [troubleshooting](#troubleshooting)
-section for more information.
-
-Note that there are more configuration settings that can be set, see
-the [configuration file details](#configuration-file-details) section
-for more information.
-
-<img alt="screenshot of the connect dialog on a Kobo Glo HD reader" src="assets/connect-dialog.png" align="right" />
+1. obtain the latest `KoboRoot.tgz` either by downloading the binary or compiling it yourself
+1. save the file in the `.kobo` directory of your e-reader
+1. copy and edit the configuration file `.readeckobo.js` in the base directory of your reader
+1. optionally test your configuration by running `check_config.go` on your configuration
+1. safely disconnect the reader; it should restart, install readeckobo and remove `KoboRoot.tgz`
 
 # Usage
-
 ## Kobo devices
 
 If everything was deployed correctly, Wallabako should run the next
@@ -333,19 +215,12 @@ Another option is to remove the `.wallabako.js` file altogether. That
 will "unconfigure" Wallabako which will still fire automatically when
 the network comes up, but it will do nothing.
 
-# Support
-
-I will provide only limited free support for this tool. I wrote it,
-after all, for my own uses. People are welcome to [file issues][] and
-[send patches][], of course, but I cannot cover for every possible use
-cases. There is also a [discussion on MobileRead.com][] if you prefer
-that format.
-
- [file issues]: https://gitlab.com/anarcat/wallabako/issues
- [send patches]: https://gitlab.com/anarcat/wallabako/merge_requests
- [discussion on MobileRead.com]: https://www.mobileread.com/forums/showthread.php?p=3467945
-
 # Troubleshooting
+
+When you connect your reader to a Wifi access point, the wallabako
+program should run, which should create a `wallabako.log.txt` file at
+the top directory of the reader which you can use to diagnose
+problems, see also the [troubleshooting](#troubleshooting) section.
 
 To troubleshoot issues with the script, you may need to get
 commandline access into it, which is beyond the scope of this
@@ -358,19 +233,6 @@ Below are issues and solutions I have found during development that
 you may stumble upon. Normally, if you install the package correctly,
 you shouldn't get those errors so please do file a bug if you can
 reproduce this issue.
-
-<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-generate-toc again -->
-**Table of Contents**
-
- - [Logging](#logging)
- - [Configuration file details](#configuration-file-details)
- - [Configuration file is not found even if present](#configuration-file-is-not-found-even-if-present)
- - [Some articles are not downloaded or disappear](#some-articles-are-not-downloaded-or-disappear)
- - [Unable to open database file](#unable-to-open-database-file)
- - [x509: failed to load system roots and no roots provided](#x509-failed-to-load-system-roots-and-no-roots-provided)
- - [Command not running](#command-not-running)
-
-<!-- markdown-toc end -->
 
 ## Logging
 
