@@ -106,10 +106,6 @@ func main() {
 	defer lock.Close()
 
 	log.Println("connecting to", config.URL)
-	if config.Token == "" {
-		log.Fatal("no Token configured; create one in the Readeck UI and add it to the config file")
-	}
-
 	client := &http.Client{
 		Timeout: time.Duration(config.Timeout) * time.Second,
 	}
