@@ -8,8 +8,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const wallabakoSqliteBackend = "sqlite"
-
 const nickelNormalBook = 6
 
 type nickelBookStatus int
@@ -29,7 +27,7 @@ func readNickelStatus(ID string, outputDir string) (res bookStatus, err error) {
 	if len(config.Database) <= 0 {
 		return res, fmt.Errorf("no database configured")
 	}
-	db, err := sql.Open(wallabakoSqliteBackend, config.Database)
+	db, err := sql.Open("sqlite", config.Database)
 	if err != nil {
 		return res, err
 	}
