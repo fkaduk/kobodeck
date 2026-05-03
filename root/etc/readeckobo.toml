@@ -29,5 +29,8 @@ LogFile = ""
 # Path to a PID file to prevent concurrent runs (empty = auto)
 PidFile = ""
 
+# Command to run when files have changed (empty = none)
+Exec = ""
+
 # Extra debug logging (prints Bearer token — keep off in production)
 Debug = false
