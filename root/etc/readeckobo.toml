@@ -27,8 +27,5 @@ Log = ""
 # Path to a PID file to prevent concurrent runs (empty = auto)
 PIDFile = ""
 
-# Command to run when files have changed (empty = none)
-PostSync = ""
-
 # Extra debug logging (prints Bearer token — keep off in production)
 Debug = false
