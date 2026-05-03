@@ -33,7 +33,6 @@ type readeckoboConfig struct {
 	Debug     bool   `toml:"Debug"`
 	Delete    bool   `toml:"Delete"`
 	Log       string `toml:"Log"`
-	Database  string `toml:"Database"`
 	Workers   int    `toml:"Workers"`
 	Limit     int    `toml:"Limit"`
 	PostSync  string `toml:"PostSync"`
@@ -82,9 +81,10 @@ func init() {
 }
 
 var (
-	counter = Status{}
-	home    = os.Getenv("HOME")
-	version = "undefined"
+	counter   = Status{}
+	home      = os.Getenv("HOME")
+	version   = "undefined"
+	nickelDB  = "/mnt/onboard/.kobo/KoboReader.sqlite"
 )
 
 func main() {
@@ -482,7 +482,7 @@ const (
 )
 
 func readStatus(ID string, outputDir string) (bookStatus, error) {
-	if len(config.Database) > 0 {
+	if len(nickelDB) > 0 {
 		res, err := readNickelStatus(ID, outputDir)
 		debugf("nickel book %s status: %d", ID, res)
 		return res, err
