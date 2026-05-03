@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # wrapper script to avoid reloading udev to change this config
-echo starting wallabako
+echo starting readeckobo
 
 # for some reason, $PATH is empty when called from udev, set a "sane" value
 #
@@ -10,7 +10,7 @@ PATH=$PATH:/mnt/onboard/.adds/koreader:/mnt/onboard/.niluje/usbnet/bin:/usr/loca
 export PATH
 
 if ps ax | grep -i nickel; then
-    /usr/local/bin/wallabako -output /mnt/onboard/wallabako/ -exec /usr/local/bin/fake-connect-usb &
+    /usr/local/bin/readeckobo -output /mnt/onboard/readeckobo/ -exec /usr/local/bin/fake-connect-usb &
 else
-    /usr/local/bin/wallabako -output /mnt/onboard/wallabako/ &
+    /usr/local/bin/readeckobo -output /mnt/onboard/readeckobo/ &
 fi
