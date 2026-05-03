@@ -26,3 +26,6 @@ Log = ""
 
 # Verbose logging
 Verbose = false
+
+# Set to true to uninstall readeckobo on next run
+Uninstall = false
