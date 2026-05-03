@@ -82,9 +82,9 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	config.ReadeckURL = baseURL
+	config.URL = baseURL
 	config.Token = token
-	config.Count = -1
+	config.Limit = -1
 
 	os.Exit(m.Run())
 }
@@ -135,7 +135,7 @@ func bootstrapToken(baseURL string) (string, error) {
 // Readeck instance under test and returns the response.
 func apiRequest(t *testing.T, method, path string, body io.Reader) *http.Response {
 	t.Helper()
-	req, err := http.NewRequest(method, config.ReadeckURL+path, body)
+	req, err := http.NewRequest(method, config.URL+path, body)
 	if err != nil {
 		t.Fatalf("build request %s %s: %v", method, path, err)
 	}
@@ -249,15 +249,15 @@ func TestFullSync(t *testing.T) {
 	dbPath := createNickelDB(t, t.TempDir())
 
 	// Override config for this test, restore on cleanup.
-	origOutputDir := config.OutputDir
+	origOutput := config.Output
 	origDatabase := config.Database
 	origDelete := config.Delete
 	t.Cleanup(func() {
-		config.OutputDir = origOutputDir
+		config.Output = origOutput
 		config.Database = origDatabase
 		config.Delete = origDelete
 	})
-	config.OutputDir = outputDir
+	config.Output = outputDir
 	config.Database = dbPath
 	config.Delete = true
 

@@ -28,36 +28,36 @@ import (
 var configFileFlag = flag.String("config", "", "path to the configuration file")
 
 type readeckoboConfig struct {
-	ReadeckURL  string `toml:"ReadeckURL"`
-	Token       string `toml:"Token"`
-	Debug       bool   `toml:"Debug"`
-	Delete      bool   `toml:"Delete"`
-	LogFile     string `toml:"LogFile"`
-	Database    string `toml:"Database"`
-	Concurrency int    `toml:"Concurrency"`
-	Count       int    `toml:"Count"`
-	Exec        string `toml:"Exec"`
-	OutputDir   string `toml:"OutputDir"`
-	PidFile     string `toml:"PidFile"`
-	Timeout     int    `toml:"Timeout"`
-	Tags        string `toml:"Tags"`
-	Uninstall   bool   `toml:"Uninstall"`
+	URL       string `toml:"URL"`
+	Token     string `toml:"Token"`
+	Debug     bool   `toml:"Debug"`
+	Delete    bool   `toml:"Delete"`
+	Log       string `toml:"Log"`
+	Database  string `toml:"Database"`
+	Workers   int    `toml:"Workers"`
+	Limit     int    `toml:"Limit"`
+	PostSync  string `toml:"PostSync"`
+	Output    string `toml:"Output"`
+	PIDFile   string `toml:"PIDFile"`
+	Timeout   int    `toml:"Timeout"`
+	Labels    string `toml:"Labels"`
+	Uninstall bool   `toml:"Uninstall"`
 }
 
 var config readeckoboConfig
 
 func (c *readeckoboConfig) validate() error {
-	if c.ReadeckURL == "" {
-		return fmt.Errorf("ReadeckURL is required")
+	if c.URL == "" {
+		return fmt.Errorf("URL is required")
 	}
 	if c.Token == "" {
 		return fmt.Errorf("Token is required")
 	}
-	if c.OutputDir == "" {
-		return fmt.Errorf("OutputDir is required")
+	if c.Output == "" {
+		return fmt.Errorf("Output is required")
 	}
-	if c.Concurrency <= 0 {
-		return fmt.Errorf("Concurrency must be greater than 0")
+	if c.Workers <= 0 {
+		return fmt.Errorf("Workers must be greater than 0")
 	}
 	if c.Timeout <= 0 {
 		return fmt.Errorf("Timeout must be greater than 0")
@@ -89,7 +89,7 @@ func main() {
 	flag.Parse()
 	configFile, configErr := findConfig()
 	if v := os.Getenv("READECKOBO_URL"); v != "" {
-		config.ReadeckURL = v
+		config.URL = v
 	}
 	if v := os.Getenv("READECKOBO_TOKEN"); v != "" {
 		config.Token = v
@@ -124,13 +124,13 @@ func main() {
 		uninstall()
 	}
 
-	lock, err := getLock(config.PidFile)
+	lock, err := getLock(config.PIDFile)
 	if err != nil {
 		log.Fatal("cannot lock PID file: ", err)
 	}
 	defer lock.Unlock()
 
-	log.Println("connecting to", config.ReadeckURL)
+	log.Println("connecting to", config.URL)
 	if config.Token == "" {
 		log.Fatal("no Token configured; create one in the Readeck UI and add it to the config file")
 	}
@@ -139,7 +139,7 @@ func main() {
 		Timeout: time.Duration(config.Timeout) * time.Second,
 	}
 
-	sem := make(chan bool, config.Concurrency)
+	sem := make(chan bool, config.Workers)
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 
@@ -150,8 +150,8 @@ func main() {
 
 	valid := make(map[string]bool)
 	tags := make(map[string]bool)
-	if len(config.Tags) > 0 {
-		for _, tag := range strings.Split(strings.ToLower(config.Tags), ",") {
+	if len(config.Labels) > 0 {
+		for _, tag := range strings.Split(strings.ToLower(config.Labels), ",") {
 			tags[strings.TrimSpace(tag)] = true
 		}
 	}
@@ -187,9 +187,9 @@ OuterLoop:
 		fds := listOpenFds()
 		log.Printf("%d open file descriptors: %s", len(fds), fds)
 	}
-	if len(config.Exec) > 0 && (counter.Downloaded.Value() > 0 || counter.Deleted.Value() > 0) {
-		log.Println("running command", config.Exec)
-		out, err := exec.Command(config.Exec).CombinedOutput()
+	if len(config.PostSync) > 0 && (counter.Downloaded.Value() > 0 || counter.Deleted.Value() > 0) {
+		log.Println("running command", config.PostSync)
+		out, err := exec.Command(config.PostSync).CombinedOutput()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -213,9 +213,9 @@ func debugf(format string, args ...interface{}) {
 
 func setupLogging(cfg readeckoboConfig, extraWriters ...io.Writer) {
 	var writers []io.Writer
-	if len(cfg.LogFile) > 0 {
+	if len(cfg.Log) > 0 {
 		writers = append(writers, &lumberjack.Logger{
-			Filename:   cfg.LogFile,
+			Filename:   cfg.Log,
 			MaxSize:    1,
 			MaxBackups: 7,
 			MaxAge:     7,
@@ -321,7 +321,7 @@ func listEntries() ([]readeckBookmark, error) {
 	const limit = 100
 	for {
 		url := fmt.Sprintf("%s/api/bookmarks?status=unread&limit=%d&page=%d",
-			config.ReadeckURL, limit, page)
+			config.URL, limit, page)
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			return nil, fmt.Errorf("build list request: %w", err)
@@ -345,14 +345,14 @@ func listEntries() ([]readeckBookmark, error) {
 		all = append(all, pageItems...)
 
 		tp, err := strconv.Atoi(resp.Header.Get("Total-Pages"))
-		if err != nil || page >= tp || (config.Count > 0 && len(all) >= config.Count) {
+		if err != nil || page >= tp || (config.Limit > 0 && len(all) >= config.Limit) {
 			break
 		}
 		page++
 	}
 	total := len(all)
-	if config.Count > 0 && len(all) > config.Count {
-		all = all[:config.Count]
+	if config.Limit > 0 && len(all) > config.Limit {
+		all = all[:config.Limit]
 	}
 	log.Printf("found %d unread bookmarks, will process %d", total, len(all))
 	counter.Unread.Store(uint32(total))
@@ -370,11 +370,11 @@ func checkTags(tags map[string]bool, labels []string) bool {
 
 func download(client *http.Client, entry readeckBookmark) error {
 	counter.Processed.Inc()
-	if err := os.MkdirAll(config.OutputDir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(config.Output, os.ModePerm); err != nil {
 		return fmt.Errorf("create output dir: %w", err)
 	}
-	epubURL := config.ReadeckURL + "/api/bookmarks/" + entry.ID + "/article.epub"
-	output := filepath.Join(config.OutputDir, entry.ID+".epub")
+	epubURL := config.URL + "/api/bookmarks/" + entry.ID + "/article.epub"
+	output := filepath.Join(config.Output, entry.ID+".epub")
 
 	info, err := os.Stat(output)
 	if err == nil && info.ModTime().After(entry.Updated) && info.Size() > 0 {
@@ -435,7 +435,7 @@ func readStatus(ID string, outputDir string) (bookStatus, error) {
 }
 
 func inspectLocalFiles(cfg readeckoboConfig, valid map[string]bool) {
-	outputDir := strings.TrimSuffix(cfg.OutputDir, "/")
+	outputDir := strings.TrimSuffix(cfg.Output, "/")
 	files, _ := filepath.Glob(outputDir + "/*.epub")
 	debugln("local files to inspect:", files)
 	for _, file := range files {
@@ -473,7 +473,7 @@ func inspectLocalFiles(cfg readeckoboConfig, valid map[string]bool) {
 func markAsRead(id string) error {
 	log.Printf("marking entry %s as archived", id)
 	body, _ := json.Marshal(map[string]bool{"is_archived": true})
-	_, err := doAPI("PATCH", config.ReadeckURL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
+	_, err := doAPI("PATCH", config.URL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
 	return err
 }
 
