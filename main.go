@@ -31,21 +31,20 @@ var (
 )
 
 type readeckoboConfig struct {
-	ReadeckURL     string `toml:"ReadeckURL"`
-	Token          string `toml:"Token"`
-	Debug          bool   `toml:"Debug"`
-	Delete         bool   `toml:"Delete"`
-	LogFile        string `toml:"LogFile"`
-	Database       string `toml:"Database"`
-	Concurrency    int    `toml:"Concurrency"`
-	Count          int    `toml:"Count"`
-	Exec           string `toml:"Exec"`
-	OutputDir      string `toml:"OutputDir"`
-	PidFile        string `toml:"PidFile"`
-	Timeout        int    `toml:"Timeout"`
-	Tags           string `toml:"Tags"`
-	Uninstall      bool   `toml:"Uninstall"`
-	UninstallCerts bool   `toml:"UninstallCerts"`
+	ReadeckURL  string `toml:"ReadeckURL"`
+	Token       string `toml:"Token"`
+	Debug       bool   `toml:"Debug"`
+	Delete      bool   `toml:"Delete"`
+	LogFile     string `toml:"LogFile"`
+	Database    string `toml:"Database"`
+	Concurrency int    `toml:"Concurrency"`
+	Count       int    `toml:"Count"`
+	Exec        string `toml:"Exec"`
+	OutputDir   string `toml:"OutputDir"`
+	PidFile     string `toml:"PidFile"`
+	Timeout     int    `toml:"Timeout"`
+	Tags        string `toml:"Tags"`
+	Uninstall   bool   `toml:"Uninstall"`
 }
 
 var config = readeckoboConfig{
@@ -80,7 +79,6 @@ func init() {
 	flag.StringVar(&config.ReadeckURL, "url", config.ReadeckURL, "Readeck server URL")
 	flag.StringVar(&config.Token, "token", config.Token, "Readeck API token")
 	flag.BoolVar(&config.Uninstall, "uninstall", false, "uninstall readeckobo")
-	flag.BoolVar(&config.UninstallCerts, "uninstallcerts", false, "also uninstall ca-certificates.crt")
 }
 
 var (
@@ -271,11 +269,7 @@ func uninstall() {
 		"/etc/udev/rules.d/90-readeckobo.rules",
 		"/usr/local/bin/fake-connect-usb",
 		"/usr/local/bin/readeckobo-run",
-		"/usr/local/bin/readeckobo-run-direct",
 		"/usr/local/bin/readeckobo",
-	}
-	if config.UninstallCerts {
-		files = append(files, "/etc/ssl/certs/ca-certificates.crt")
 	}
 	var lastErr error
 	for _, file := range files {

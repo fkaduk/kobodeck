@@ -15,7 +15,7 @@ tarball:
 	$(MAKE) build BINARY=build/readeckobo.arm $(CROSS_COMPILE_FLAGS)
 	cp build/readeckobo.arm root/usr/local/bin/readeckobo
 	touch root/usr
-	tar -C root/ -c -z -f build/KoboRoot.tgz etc /etc/ssl/certs/ca-certificates.crt usr
+	tar -C root/ -c -z -f build/KoboRoot.tgz etc usr
 	rm root/usr/local/bin/readeckobo
 
 build: $(BINARY)
