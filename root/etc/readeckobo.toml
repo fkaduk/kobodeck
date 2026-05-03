@@ -24,8 +24,5 @@ Labels = ""
 # Path to a log file (empty = stdout only), rotated automatically
 Log = ""
 
-# Path to a PID file to prevent concurrent runs (empty = auto)
-PIDFile = ""
-
 # Verbose logging
 Verbose = false
