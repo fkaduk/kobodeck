@@ -32,12 +32,13 @@ for other platforms. I have tested this on a Debian GNU/Linux 9
 
 ## Installation or Upgrade
 
-To install or upgrade, 
+To install or upgrade,
 
 1. obtain the latest `KoboRoot.tgz` either by downloading the binary or compiling it yourself
 1. save the file in the `.kobo` directory of your e-reader
-1. copy and edit the configuration file `.readeckobo.js` in the base directory of your reader
-1. optionally test your configuration by running `check_config.go` on your configuration
+1. copy and edit the configuration file `.readeckobo.toml` — see [`root/etc/readeckobo.toml`](root/etc/readeckobo.toml) for the full annotated example
+1. optionally verify your configuration with `readeckobo --check` before deploying via `readeckobo --check TODO`
+1. store the `.readeckobo.toml` in the root of your kobo device
 1. safely disconnect the reader; it should restart, install readeckobo and remove `KoboRoot.tgz`
 
 # Usage
@@ -529,10 +530,6 @@ visibility and public collaboration.
 - Sync reading progress (current position) from the Kobo to Readeck,
   once Readeck exposes a progress field in its API.
 
-- Add a `check-config` command or script that validates the configuration
-  (reachability of the Readeck server, token validity, output directory
-  writable) before deploying to the Kobo. This could be a `-check` flag
-  on the main binary rather than a separate tool.
 
 # Related projects
 
