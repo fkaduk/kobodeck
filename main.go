@@ -19,6 +19,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/dustin/go-humanize"
 	"github.com/nightlyone/lockfile"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -30,21 +31,21 @@ var (
 )
 
 type readeckoboConfig struct {
-	ReadeckURL     string `json:"ReadeckURL"`
-	Token          string `json:"Token"`
-	Debug          bool   `json:"Debug"`
-	Delete         bool   `json:"Delete"`
-	LogFile        string `json:"LogFile"`
-	Database       string `json:"Database"`
-	Concurrency    int    `json:"Concurrency"`
-	Count          int    `json:"Count"`
-	Exec           string `json:"Exec"`
-	OutputDir      string `json:"OutputDir"`
-	PidFile        string `json:"PidFile"`
-	Timeout        int    `json:"Timeout"`
-	Tags           string `json:"Tags"`
-	Uninstall      bool   `json:"Uninstall"`
-	UninstallCerts bool   `json:"UninstallCerts"`
+	ReadeckURL     string `toml:"ReadeckURL"`
+	Token          string `toml:"Token"`
+	Debug          bool   `toml:"Debug"`
+	Delete         bool   `toml:"Delete"`
+	LogFile        string `toml:"LogFile"`
+	Database       string `toml:"Database"`
+	Concurrency    int    `toml:"Concurrency"`
+	Count          int    `toml:"Count"`
+	Exec           string `toml:"Exec"`
+	OutputDir      string `toml:"OutputDir"`
+	PidFile        string `toml:"PidFile"`
+	Timeout        int    `toml:"Timeout"`
+	Tags           string `toml:"Tags"`
+	Uninstall      bool   `toml:"Uninstall"`
+	UninstallCerts bool   `toml:"UninstallCerts"`
 }
 
 var config = readeckoboConfig{
@@ -231,7 +232,7 @@ func setupLogging(cfg readeckoboConfig, extraWriters ...io.Writer) {
 	log.SetOutput(io.MultiWriter(writers...))
 }
 
-const confPath = "readeckobo.js"
+const confPath = "readeckobo.toml"
 
 var confPaths = []string{
 	home + "/.config/" + confPath,
@@ -241,11 +242,8 @@ var confPaths = []string{
 }
 
 func loadConfig(path string) error {
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(raw, &config)
+	_, err := toml.DecodeFile(path, &config)
+	return err
 }
 
 func findConfig() (string, error) {
@@ -269,7 +267,7 @@ func uninstall() {
 		log.Fatal("unexpected command path, aborting uninstall:", os.Args[0])
 	}
 	files := []string{
-		"/etc/readeckobo.js",
+		"/etc/readeckobo.toml",
 		"/etc/udev/rules.d/90-readeckobo.rules",
 		"/usr/local/bin/fake-connect-usb",
 		"/usr/local/bin/readeckobo-run",
