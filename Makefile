@@ -2,7 +2,7 @@ GNUARCH ?= $(shell arch)
 BINARY  ?= build/readeckobo.$(GNUARCH)
 
 # Embed the version number in the binary.
-GFLAGS += -ldflags="-X main.version=$(shell git describe --always --dirty)"
+GFLAGS += -ldflags="-X main.version=$(shell git describe --always --dirty --tags)"
 
 # Pure-Go modernc SQLite backend: no CGO, no C toolchain required.
 # Cross-compilation to ARM is therefore straightforward.
