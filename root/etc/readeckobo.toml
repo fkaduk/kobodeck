@@ -27,5 +27,5 @@ Log = ""
 # Path to a PID file to prevent concurrent runs (empty = auto)
 PIDFile = ""
 
-# Extra debug logging (prints Bearer token — keep off in production)
-Debug = false
+# Verbose logging
+Verbose = false
