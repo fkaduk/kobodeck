@@ -8,6 +8,23 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+type bookStatus int
+
+const (
+	bookUnread  bookStatus = 0
+	bookReading bookStatus = 1
+	bookRead    bookStatus = 2
+)
+
+func readStatus(ID string, outputDir string) (bookStatus, error) {
+	if len(nickelDB) > 0 {
+		res, err := readNickelStatus(ID, outputDir)
+		debugf("nickel book %s status: %d", ID, res)
+		return res, err
+	}
+	return bookUnread, nil
+}
+
 const nickelNormalBook = 6
 
 type nickelBookStatus int

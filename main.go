@@ -446,23 +446,6 @@ func download(client *http.Client, entry readeckBookmark) error {
 	return nil
 }
 
-type bookStatus int
-
-const (
-	bookUnread bookStatus = iota
-	bookReading
-	bookRead
-)
-
-func readStatus(ID string, outputDir string) (bookStatus, error) {
-	if len(nickelDB) > 0 {
-		res, err := readNickelStatus(ID, outputDir)
-		debugf("nickel book %s status: %d", ID, res)
-		return res, err
-	}
-	return bookUnread, nil
-}
-
 func inspectLocalFiles(cfg readeckoboConfig, valid map[string]bool) {
 	outputDir := strings.TrimSuffix(cfg.Output, "/")
 	files, _ := filepath.Glob(outputDir + "/*.epub")
