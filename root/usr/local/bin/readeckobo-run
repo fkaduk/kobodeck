@@ -3,14 +3,8 @@
 # wrapper script to avoid reloading udev to change this config
 echo starting readeckobo
 
-# for some reason, $PATH is empty when called from udev, set a "sane" value
-#
-# and yes, this includes a *lot* of crap, because we want things like fbink to be available
+# $PATH is empty when called from udev
 PATH=$PATH:/mnt/onboard/.adds/koreader:/mnt/onboard/.niluje/usbnet/bin:/usr/local/kfmon/bin:/usr/local/bin:/sbin:/usr/sbin:/bin:/usr/bin
 export PATH
 
-if ps ax | grep -i nickel; then
-    /usr/local/bin/readeckobo -output /mnt/onboard/readeckobo/ -exec /usr/local/bin/fake-connect-usb &
-else
-    /usr/local/bin/readeckobo -output /mnt/onboard/readeckobo/ &
-fi
+/usr/local/bin/readeckobo &

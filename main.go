@@ -35,7 +35,6 @@ type readeckoboConfig struct {
 	Log       string `toml:"Log"`
 	Workers   int    `toml:"Workers"`
 	Limit     int    `toml:"Limit"`
-	PostSync  string `toml:"PostSync"`
 	Output    string `toml:"Output"`
 	PIDFile   string `toml:"PIDFile"`
 	Timeout   int    `toml:"Timeout"`
@@ -81,10 +80,10 @@ func init() {
 }
 
 var (
-	counter   = Status{}
-	home      = os.Getenv("HOME")
-	version   = "undefined"
-	nickelDB  = "/mnt/onboard/.kobo/KoboReader.sqlite"
+	counter  = Status{}
+	home     = os.Getenv("HOME")
+	version  = "undefined"
+	nickelDB = "/mnt/onboard/.kobo/KoboReader.sqlite"
 )
 
 func main() {
@@ -196,14 +195,16 @@ OuterLoop:
 		fds := listOpenFds()
 		log.Printf("%d open file descriptors: %s", len(fds), fds)
 	}
-	if len(config.PostSync) > 0 && (counter.Downloaded.Value() > 0 || counter.Deleted.Value() > 0) {
-		log.Println("running command", config.PostSync)
-		out, err := exec.Command(config.PostSync).CombinedOutput()
-		if err != nil {
-			log.Fatal(err)
-		}
-		if len(out) > 0 {
-			log.Println(string(out))
+	const fakeConnectUSB = "/usr/local/bin/fake-connect-usb"
+	if counter.Downloaded.Value() > 0 || counter.Deleted.Value() > 0 {
+		if _, err := os.Stat(fakeConnectUSB); err == nil {
+			log.Println("triggering Nickel rescan")
+			out, err := exec.Command(fakeConnectUSB).CombinedOutput()
+			if err != nil {
+				log.Println("fake-connect-usb failed:", err)
+			} else if len(out) > 0 {
+				log.Println(string(out))
+			}
 		}
 	}
 }
