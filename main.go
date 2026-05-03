@@ -25,7 +25,10 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-var configFileFlag = flag.String("config", "", "path to the configuration file")
+var (
+	configFileFlag = flag.String("config", "", "path to the configuration file")
+	checkFlag      = flag.Bool("check", false, "validate config and show what would be synced, then exit")
+)
 
 type readeckoboConfig struct {
 	URL       string `toml:"URL"`
@@ -70,12 +73,6 @@ type readeckBookmark struct {
 	IsArchived bool      `json:"is_archived"`
 	Labels     []string  `json:"labels"`
 	Loaded     bool      `json:"loaded"`
-}
-
-var checkFlag = flag.Bool("check", false, "validate config and show what would be synced, then exit")
-
-func init() {
-	flag.BoolVar(&config.Uninstall, "uninstall", false, "uninstall readeckobo")
 }
 
 var (
