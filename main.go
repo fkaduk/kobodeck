@@ -11,14 +11,12 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime/debug"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/nightlyone/lockfile"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -103,9 +101,9 @@ func main() {
 
 	lock, err := getLock()
 	if err != nil {
-		log.Fatal("cannot lock PID file: ", err)
+		log.Fatal(err)
 	}
-	defer lock.Unlock()
+	defer lock.Close()
 
 	log.Println("connecting to", config.URL)
 	if config.Token == "" {
@@ -261,30 +259,16 @@ func uninstall() {
 	log.Fatal("uninstall complete")
 }
 
-const pidPath = "readeckobo.pid"
-
-var pidPaths = []string{
-	"/var/run/" + pidPath,
-	"/run/" + pidPath,
-	"/run/user/" + strconv.Itoa(os.Getuid()) + "/" + pidPath,
-	home + "/." + pidPath,
-}
-
-func getLock() (lock lockfile.Lockfile, err error) {
-OuterLoop:
-	for _, path := range pidPaths {
-		debugln("trying lockfile path", path)
-		lock, _ = lockfile.New(path)
-		err = lock.TryLock()
-		switch err.(type) {
-		case *os.PathError:
-			debugln(err)
-			continue OuterLoop
-		default:
-			break OuterLoop
-		}
+func getLock() (*os.File, error) {
+	f, err := os.OpenFile("/tmp/readeckobo.lock", os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		return nil, fmt.Errorf("open lock file: %w", err)
 	}
-	return lock, err
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		f.Close()
+		return nil, fmt.Errorf("already running")
+	}
+	return f, nil
 }
 
 func runCheck(w io.Writer) error {
