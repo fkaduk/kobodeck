@@ -32,9 +32,9 @@ var (
 type readeckoboConfig struct {
 	ReadeckURL     string `json:"ReadeckURL"`
 	Token          string `json:"Token"`
-	Debug          bool   `json:"debug"`
-	Delete         bool   `json:"delete"`
-	LogFile        string `json:"logfile"`
+	Debug          bool   `json:"Debug"`
+	Delete         bool   `json:"Delete"`
+	LogFile        string `json:"LogFile"`
 	Database       string `json:"Database"`
 	Concurrency    int    `json:"Concurrency"`
 	Count          int    `json:"Count"`
