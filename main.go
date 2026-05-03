@@ -25,10 +25,7 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-var (
-	configFileFlag = flag.String("config", "", "path to the configuration file")
-	showVersion    = flag.Bool("version", false, "show program version and exit")
-)
+var configFileFlag = flag.String("config", "", "path to the configuration file")
 
 type readeckoboConfig struct {
 	ReadeckURL  string `toml:"ReadeckURL"`
@@ -85,17 +82,13 @@ func main() {
 	}
 	debugf("config: %#v", config)
 
-	if *showVersion {
-		fmt.Println(version)
-		return
-	}
 	setupLogging(config)
 	debug.SetPanicOnFault(true)
 
 	if configErr != nil {
 		log.Fatal(configErr.Error())
 	}
-	log.Println("loaded configuration from", configFile)
+	log.Println("readeckobo version", version, "loaded configuration from", configFile)
 
 	start := time.Now()
 	defer func() {
