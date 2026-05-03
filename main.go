@@ -65,19 +65,6 @@ type readeckBookmark struct {
 }
 
 func init() {
-	flag.BoolVar(&config.Debug, "debug", false, "additional debugging information in logs")
-	flag.BoolVar(&config.Delete, "delete", false, "delete EPUB files not found in feed")
-	flag.StringVar(&config.Database, "database", config.Database, "path to Kobo Nickel database")
-	flag.IntVar(&config.Concurrency, "concurrency", config.Concurrency, "number of parallel downloads")
-	flag.StringVar(&config.LogFile, "logfile", config.LogFile, "write logs to file, rotated automatically")
-	flag.IntVar(&config.Count, "count", config.Count, "number of articles to fetch (-1 = all)")
-	flag.StringVar(&config.Exec, "exec", "", "command to run when files have changed")
-	flag.StringVar(&config.OutputDir, "output", ".", "output directory for EPUB files")
-	flag.StringVar(&config.PidFile, "pidfile", "", "pidfile to prevent concurrent runs")
-	flag.IntVar(&config.Timeout, "timeout", config.Timeout, "HTTP request timeout in seconds")
-	flag.StringVar(&config.Tags, "tags", "", "comma-separated list of labels to filter for")
-	flag.StringVar(&config.ReadeckURL, "url", config.ReadeckURL, "Readeck server URL")
-	flag.StringVar(&config.Token, "token", config.Token, "Readeck API token")
 	flag.BoolVar(&config.Uninstall, "uninstall", false, "uninstall readeckobo")
 }
 
@@ -96,7 +83,6 @@ func main() {
 	if v := os.Getenv("READECKOBO_TOKEN"); v != "" {
 		config.Token = v
 	}
-	flag.Parse()
 	debugf("config: %#v", config)
 
 	if *showVersion {
