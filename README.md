@@ -516,6 +516,19 @@ visibility and public collaboration.
   if the code makes assumptions that break on a schema change after a
   firmware update.
 
+- The udev rule in `root/etc/udev/rules.d/90-readeckobo.rules` triggers
+  on `eth*` in addition to `wlan*`. Kobos have no ethernet port, so the
+  `eth*` line is dead code and should be removed.
+
+- Sync favourite/starred status from the Kobo to Readeck (in addition to
+  read status).
+
+- Sync highlights and annotations from the Kobo (`Bookmark` table in
+  `KoboReader.sqlite`) to Readeck's annotations API.
+
+- Sync reading progress (current position) from the Kobo to Readeck,
+  once Readeck exposes a progress field in its API.
+
 # Related projects
 
 Other Kobo-related software has support for Wallabako, and may be
