@@ -25,14 +25,16 @@ type readeckBookmark struct {
 	Loaded     bool      `json:"loaded"`
 }
 
+// listEntries fetches all unread bookmarks from Readeck, paging through results
+// in batches. Stops early if config.Limit is reached.
 func listEntries() ([]readeckBookmark, error) {
 	client := &http.Client{Timeout: time.Duration(config.Timeout) * time.Second}
 	var all []readeckBookmark
 	page := 1
-	const limit = 100
+	const batchSize = 100
 	for {
 		url := fmt.Sprintf("%s/api/bookmarks?status=unread&limit=%d&page=%d",
-			config.URL, limit, page)
+			config.URL, batchSize, page)
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			return nil, fmt.Errorf("build list request: %w", err)
@@ -69,6 +71,7 @@ func listEntries() ([]readeckBookmark, error) {
 	return all, nil
 }
 
+// checkTags reports whether any of the bookmark's labels match the tag filter.
 func checkTags(tags map[string]bool, labels []string) bool {
 	for _, label := range labels {
 		if tags[strings.ToLower(label)] {
@@ -78,6 +81,9 @@ func checkTags(tags map[string]bool, labels []string) bool {
 	return false
 }
 
+// download fetches the EPUB for a bookmark and writes it to config.Output.
+// Skips the download if a local file newer than the bookmark's updated timestamp already exists.
+// Deletes the partial file if the write fails.
 func download(client *http.Client, entry readeckBookmark) error {
 	if err := os.MkdirAll(config.Output, os.ModePerm); err != nil {
 		return fmt.Errorf("create output dir: %w", err)
@@ -125,6 +131,7 @@ func download(client *http.Client, entry readeckBookmark) error {
 	return nil
 }
 
+// markAsRead archives a bookmark in Readeck, removing it from the unread feed.
 func markAsRead(id string) error {
 	log.Printf("marking entry %s as archived", id)
 	body, _ := json.Marshal(map[string]bool{"is_archived": true})
@@ -132,6 +139,8 @@ func markAsRead(id string) error {
 	return err
 }
 
+// doAPI sends an authenticated API request and returns the response body.
+// Returns an error if the status code is outside the 2xx range.
 func doAPI(method, apiURL string, body io.Reader) ([]byte, error) {
 	req, err := http.NewRequest(method, apiURL, body)
 	if err != nil {

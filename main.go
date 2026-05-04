@@ -41,6 +41,7 @@ type readeckoboConfig struct {
 
 var config readeckoboConfig
 
+// validate checks that all required config fields are present and sane.
 func (c *readeckoboConfig) validate() error {
 	if c.URL == "" {
 		return fmt.Errorf("URL is required")
@@ -64,7 +65,7 @@ var (
 	filesChanged atomic.Bool
 	home         = os.Getenv("HOME")
 	version      = "dev"
-	nickelDB     = "/mnt/onboard/.kobo/KoboReader.sqlite"
+	nickelDBPath = "/mnt/onboard/.kobo/KoboReader.sqlite"
 )
 
 func main() {
@@ -184,6 +185,8 @@ func debugf(format string, args ...interface{}) {
 	}
 }
 
+// setupLogging configures the global logger to write to stdout and optionally
+// to a size-capped rotating log file when cfg.Log is set.
 func setupLogging(cfg readeckoboConfig, extraWriters ...io.Writer) {
 	var writers []io.Writer
 	if len(cfg.Log) > 0 {
@@ -208,11 +211,14 @@ var confPaths = []string{
 	"/etc/" + confPath,
 }
 
+// loadConfig decodes a TOML file at path into the global config.
 func loadConfig(path string) error {
 	_, err := toml.DecodeFile(path, &config)
 	return err
 }
 
+// findConfig loads the first config file found, trying --config first, then
+// the standard search paths. Returns the path that was loaded.
 func findConfig() (string, error) {
 	if *configFileFlag != "" {
 		if err := loadConfig(*configFileFlag); err != nil {
@@ -229,6 +235,8 @@ func findConfig() (string, error) {
 	return "", fmt.Errorf("no config file found")
 }
 
+// uninstall removes all files deployed by KoboRoot.tgz and exits.
+// Refuses to run if the binary is not under /usr/local to prevent accidents.
 func uninstall() {
 	log.Println("uninstall requested, clearing myself out")
 	if !strings.HasPrefix(os.Args[0], "/usr/local") {
@@ -256,6 +264,8 @@ func uninstall() {
 	log.Fatal("uninstall complete")
 }
 
+// getLock acquires an exclusive non-blocking flock on /tmp/readeckobo.lock.
+// Returns an error if another instance is already running.
 func getLock() (*os.File, error) {
 	f, err := os.OpenFile("/tmp/readeckobo.lock", os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
@@ -268,6 +278,8 @@ func getLock() (*os.File, error) {
 	return f, nil
 }
 
+// runCheck prints the active configuration and lists bookmarks that would be
+// synced, without downloading anything. Used by the --check flag.
 func runCheck(w io.Writer) error {
 	fmt.Fprintln(w, "Configuration:")
 	fmt.Fprintf(w, "  URL:     %s\n", config.URL)
@@ -315,6 +327,9 @@ func runCheck(w io.Writer) error {
 	return nil
 }
 
+// inspectLocalFiles checks each local EPUB against the Nickel DB and the valid
+// set. Books marked as read in Nickel are archived in Readeck. Books no longer
+// in the unread feed are deleted if cfg.Delete is set, unless currently being read.
 func inspectLocalFiles(cfg readeckoboConfig, valid map[string]bool) {
 	outputDir := strings.TrimSuffix(cfg.Output, "/")
 	files, _ := filepath.Glob(outputDir + "/*.epub")
@@ -327,6 +342,7 @@ func inspectLocalFiles(cfg readeckoboConfig, valid map[string]bool) {
 		}
 		status, err := readStatus(uid, outputDir)
 		if err != nil {
+			// Skip entirely — don't delete a book we can't confirm the read state of.
 			log.Println(err)
 			continue
 		}
@@ -350,6 +366,8 @@ func inspectLocalFiles(cfg readeckoboConfig, valid map[string]bool) {
 	}
 }
 
+// listOpenFds returns the resolved paths of all open file descriptors.
+// Used for verbose leak diagnostics only.
 func listOpenFds() []string {
 	fds, _ := filepath.Glob("/proc/self/fd/*")
 	var result []string
