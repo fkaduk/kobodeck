@@ -51,8 +51,8 @@ To install or upgrade,
 
 ## Uninstalling
 
-Set `Uninstall = true` in `.kobodeck.toml` and connect to wifi. kobodeck will
-remove itself and exit.
+Delete `.kobodeck.toml` and connect to wifi.
+kobodeck will remove itself and exit.
 
 ### Manual uninstall
 
