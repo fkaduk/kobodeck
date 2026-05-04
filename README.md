@@ -60,7 +60,8 @@ Manual removal of the files deployed by `KoboRoot.tgz`
 requires root access to the device, for example via
 [niluje's usbnet](https://www.mobileread.com/forums/showthread.php?t=254214),
 which provides SSH over USB.
-Once you have SSH access, remove:
+
+Once you have access, remove:
 
 ```text
 etc/udev/rules.d/90-kobodeck.rules
@@ -90,3 +91,5 @@ Check the Makefile for common operations on the project.
   `KoboReader.sqlite`) to Readeck's annotations API.
 - Sync reading progress (current position) from the Kobo to Readeck,
   once Readeck exposes a progress field in its API.
+- Preview images are not displayed in EPUBs — this is a Readeck issue
+  and needs to be fixed upstream.
