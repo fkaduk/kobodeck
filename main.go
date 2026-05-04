@@ -27,17 +27,16 @@ var (
 )
 
 type appConfig struct {
-	URL       string `toml:"URL"`
-	Token     string `toml:"Token"`
-	Verbose   bool   `toml:"Verbose"`
-	Delete    bool   `toml:"Delete"`
-	Log       string `toml:"Log"`
-	Workers   int    `toml:"Workers"`
-	Limit     int    `toml:"Limit"`
-	Output    string `toml:"Output"`
-	Timeout   int    `toml:"Timeout"`
-	Labels    string `toml:"Labels"`
-	Uninstall bool   `toml:"Uninstall"`
+	URL     string `toml:"URL"`
+	Token   string `toml:"Token"`
+	Verbose bool   `toml:"Verbose"`
+	Delete  bool   `toml:"Delete"`
+	Log     string `toml:"Log"`
+	Workers int    `toml:"Workers"`
+	Limit   int    `toml:"Limit"`
+	Output  string `toml:"Output"`
+	Timeout int    `toml:"Timeout"`
+	Labels  string `toml:"Labels"`
 }
 
 var config appConfig
@@ -77,7 +76,9 @@ func main() {
 	debug.SetPanicOnFault(true)
 
 	if configErr != nil {
-		log.Fatal(configErr.Error())
+		setupLogging(appConfig{Log: "/mnt/onboard/.kobodeck.log"})
+		log.Println("no config found at", confPath, "— uninstalling")
+		uninstall()
 	}
 	if err := config.validate(); err != nil {
 		log.Fatal("invalid configuration: ", err)
@@ -95,10 +96,6 @@ func main() {
 	defer func() {
 		log.Printf("version %s completed in %s", version, time.Since(start).Truncate(time.Millisecond))
 	}()
-
-	if config.Uninstall {
-		uninstall()
-	}
 
 	lock, err := acquireLock()
 	if err != nil {
