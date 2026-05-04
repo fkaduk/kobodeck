@@ -18,7 +18,7 @@ const (
 
 const nickelContentTypeBook = 6
 
-func readStatus(ID string, outputDir string) (bookStatus, error) {
+func nickelReadStatus(ID string, outputDir string) (bookStatus, error) {
 	// KoboReader.sqlite is Nickel's main database; open read-write is fine, we never write.
 	db, err := sql.Open("sqlite", nickelDBPath)
 	if err != nil {
