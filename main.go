@@ -112,6 +112,12 @@ func main() {
 	signal.Notify(sigc, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 
 	entries, err := listBookmarks()
+	for attempt := 1; err != nil && attempt < 5; attempt++ {
+		delay := time.Duration(1<<uint(attempt)) * time.Second
+		log.Printf("failed to connect, retrying in %s: %v", delay, err)
+		time.Sleep(delay)
+		entries, err = listBookmarks()
+	}
 	if err != nil {
 		log.Fatal(err)
 	}
