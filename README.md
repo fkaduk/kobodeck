@@ -98,3 +98,5 @@ sqlite3 /media/$USER/KOBOeReader/.kobo/KoboReader.sqlite ".schema" > testdata/ni
   once Readeck exposes a progress field in its API.
 - Preview images are not displayed in EPUBs — this is a Readeck issue
   and needs to be fixed upstream.
+- Currently fetches epubs, could be kepubs instead
+- add preview pictures
