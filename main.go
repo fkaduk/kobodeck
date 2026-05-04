@@ -26,7 +26,7 @@ var (
 	checkFlag      = flag.Bool("check", false, "validate config and show what would be synced, then exit")
 )
 
-type readeckoboConfig struct {
+type appConfig struct {
 	URL       string `toml:"URL"`
 	Token     string `toml:"Token"`
 	Verbose   bool   `toml:"Verbose"`
@@ -40,10 +40,10 @@ type readeckoboConfig struct {
 	Uninstall bool   `toml:"Uninstall"`
 }
 
-var config readeckoboConfig
+var config appConfig
 
 // validate checks that all required config fields are present and sane.
-func (c *readeckoboConfig) validate() error {
+func (c *appConfig) validate() error {
 	if c.URL == "" {
 		return fmt.Errorf("URL is required")
 	}
@@ -83,7 +83,7 @@ func main() {
 	if err := config.validate(); err != nil {
 		log.Fatal("invalid configuration: ", err)
 	}
-	log.Println("readeckobo version", version, "loaded configuration from", configFile)
+	log.Println("kobodeck version", version, "loaded configuration from", configFile)
 
 	if *checkFlag {
 		if err := runCheck(os.Stdout); err != nil {
@@ -181,7 +181,7 @@ func debugf(format string, args ...interface{}) {
 
 // setupLogging configures the global logger to write to stdout and optionally
 // to a size-capped rotating log file when cfg.Log is set.
-func setupLogging(cfg readeckoboConfig, extraWriters ...io.Writer) {
+func setupLogging(cfg appConfig, extraWriters ...io.Writer) {
 	var writers []io.Writer
 	if len(cfg.Log) > 0 {
 		writers = append(writers, &lumberjack.Logger{
@@ -196,7 +196,7 @@ func setupLogging(cfg readeckoboConfig, extraWriters ...io.Writer) {
 	log.SetOutput(io.MultiWriter(writers...))
 }
 
-const confPath = "readeckobo.toml"
+const confPath = "kobodeck.toml"
 
 var confPaths = []string{
 	home + "/.config/" + confPath,
@@ -237,11 +237,11 @@ func uninstall() {
 		log.Fatal("unexpected command path, aborting uninstall:", os.Args[0])
 	}
 	files := []string{
-		"/etc/readeckobo.toml",
-		"/etc/udev/rules.d/90-readeckobo.rules",
+		"/etc/kobodeck.toml",
+		"/etc/udev/rules.d/90-kobodeck.rules",
 		"/usr/local/bin/fake-connect-usb",
-		"/usr/local/bin/readeckobo-run",
-		"/usr/local/bin/readeckobo",
+		"/usr/local/bin/kobodeck-run",
+		"/usr/local/bin/kobodeck",
 	}
 	var lastErr error
 	for _, file := range files {
@@ -258,10 +258,10 @@ func uninstall() {
 	log.Fatal("uninstall complete")
 }
 
-// acquireLock acquires an exclusive non-blocking flock on /tmp/readeckobo.lock.
+// acquireLock acquires an exclusive non-blocking flock on /tmp/kobodeck.lock.
 // Returns an error if another instance is already running.
 func acquireLock() (*os.File, error) {
-	f, err := os.OpenFile("/tmp/readeckobo.lock", os.O_CREATE|os.O_WRONLY, 0600)
+	f, err := os.OpenFile("/tmp/kobodeck.lock", os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return nil, fmt.Errorf("open lock file: %w", err)
 	}
@@ -324,7 +324,7 @@ func runCheck(w io.Writer) error {
 // reconcileLocalFiles checks each local EPUB against the Nickel DB and the valid
 // set. Books marked as read in Nickel are archived in Readeck. Books no longer
 // in the unread feed are deleted if cfg.Delete is set, unless currently being read.
-func reconcileLocalFiles(cfg readeckoboConfig, valid map[string]bool) {
+func reconcileLocalFiles(cfg appConfig, valid map[string]bool) {
 	outputDir := strings.TrimSuffix(cfg.Output, "/")
 	files, _ := filepath.Glob(outputDir + "/*.epub")
 	debugf("local files to inspect: %v", files)
