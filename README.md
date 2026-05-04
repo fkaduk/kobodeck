@@ -512,6 +512,8 @@ visibility and public collaboration.
 
 [Gitlab issue queue]: https://gitlab.com/anarcat/wallabako/issues
 
+- Add signing via CI
+
 - The integration test creates the Nickel SQLite database with a
   minimal 3-column schema. It should instead use the full real Kobo
   schema (stored as `testdata/nickel-schema.sql`) so that tests fail
