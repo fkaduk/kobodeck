@@ -1,4 +1,4 @@
-module github.com/fkaduk/readeckobo
+module github.com/fkaduk/kobodeck
 
 go 1.25.0
 

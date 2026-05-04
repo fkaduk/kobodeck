@@ -1,6 +1,6 @@
 # Readeck Article Downloader for Kobo
 
-**readeckobo** is a minimalist article downloader for Kobo devices.
+**kobodeck** is a minimalist article downloader for Kobo devices.
 
 It can fetch content from a Readeck instance,
 and sync its status (read/archived) from the Kobo device
@@ -18,7 +18,7 @@ This plugin could be useful for you if you
 
 ## how to use it
 
-When the wifi is turned on, readeckobo fakes a USB connection.
+When the wifi is turned on, kobodeck fakes a USB connection.
 ...
 When you press **Connect**, the fake USB connection will close immediately and a rescan of the database will be triggered.
 If you press **Cancel**, ...
@@ -37,10 +37,10 @@ To install or upgrade,
 
 1. obtain the latest `KoboRoot.tgz` either by downloading the binary or compiling it yourself
 1. save the file in the `.kobo` directory of your e-reader
-1. copy and edit the configuration file `.readeckobo.toml` — see [`root/etc/readeckobo.toml`](root/etc/readeckobo.toml) for the full annotated example
-1. optionally verify your configuration with `readeckobo --check` before deploying via `readeckobo --check TODO`
-1. store the `.readeckobo.toml` in the root of your kobo device
-1. safely disconnect the reader; it should restart, install readeckobo and remove `KoboRoot.tgz`
+1. copy and edit the configuration file `.kobodeck.toml` — see [`root/etc/kobodeck.toml`](root/etc/kobodeck.toml) for the full annotated example
+1. optionally verify your configuration with `kobodeck --check` before deploying via `kobodeck --check TODO`
+1. store the `.kobodeck.toml` in the root of your kobo device
+1. safely disconnect the reader; it should restart, install kobodeck and remove `KoboRoot.tgz`
 
 # Usage
 ## Kobo devices
@@ -321,7 +321,7 @@ the `-output` directory while enabling `-delete` could delete files
 unexpectedly if they match the magic pattern (`N.epub` where N is an
 integer).
 
-See [`root/etc/readeckobo.toml`](root/etc/readeckobo.toml) for the full annotated example configuration file.
+See [`root/etc/kobodeck.toml`](root/etc/kobodeck.toml) for the full annotated example configuration file.
 
 ## Configuration file is not found even if present
 
@@ -518,7 +518,7 @@ visibility and public collaboration.
   if the code makes assumptions that break on a schema change after a
   firmware update.
 
-- The udev rule in `root/etc/udev/rules.d/90-readeckobo.rules` triggers
+- The udev rule in `root/etc/udev/rules.d/90-kobodeck.rules` triggers
   on `eth*` in addition to `wlan*`. Kobos have no ethernet port, so the
   `eth*` line is dead code and should be removed.
 

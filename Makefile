@@ -1,22 +1,19 @@
 GNUARCH ?= $(shell arch)
-BINARY  ?= build/readeckobo.$(GNUARCH)
+BINARY  ?= build/kobodeck.$(GNUARCH)
 
 # Embed the version number in the binary.
 GFLAGS += -ldflags="-X main.version=$(shell git describe --always --dirty --tags)"
-
-# Pure-Go modernc SQLite backend: no CGO, no C toolchain required.
-# Cross-compilation to ARM is therefore straightforward.
 CROSS_COMPILE_FLAGS = GOARCH=arm GOOS=linux CGO_ENABLED=0
 
 all: check build tarball
 
 tarball:
 	@echo building Kobo tarball
-	$(MAKE) build BINARY=build/readeckobo.arm $(CROSS_COMPILE_FLAGS)
-	cp build/readeckobo.arm root/usr/local/bin/readeckobo
+	$(MAKE) build BINARY=build/kobodeck.arm $(CROSS_COMPILE_FLAGS)
+	cp build/kobodeck.arm root/usr/local/bin/kobodeck
 	touch root/usr
 	tar -C root/ -c -z -f build/KoboRoot.tgz etc usr
-	rm root/usr/local/bin/readeckobo
+	rm root/usr/local/bin/kobodeck
 
 build: $(BINARY)
 
@@ -26,7 +23,7 @@ $(BINARY): *.go
 	strip $@ || true
 
 clean:
-	rm -f build/readeckobo.* build/KoboRoot.tgz
+	rm -f build/kobodeck.* build/KoboRoot.tgz
 
 check: lint test
 
@@ -41,11 +38,6 @@ test:
 
 sign: check build tarball
 	rm -f build/*.asc
-	for bin in build/readeckobo.* build/KoboRoot.tgz; do \
+	for bin in build/kobodeck.* build/KoboRoot.tgz; do \
 		gpg --detach-sign -a "$$bin"; \
 	done
-
-HOST ?= localhost
-
-deploy: tarball
-	pv build/KoboRoot.tgz | ssh root@$(HOST) 'cd / ; tar zxf -'

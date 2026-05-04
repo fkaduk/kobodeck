@@ -4,7 +4,7 @@ Token = ""
 
 # Directory to store downloaded EPUB files
 # If it does not exist, it will be created
-Output = "/mnt/onboard/readeckobo"
+Output = "/mnt/onboard/kobodeck"
 
 # Number of articles to fetch (-1 = all)
 Limit = -1
@@ -27,5 +27,5 @@ Log = ""
 # Verbose logging
 Verbose = false
 
-# Set to true to uninstall readeckobo on next run
+# Set to true to uninstall kobodeck on next run
 Uninstall = false
