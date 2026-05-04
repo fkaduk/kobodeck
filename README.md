@@ -2,7 +2,8 @@
 
 **kobodeck** is a minimalist article downloader for Kobo devices.
 
-It can 
+It can
+
 - fetch content from a **Readeck instance**
 - sync its status (read/archived) from the **Kobo device** to the Readeck server
 
@@ -24,8 +25,8 @@ This plugin could be useful for you if you
 ## how to use it
 
 When wifi is turned on, kobodeck connects to your Readeck instance in the
-background, and checks (read-only) in the Kobo database which articles have not been read yet.
-These are downloaded and the status of changed articles in the is synced to Readeck.
+background, downloads new unread articles as EPUBs, and syncs read status
+back to Readeck.
 
 If any files changed, it triggers a fake USB
 connection to prompt Nickel to rescan the library.
@@ -41,7 +42,7 @@ To install or upgrade,
 1. obtain the latest `KoboRoot.tgz` either by downloading the binary or
    by building from source via `make tarkball`
 1. save the file in the `.kobo` directory of your e-reader
-1. copy and edit [`.kobodeck.toml`](.kobodeck.toml)
+1. copy and edit the configuration file [`.kobodeck.toml`](root/etc/kobodeck.toml)
 1. optionally verify your configuration with
    `kobodeck --config .kobodeck.toml --check`
 1. store the `.kobodeck.toml` in the root of your kobo device
@@ -50,15 +51,20 @@ To install or upgrade,
 
 ## Uninstalling
 
-Delete `.kobodeck.toml` from the root of your Kobo and connect to wifi. kobodeck
-will remove itself and exit.
+Set `Uninstall = true` in `.kobodeck.toml` and connect to wifi. kobodeck will
+remove itself and exit.
 
 ### Manual uninstall
 
-The files deployed by `KoboRoot.tgz` are:
+Manual removal of the files deployed by `KoboRoot.tgz`
+requires root access to the device, for example via
+[niluje's usbnet](https://www.mobileread.com/forums/showthread.php?t=254214),
+which provides SSH over USB.
+Once you have SSH access, remove:
 
 ```text
 etc/udev/rules.d/90-kobodeck.rules
+etc/kobodeck.toml
 usr/local/bin/kobodeck
 usr/local/bin/fake-connect-usb
 usr/local/bin/kobodeck-run
