@@ -191,19 +191,18 @@ func createLoadedBookmark(t *testing.T, bookmarkURL string) string {
 // returns its path. The caller can insert rows to simulate Kobo read status.
 func createNickelDB(t *testing.T, dir string) string {
 	t.Helper()
+	schema, err := os.ReadFile("testdata/nickel-schema.sql")
+	if err != nil {
+		t.Fatalf("read nickel schema: %v", err)
+	}
 	dbPath := filepath.Join(dir, "KoboReader.sqlite")
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		t.Fatalf("create nickel db: %v", err)
 	}
 	defer db.Close()
-	_, err = db.Exec(`CREATE TABLE content (
-		ContentID   TEXT NOT NULL,
-		ContentType TEXT NOT NULL,
-		ReadStatus  INTEGER DEFAULT 0
-	)`)
-	if err != nil {
-		t.Fatalf("create content table: %v", err)
+	if _, err = db.Exec(string(schema)); err != nil {
+		t.Fatalf("apply nickel schema: %v", err)
 	}
 	return dbPath
 }
@@ -313,8 +312,8 @@ func TestFullSync(t *testing.T) {
 	}
 	contentID := fmt.Sprintf("file://%s/%s.epub", outputDir, id)
 	_, err = db.Exec(
-		"INSERT INTO content (ContentID, ContentType, ReadStatus) VALUES (?, ?, 2)",
-		contentID, nickelContentTypeBook,
+		"INSERT INTO content (ContentID, ContentType, MimeType, ___UserID, ReadStatus) VALUES (?, ?, ?, ?, 2)",
+		contentID, nickelContentTypeBook, "application/epub+zip", "test",
 	)
 	db.Close()
 	if err != nil {

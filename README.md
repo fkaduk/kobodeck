@@ -78,13 +78,18 @@ from running automatically on network changes.
 
 Check the Makefile for common operations on the project.
 
+### Updating the Nickel schema
+
+The integration tests use `testdata/nickel-schema.sql`, which is the real
+`KoboReader.sqlite` schema dumped from a connected Kobo device. After a
+firmware update that changes the database schema, refresh it with:
+
+```sh
+sqlite3 /media/$USER/KOBOeReader/.kobo/KoboReader.sqlite ".schema" > testdata/nickel-schema.sql
+```
+
 ### Known issues
 
-- The integration test creates the Nickel SQLite database with a
-  minimal 3-column schema. It should instead use the full real Kobo
-  schema (stored as `testdata/nickel-schema.sql`) so that tests fail
-  if the code makes assumptions that break on a schema change after a
-  firmware update.
 - Sync favourite/starred status from the Kobo to Readeck (in addition to
   read status).
 - Sync highlights and annotations from the Kobo (`Bookmark` table in
