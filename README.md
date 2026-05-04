@@ -2,8 +2,9 @@
 
 **kobodeck** is a minimalist article downloader for Kobo devices.
 
-It can fetch content from a **Readeck instance**,
-and sync its status (read/archived) from the **Kobo device** to the Readeck server.
+It can 
+- fetch content from a **Readeck instance**
+- sync its status (read/archived) from the **Kobo device** to the Readeck server
 
 The code is forked from
 [wallabako](https://gitlab.com/anarcat/wallabako).
@@ -23,9 +24,12 @@ This plugin could be useful for you if you
 ## how to use it
 
 When wifi is turned on, kobodeck connects to your Readeck instance in the
-background, downloads new unread articles as EPUBs, and archives any articles
-you have finished reading. If any files changed, it triggers a fake USB
-connection to prompt Nickel to rescan the library. Press **Connect** to rescan
+background, and checks (read-only) in the Kobo database which articles have not been read yet.
+These are downloaded and the status of changed articles in the is synced to Readeck.
+
+If any files changed, it triggers a fake USB
+connection to prompt Nickel to rescan the library.
+Press **Connect** to rescan
 immediately, or **Cancel** — the files are already downloaded either way.
 
 ![screenshot of the connect dialog on a Kobo Glo HD reader](assets/connect-dialog.png)
@@ -37,9 +41,7 @@ To install or upgrade,
 1. obtain the latest `KoboRoot.tgz` either by downloading the binary or
    by building from source via `make tarkball`
 1. save the file in the `.kobo` directory of your e-reader
-1. copy and edit the configuration file `.kobodeck.toml` — see
-   [`root/etc/kobodeck.toml`](root/etc/kobodeck.toml) for the full annotated
-   example
+1. copy and edit the configuration file [`.kobodeck.toml`](root/etc/kobodeck.toml)
 1. optionally verify your configuration with
    `kobodeck --config .kobodeck.toml --check`
 1. store the `.kobodeck.toml` in the root of your kobo device
@@ -66,7 +68,11 @@ usr/local/bin/kobodeck-run
 Removing `/etc/udev/rules.d/90-kobodeck.rules` is enough to prevent kobodeck
 from running automatically on network changes.
 
-## Known issues
+## Development
+
+Check the Makefile for common operations on the project.
+
+### Known issues
 
 - The integration test creates the Nickel SQLite database with a
   minimal 3-column schema. It should instead use the full real Kobo
