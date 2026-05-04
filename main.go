@@ -134,7 +134,7 @@ OuterLoop:
 			debugf("skipping %s (not in tags)", entry.ID)
 			continue
 		}
-		debugln("dispatching", entry.ID)
+		debugf("dispatching %s", entry.ID)
 		valid[entry.ID] = true
 		select {
 		case sem <- true:
@@ -170,12 +170,6 @@ OuterLoop:
 				log.Println(string(out))
 			}
 		}
-	}
-}
-
-func debugln(args ...interface{}) {
-	if config.Verbose {
-		log.Println(args...)
 	}
 }
 
@@ -333,7 +327,7 @@ func runCheck(w io.Writer) error {
 func reconcileLocalFiles(cfg readeckoboConfig, valid map[string]bool) {
 	outputDir := strings.TrimSuffix(cfg.Output, "/")
 	files, _ := filepath.Glob(outputDir + "/*.epub")
-	debugln("local files to inspect:", files)
+	debugf("local files to inspect: %v", files)
 	for _, file := range files {
 		uid := strings.TrimSuffix(filepath.Base(file), ".epub")
 		if uid == "" {
