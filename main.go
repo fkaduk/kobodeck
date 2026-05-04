@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"golang.org/x/sync/errgroup"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -111,7 +112,6 @@ func main() {
 		Timeout: time.Duration(config.Timeout) * time.Second,
 	}
 
-	sem := make(chan bool, config.Workers)
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 
@@ -128,29 +128,29 @@ func main() {
 		}
 	}
 
-OuterLoop:
+	var g errgroup.Group
+	g.SetLimit(config.Workers)
+
 	for _, entry := range entries {
 		if len(tags) > 0 && !matchesLabelFilter(tags, entry.Labels) {
 			debugf("skipping %s (not in tags)", entry.ID)
 			continue
 		}
-		debugf("dispatching %s", entry.ID)
-		valid[entry.ID] = true
 		select {
-		case sem <- true:
-			go func(e readeckBookmark) {
-				defer func() { <-sem }()
-				if err := download(client, e); err != nil {
-					log.Println("error downloading entry", e.ID, err)
-				}
-			}(entry)
 		case sig := <-sigc:
 			log.Println("got signal:", sig, ", waiting for downloads to finish...")
-			break OuterLoop
+			goto done
+		default:
 		}
+		debugf("dispatching %s", entry.ID)
+		valid[entry.ID] = true
+		g.Go(func() error {
+			return download(client, entry)
+		})
 	}
-	for i := 0; i < cap(sem); i++ {
-		sem <- true
+done:
+	if err := g.Wait(); err != nil {
+		log.Println("download error:", err)
 	}
 
 	reconcileLocalFiles(config, valid)
