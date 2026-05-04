@@ -10,7 +10,6 @@ import (
 	"net/http/httputil"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -30,11 +29,10 @@ type readeckBookmark struct {
 func listBookmarks() ([]readeckBookmark, error) {
 	client := &http.Client{Timeout: time.Duration(config.Timeout) * time.Second}
 	var all []readeckBookmark
-	page := 1
 	const batchSize = 100
-	for {
-		url := fmt.Sprintf("%s/api/bookmarks?status=unread&limit=%d&page=%d",
-			config.URL, batchSize, page)
+	for offset := 0; ; offset += batchSize {
+		url := fmt.Sprintf("%s/api/bookmarks?is_archived=false&limit=%d&offset=%d",
+			config.URL, batchSize, offset)
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			return nil, fmt.Errorf("build list request: %w", err)
@@ -57,11 +55,9 @@ func listBookmarks() ([]readeckBookmark, error) {
 		}
 		all = append(all, pageItems...)
 
-		tp, err := strconv.Atoi(resp.Header.Get("Total-Pages"))
-		if err != nil || page >= tp || (config.Limit > 0 && len(all) >= config.Limit) {
+		if len(pageItems) < batchSize || (config.Limit > 0 && len(all) >= config.Limit) {
 			break
 		}
-		page++
 	}
 	total := len(all)
 	if config.Limit > 0 && len(all) > config.Limit {

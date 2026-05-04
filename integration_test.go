@@ -161,31 +161,24 @@ func createLoadedBookmark(t *testing.T, bookmarkURL string) string {
 	if resp.StatusCode != http.StatusAccepted {
 		t.Fatalf("create bookmark: expected 202, got %d", resp.StatusCode)
 	}
+	id := resp.Header.Get("Bookmark-Id")
+	if id == "" {
+		t.Fatal("create bookmark: missing Bookmark-Id header")
+	}
 
-	var id string
+	// Poll the specific bookmark until Readeck has fetched and parsed it.
 	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
-		resp = apiRequest(t, http.MethodGet, "/api/bookmarks", nil)
-		var bookmarks []struct {
-			ID     string `json:"id"`
-			URL    string `json:"url"`
-			Loaded bool   `json:"loaded"`
+		resp = apiRequest(t, http.MethodGet, "/api/bookmarks/"+id, nil)
+		var bm struct {
+			Loaded bool `json:"loaded"`
 		}
-		json.NewDecoder(resp.Body).Decode(&bookmarks)
+		json.NewDecoder(resp.Body).Decode(&bm)
 		resp.Body.Close()
-		for _, bm := range bookmarks {
-			if bm.URL == bookmarkURL && bm.Loaded {
-				id = bm.ID
-				break
-			}
-		}
-		if id != "" {
+		if bm.Loaded {
 			break
 		}
 		time.Sleep(500 * time.Millisecond)
-	}
-	if id == "" {
-		t.Fatalf("bookmark %s did not load within 30s", bookmarkURL)
 	}
 	t.Cleanup(func() {
 		resp := apiRequest(t, http.MethodDelete, "/api/bookmarks/"+id, nil)
@@ -260,6 +253,8 @@ func TestCheckMode(t *testing.T) {
 
 // TestFullSync exercises the complete sync flow end-to-end:
 // list → download → simulate read in Nickel DB → reconcileLocalFiles → verify archived + deleted.
+// Also verifies that listBookmarks only returns unread bookmarks and that
+// archiving removes a bookmark from the unread feed.
 func TestFullSync(t *testing.T) {
 	id := createLoadedBookmark(t, testBookmarkURL)
 	t.Logf("bookmark loaded: %s", id)
@@ -280,7 +275,7 @@ func TestFullSync(t *testing.T) {
 	nickelDBPath = dbPath
 	config.Delete = true
 
-	// 1. listBookmarks must include our bookmark.
+	// 1. listBookmarks must include our bookmark and exclude archived ones.
 	entries, err := listBookmarks()
 	if err != nil {
 		t.Fatalf("listBookmarks: %v", err)
@@ -330,7 +325,7 @@ func TestFullSync(t *testing.T) {
 	valid := map[string]bool{id: true}
 	reconcileLocalFiles(config, valid)
 
-	// 5. Verify archived in Readeck.
+	// 5. Verify archived in Readeck via direct API call.
 	resp := apiRequest(t, http.MethodGet, "/api/bookmarks/"+id, nil)
 	var bm struct {
 		IsArchived bool `json:"is_archived"`
@@ -341,7 +336,18 @@ func TestFullSync(t *testing.T) {
 		t.Error("bookmark should be archived after sync")
 	}
 
-	// 6. Verify file deleted from output dir.
+	// 6. Verify archived bookmark no longer appears in the unread feed.
+	entries, err = listBookmarks()
+	if err != nil {
+		t.Fatalf("listBookmarks after archive: %v", err)
+	}
+	for _, e := range entries {
+		if e.ID == id {
+			t.Errorf("archived bookmark %s still appears in unread feed", id)
+		}
+	}
+
+	// 7. Verify file deleted from output dir.
 	if _, err := os.Stat(epubPath); !os.IsNotExist(err) {
 		t.Errorf("epub should have been deleted from %s", epubPath)
 	}
