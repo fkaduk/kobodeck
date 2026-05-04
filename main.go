@@ -64,7 +64,6 @@ func (c *appConfig) validate() error {
 
 var (
 	filesChanged atomic.Bool
-	home         = os.Getenv("HOME")
 	version      = "dev"
 	nickelDBPath = "/mnt/onboard/.kobo/KoboReader.sqlite"
 )
@@ -196,37 +195,20 @@ func setupLogging(cfg appConfig, extraWriters ...io.Writer) {
 	log.SetOutput(io.MultiWriter(writers...))
 }
 
-const confPath = "kobodeck.toml"
+const confPath = "/mnt/onboard/.kobodeck.toml"
 
-var confPaths = []string{
-	home + "/.config/" + confPath,
-	home + "/." + confPath,
-	"/mnt/onboard/." + confPath,
-	"/etc/" + confPath,
-}
-
-// loadConfig decodes a TOML file at path into the global config.
-func loadConfig(path string) error {
-	_, err := toml.DecodeFile(path, &config)
-	return err
-}
-
-// findConfig loads the first config file found, trying --config first, then
-// the standard search paths. Returns the path that was loaded.
+// findConfig loads the config file, using --config if provided, otherwise the
+// default path on the Kobo's onboard storage.
 func findConfig() (string, error) {
+	path := confPath
 	if *configFileFlag != "" {
-		if err := loadConfig(*configFileFlag); err != nil {
-			return "", fmt.Errorf("load config %s: %w", *configFileFlag, err)
-		}
-		return *configFileFlag, nil
+		path = *configFileFlag
 	}
-	for _, path := range confPaths {
-		if err := loadConfig(path); err == nil {
-			return path, nil
-		}
-		debugf("can't load config path: %v", path)
+	_, err := toml.DecodeFile(path, &config)
+	if err != nil {
+		return "", fmt.Errorf("load config %s: %w", path, err)
 	}
-	return "", fmt.Errorf("no config file found")
+	return path, nil
 }
 
 // uninstall removes all files deployed by KoboRoot.tgz and exits.
@@ -237,7 +219,6 @@ func uninstall() {
 		log.Fatal("unexpected command path, aborting uninstall:", os.Args[0])
 	}
 	files := []string{
-		"/etc/kobodeck.toml",
 		"/etc/udev/rules.d/90-kobodeck.rules",
 		"/usr/local/bin/fake-connect-usb",
 		"/usr/local/bin/kobodeck-run",
