@@ -269,15 +269,15 @@ func TestFullSync(t *testing.T) {
 
 	// Override config for this test, restore on cleanup.
 	origOutput := config.Output
-	origNickelDB := nickelDB
+	origNickelDB := nickelDBPath
 	origDelete := config.Delete
 	t.Cleanup(func() {
 		config.Output = origOutput
-		nickelDB = origNickelDB
+		nickelDBPath = origNickelDB
 		config.Delete = origDelete
 	})
 	config.Output = outputDir
-	nickelDB = dbPath
+	nickelDBPath = dbPath
 	config.Delete = true
 
 	// 1. listEntries must include our bookmark.
@@ -319,7 +319,7 @@ func TestFullSync(t *testing.T) {
 	contentID := fmt.Sprintf("file://%s/%s.epub", outputDir, id)
 	_, err = db.Exec(
 		"INSERT INTO content (ContentID, ContentType, ReadStatus) VALUES (?, ?, 2)",
-		contentID, nickelNormalBook,
+		contentID, nickelContentTypeBook,
 	)
 	db.Close()
 	if err != nil {
