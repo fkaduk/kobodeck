@@ -26,6 +26,3 @@ Log = "/mnt/onboard/.kobodeck.log"
 
 # Verbose logging
 Verbose = false
-
-# Set to true to uninstall kobodeck on next run
-Uninstall = false
