@@ -2,8 +2,8 @@
 
 **kobodeck** is a minimalist article downloader for Kobo devices.
 
-It can fetch content from a Readeck instance,
-and sync its status (read/archived) from the Kobo device to the Readeck server.
+It can fetch content from a **Readeck instance**,
+and sync its status (read/archived) from the **Kobo device** to the Readeck server.
 
 The code is forked from
 [wallabako](https://gitlab.com/anarcat/wallabako).
@@ -35,7 +35,7 @@ immediately, or **Cancel** — the files are already downloaded either way.
 To install or upgrade,
 
 1. obtain the latest `KoboRoot.tgz` either by downloading the binary or
-   compiling it yourself
+   by building from source via `make tarkball`
 1. save the file in the `.kobo` directory of your e-reader
 1. copy and edit the configuration file `.kobodeck.toml` — see
    [`root/etc/kobodeck.toml`](root/etc/kobodeck.toml) for the full annotated
@@ -73,9 +73,6 @@ from running automatically on network changes.
   schema (stored as `testdata/nickel-schema.sql`) so that tests fail
   if the code makes assumptions that break on a schema change after a
   firmware update.
-- The udev rule in `root/etc/udev/rules.d/90-kobodeck.rules` triggers
-  on `eth*` in addition to `wlan*`. Kobos have no ethernet port, so the
-  `eth*` line is dead code and should be removed.
 - Sync favourite/starred status from the Kobo to Readeck (in addition to
   read status).
 - Sync highlights and annotations from the Kobo (`Bookmark` table in
