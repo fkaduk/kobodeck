@@ -259,7 +259,7 @@ func TestCheckMode(t *testing.T) {
 }
 
 // TestFullSync exercises the complete sync flow end-to-end:
-// list → download → simulate read in Nickel DB → inspectLocalFiles → verify archived + deleted.
+// list → download → simulate read in Nickel DB → reconcileLocalFiles → verify archived + deleted.
 func TestFullSync(t *testing.T) {
 	id := createLoadedBookmark(t, testBookmarkURL)
 	t.Logf("bookmark loaded: %s", id)
@@ -280,10 +280,10 @@ func TestFullSync(t *testing.T) {
 	nickelDBPath = dbPath
 	config.Delete = true
 
-	// 1. listEntries must include our bookmark.
-	entries, err := listEntries()
+	// 1. listBookmarks must include our bookmark.
+	entries, err := listBookmarks()
 	if err != nil {
-		t.Fatalf("listEntries: %v", err)
+		t.Fatalf("listBookmarks: %v", err)
 	}
 	var entry readeckBookmark
 	for _, e := range entries {
@@ -293,7 +293,7 @@ func TestFullSync(t *testing.T) {
 		}
 	}
 	if entry.ID == "" {
-		t.Fatalf("bookmark %s not found in listEntries output", id)
+		t.Fatalf("bookmark %s not found in listBookmarks output", id)
 	}
 
 	// 2. download must produce a non-empty EPUB file.
@@ -326,9 +326,9 @@ func TestFullSync(t *testing.T) {
 		t.Fatalf("insert read status: %v", err)
 	}
 
-	// 4. inspectLocalFiles must mark the bookmark archived and delete the file.
+	// 4. reconcileLocalFiles must mark the bookmark archived and delete the file.
 	valid := map[string]bool{id: true}
-	inspectLocalFiles(config, valid)
+	reconcileLocalFiles(config, valid)
 
 	// 5. Verify archived in Readeck.
 	resp := apiRequest(t, http.MethodGet, "/api/bookmarks/"+id, nil)

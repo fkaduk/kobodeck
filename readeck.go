@@ -25,9 +25,9 @@ type readeckBookmark struct {
 	Loaded     bool      `json:"loaded"`
 }
 
-// listEntries fetches all unread bookmarks from Readeck, paging through results
+// listBookmarks fetches all unread bookmarks from Readeck, paging through results
 // in batches. Stops early if config.Limit is reached.
-func listEntries() ([]readeckBookmark, error) {
+func listBookmarks() ([]readeckBookmark, error) {
 	client := &http.Client{Timeout: time.Duration(config.Timeout) * time.Second}
 	var all []readeckBookmark
 	page := 1
@@ -71,8 +71,8 @@ func listEntries() ([]readeckBookmark, error) {
 	return all, nil
 }
 
-// checkTags reports whether any of the bookmark's labels match the tag filter.
-func checkTags(tags map[string]bool, labels []string) bool {
+// matchesLabelFilter reports whether any of the bookmark's labels match the tag filter.
+func matchesLabelFilter(tags map[string]bool, labels []string) bool {
 	for _, label := range labels {
 		if tags[strings.ToLower(label)] {
 			return true
@@ -131,17 +131,17 @@ func download(client *http.Client, entry readeckBookmark) error {
 	return nil
 }
 
-// markAsRead archives a bookmark in Readeck, removing it from the unread feed.
-func markAsRead(id string) error {
+// archiveBookmark archives a bookmark in Readeck, removing it from the unread feed.
+func archiveBookmark(id string) error {
 	log.Printf("marking entry %s as archived", id)
 	body, _ := json.Marshal(map[string]bool{"is_archived": true})
-	_, err := doAPI("PATCH", config.URL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
+	_, err := callAPI("PATCH", config.URL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
 	return err
 }
 
-// doAPI sends an authenticated API request and returns the response body.
+// callAPI sends an authenticated API request and returns the response body.
 // Returns an error if the status code is outside the 2xx range.
-func doAPI(method, apiURL string, body io.Reader) ([]byte, error) {
+func callAPI(method, apiURL string, body io.Reader) ([]byte, error) {
 	req, err := http.NewRequest(method, apiURL, body)
 	if err != nil {
 		return nil, err

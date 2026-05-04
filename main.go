@@ -100,7 +100,7 @@ func main() {
 		uninstall()
 	}
 
-	lock, err := getLock()
+	lock, err := acquireLock()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func main() {
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 
-	entries, err := listEntries()
+	entries, err := listBookmarks()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -130,7 +130,7 @@ func main() {
 
 OuterLoop:
 	for _, entry := range entries {
-		if len(tags) > 0 && !checkTags(tags, entry.Labels) {
+		if len(tags) > 0 && !matchesLabelFilter(tags, entry.Labels) {
 			debugf("skipping %s (not in tags)", entry.ID)
 			continue
 		}
@@ -153,7 +153,7 @@ OuterLoop:
 		sem <- true
 	}
 
-	inspectLocalFiles(config, valid)
+	reconcileLocalFiles(config, valid)
 
 	if config.Verbose {
 		fds := listOpenFds()
@@ -264,9 +264,9 @@ func uninstall() {
 	log.Fatal("uninstall complete")
 }
 
-// getLock acquires an exclusive non-blocking flock on /tmp/readeckobo.lock.
+// acquireLock acquires an exclusive non-blocking flock on /tmp/readeckobo.lock.
 // Returns an error if another instance is already running.
-func getLock() (*os.File, error) {
+func acquireLock() (*os.File, error) {
 	f, err := os.OpenFile("/tmp/readeckobo.lock", os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return nil, fmt.Errorf("open lock file: %w", err)
@@ -295,7 +295,7 @@ func runCheck(w io.Writer) error {
 	fmt.Fprintln(w)
 
 	fmt.Fprint(w, "Connecting to Readeck... ")
-	entries, err := listEntries()
+	entries, err := listBookmarks()
 	if err != nil {
 		return err
 	}
@@ -311,7 +311,7 @@ func runCheck(w io.Writer) error {
 
 	var matched, skipped int
 	for _, entry := range entries {
-		if len(labelFilter) > 0 && !checkTags(labelFilter, entry.Labels) {
+		if len(labelFilter) > 0 && !matchesLabelFilter(labelFilter, entry.Labels) {
 			skipped++
 			continue
 		}
@@ -327,10 +327,10 @@ func runCheck(w io.Writer) error {
 	return nil
 }
 
-// inspectLocalFiles checks each local EPUB against the Nickel DB and the valid
+// reconcileLocalFiles checks each local EPUB against the Nickel DB and the valid
 // set. Books marked as read in Nickel are archived in Readeck. Books no longer
 // in the unread feed are deleted if cfg.Delete is set, unless currently being read.
-func inspectLocalFiles(cfg readeckoboConfig, valid map[string]bool) {
+func reconcileLocalFiles(cfg readeckoboConfig, valid map[string]bool) {
 	outputDir := strings.TrimSuffix(cfg.Output, "/")
 	files, _ := filepath.Glob(outputDir + "/*.epub")
 	debugln("local files to inspect:", files)
@@ -340,14 +340,14 @@ func inspectLocalFiles(cfg readeckoboConfig, valid map[string]bool) {
 			log.Println("skipping file with empty name:", file)
 			continue
 		}
-		status, err := readStatus(uid, outputDir)
+		status, err := nickelReadStatus(uid, outputDir)
 		if err != nil {
 			// Skip entirely — don't delete a book we can't confirm the read state of.
 			log.Println(err)
 			continue
 		}
 		if status == bookRead {
-			if err = markAsRead(uid); err != nil {
+			if err = archiveBookmark(uid); err != nil {
 				log.Println("failed to mark as read:", err)
 			} else {
 				valid[uid] = false
