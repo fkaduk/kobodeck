@@ -22,7 +22,7 @@ Delete = false
 Labels = ""
 
 # Path to a log file (empty = stdout only), rotated automatically
-Log = ""
+Log = "/mnt/onboard/.kobodeck.log"
 
 # Verbose logging
 Verbose = false
