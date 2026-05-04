@@ -36,8 +36,3 @@ lint:
 test:
 	CGO_ENABLED=0 go test -timeout 120s ./...
 
-sign: check build tarball
-	rm -f build/*.asc
-	for bin in build/kobodeck.* build/KoboRoot.tgz; do \
-		gpg --detach-sign -a "$$bin"; \
-	done
