@@ -1,7 +1,9 @@
 package main
 
 import (
+	"archive/zip"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,6 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/pgaskin/kepubify/v4/kepub"
 )
 
 type readeckBookmark struct {
@@ -87,12 +91,16 @@ func download(client *http.Client, entry readeckBookmark) error {
 	epubURL := config.URL + "/api/bookmarks/" + entry.ID + "/article.epub"
 	output := filepath.Join(config.Output, entry.ID+".epub")
 
-	info, err := os.Stat(output)
+	checkPath := output
+	if config.Kepub {
+		checkPath = filepath.Join(config.Output, entry.ID+".kepub.epub")
+	}
+	info, err := os.Stat(checkPath)
 	if err == nil && info.ModTime().After(entry.Updated) && info.Size() > 0 {
-		debugf("skipping %s: local file newer than bookmark (%s > %s)", output, info.ModTime(), entry.Updated)
+		debugf("skipping %s: local file newer than bookmark (%s > %s)", checkPath, info.ModTime(), entry.Updated)
 		return nil
 	} else if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("stat %s: %w", output, err)
+		return fmt.Errorf("stat %s: %w", checkPath, err)
 	}
 
 	log.Printf("downloading %s to %s", epubURL, output)
@@ -124,7 +132,40 @@ func download(client *http.Client, entry readeckBookmark) error {
 	}
 	filesChanged.Store(true)
 	log.Printf("wrote %s (%d bytes) timestamp %s", output, n, entry.Updated)
+
+	if config.Kepub {
+		kepubPath, err := toKepub(output)
+		if err != nil {
+			return fmt.Errorf("kepub convert %s: %w", output, err)
+		}
+		log.Printf("converted to %s", kepubPath)
+	}
 	return nil
+}
+
+// toKepub converts the EPUB at path to a .kepub.epub file, removes the
+// original, and returns the new path.
+func toKepub(epubPath string) (string, error) {
+	r, err := zip.OpenReader(epubPath)
+	if err != nil {
+		return "", err
+	}
+	defer r.Close()
+
+	kepubPath := strings.TrimSuffix(epubPath, ".epub") + ".kepub.epub"
+	f, err := os.Create(kepubPath)
+	if err != nil {
+		return "", err
+	}
+
+	if err := kepub.NewConverter().Convert(context.Background(), f, &r.Reader); err != nil {
+		f.Close()
+		os.Remove(kepubPath)
+		return "", err
+	}
+	f.Close()
+	os.Remove(epubPath)
+	return kepubPath, nil
 }
 
 // archiveBookmark archives a bookmark in Readeck, removing it from the unread feed.

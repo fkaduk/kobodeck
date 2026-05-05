@@ -37,6 +37,7 @@ type appConfig struct {
 	Output  string `toml:"Output"`
 	Timeout int    `toml:"Timeout"`
 	Labels  string `toml:"Labels"`
+	Kepub   bool   `toml:"Kepub"`
 }
 
 var config appConfig
@@ -313,7 +314,7 @@ func reconcileLocalFiles(cfg appConfig, valid map[string]bool) {
 	files, _ := filepath.Glob(outputDir + "/*.epub")
 	debugf("local files to inspect: %v", files)
 	for _, file := range files {
-		uid := strings.TrimSuffix(filepath.Base(file), ".epub")
+		uid := strings.TrimSuffix(strings.TrimSuffix(filepath.Base(file), ".epub"), ".kepub")
 		if uid == "" {
 			log.Println("skipping file with empty name:", file)
 			continue
