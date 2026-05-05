@@ -100,3 +100,4 @@ sqlite3 /media/$USER/KOBOeReader/.kobo/KoboReader.sqlite ".schema" > testdata/ni
   and needs to be fixed upstream.
 - Currently fetches epubs, could be kepubs instead
 - add preview pictures
+- heavily missing tests
