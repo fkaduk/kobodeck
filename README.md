@@ -25,7 +25,7 @@ This plugin could be useful for you if you
 ## how to use it
 
 When wifi is turned on, kobodeck connects to your Readeck instance in the
-background, downloads new unread articles as EPUBs, and syncs read status
+background, downloads new unread articles as KEPUBs with cover images, and syncs read status
 back to Readeck.
 
 If any files changed, it triggers a fake USB
@@ -40,7 +40,7 @@ immediately, or **Cancel** — the files are already downloaded either way.
 To install or upgrade,
 
 1. obtain the latest `KoboRoot.tgz` either by downloading the binary or
-   by building from source via `make tarkball`
+   by building from source via `make tarball`
 1. save the file in the `.kobo` directory of your e-reader
 1. copy and edit the configuration file [`.kobodeck.toml`](root/etc/kobodeck.toml)
 1. optionally verify your configuration with
@@ -96,8 +96,4 @@ sqlite3 /media/$USER/KOBOeReader/.kobo/KoboReader.sqlite ".schema" > testdata/ni
   `KoboReader.sqlite`) to Readeck's annotations API.
 - Sync reading progress (current position) from the Kobo to Readeck,
   once Readeck exposes a progress field in its API.
-- Preview images are not displayed in EPUBs — this is a Readeck issue
-  and needs to be fixed upstream.
-- Currently fetches epubs, could be kepubs instead
-- add preview pictures
 - heavily missing tests
