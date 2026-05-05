@@ -38,6 +38,7 @@ type appConfig struct {
 	Timeout int    `toml:"Timeout"`
 	Labels  string `toml:"Labels"`
 	Kepub   bool   `toml:"Kepub"`
+	Covers  bool   `toml:"Covers"`
 }
 
 var config appConfig
