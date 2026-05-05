@@ -27,6 +27,9 @@ Log = "/mnt/onboard/.kobodeck.log"
 # Verbose logging
 Verbose = false
 
-# Convert downloaded EPUBs to Kobo's KEPUB format
-# with per-chapter progress, faster page turns and tap-zone navigation
+# Add a cover image to each downloaded article for library thumbnail display
+Covers = true
+
+# Convert downloaded EPUBs to Kobo's KEPUB format:
+# per-chapter progress, faster page turns and tap-zone navigation
 Kepub = true
