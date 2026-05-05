@@ -164,7 +164,8 @@ func toKepub(epubPath string) (string, error) {
 		return "", err
 	}
 
-	if err := kepub.NewConverter().Convert(context.Background(), f, &r.Reader); err != nil {
+	c := kepub.NewConverterWithOptions(kepub.ConverterOptionDummyTitlepage(false))
+	if err := c.Convert(context.Background(), f, &r.Reader); err != nil {
 		f.Close()
 		os.Remove(kepubPath)
 		return "", err
