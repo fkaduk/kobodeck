@@ -80,12 +80,13 @@ Check the Makefile for common operations on the project.
 
 ### Updating the Nickel schema
 
-The integration tests use `testdata/nickel-schema.sql`, which is the real
-`KoboReader.sqlite` schema dumped from a connected Kobo device. After a
-firmware update that changes the database schema, refresh it with:
+The integration tests use schema files in `testdata/` named `nickel-schema-{version}.sql`,
+where `{version}` is the `DbVersion` from the `KoboReader.sqlite` database.
+After a firmware update that changes the database schema, dump the new schema with:
 
 ```sh
-sqlite3 /media/$USER/KOBOeReader/.kobo/KoboReader.sqlite ".schema" > testdata/nickel-schema.sql
+VER=$(sqlite3 /media/$USER/KOBOeReader/.kobo/KoboReader.sqlite "SELECT version FROM DbVersion;")
+sqlite3 /media/$USER/KOBOeReader/.kobo/KoboReader.sqlite ".schema" > testdata/nickel-schema-${VER}.sql
 ```
 
 ### Known issues

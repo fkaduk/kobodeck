@@ -187,11 +187,21 @@ func createLoadedBookmark(t *testing.T, bookmarkURL string) string {
 	return id
 }
 
-// createNickelDB creates a minimal Nickel-schema SQLite database in dir and
-// returns its path. The caller can insert rows to simulate Kobo read status.
-func createNickelDB(t *testing.T, dir string) string {
+// nickelSchemas returns all versioned Nickel schema files in testdata/.
+func nickelSchemas(t *testing.T) []string {
 	t.Helper()
-	schema, err := os.ReadFile("testdata/nickel-schema.sql")
+	files, err := filepath.Glob("testdata/nickel-schema-*.sql")
+	if err != nil || len(files) == 0 {
+		t.Fatal("no nickel schema files found in testdata/")
+	}
+	return files
+}
+
+// createNickelDB creates a minimal Nickel-schema SQLite database in dir using
+// schemaPath and returns its path. The caller can insert rows to simulate Kobo read status.
+func createNickelDB(t *testing.T, dir string, schemaPath string) string {
+	t.Helper()
+	schema, err := os.ReadFile(schemaPath)
 	if err != nil {
 		t.Fatalf("read nickel schema: %v", err)
 	}
@@ -258,8 +268,18 @@ func TestFullSync(t *testing.T) {
 	id := createLoadedBookmark(t, testBookmarkURL)
 	t.Logf("bookmark loaded: %s", id)
 
+	for _, schemaPath := range nickelSchemas(t) {
+		schemaPath := schemaPath
+		t.Run(filepath.Base(schemaPath), func(t *testing.T) {
+			testFullSyncWithSchema(t, id, schemaPath)
+		})
+	}
+}
+
+func testFullSyncWithSchema(t *testing.T, id string, schemaPath string) {
+	t.Helper()
 	outputDir := t.TempDir()
-	dbPath := createNickelDB(t, t.TempDir())
+	dbPath := createNickelDB(t, t.TempDir(), schemaPath)
 
 	// Override config for this test, restore on cleanup.
 	origOutput := config.Output
