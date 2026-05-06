@@ -90,6 +90,7 @@ sqlite3 /media/$USER/KOBOeReader/.kobo/KoboReader.sqlite ".schema" > testdata/ni
 
 ### Known issues
 
+- Critical: readeck statuses are not correctly mapped to kobo statuses
 - Sync favourite/starred status from the Kobo to Readeck (in addition to
   read status).
 - Sync highlights and annotations from the Kobo (`Bookmark` table in
