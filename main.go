@@ -61,7 +61,6 @@ type outputConfig struct {
 	Path   string `toml:"Path"`
 	Delete bool   `toml:"Delete"`
 	Covers bool   `toml:"Covers"`
-	Kepub  bool   `toml:"Kepub"`
 }
 
 var config appConfig
