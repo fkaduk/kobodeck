@@ -19,8 +19,7 @@ This plugin could be useful for you if you
   includes an article fetcher
 - are ok with mixing ebooks and articles in the native Kobo UI — if you want to
   keep them separate, check out [kobeck](https://github.com/Lukas0907/kobeck)
-- are fine with a lack of ui: content fetching and downloads happen in the
-  background
+- are fine with a lack of ui: content fetching happens in the background
 
 ## how to use it
 
@@ -95,6 +94,6 @@ sqlite3 /media/$USER/KOBOeReader/.kobo/KoboReader.sqlite ".schema" > testdata/ni
 - Sync highlights and annotations from the Kobo (`Bookmark` table in
   `KoboReader.sqlite`) to Readeck's annotations API.
 - Add Sync of reading progress (current position) from the Kobo to Readeck - note that progress might be handled differently between EPUB and KEPUB
-- Add functionality to fetch archived articles
+- Add functionality to also fetch archived articles
 - Add functionality to fetch favourites only
 - Syncing is only one way, as we are avoiding to write to Kobos NickelDB. Maybe that feature might still be interesting?
