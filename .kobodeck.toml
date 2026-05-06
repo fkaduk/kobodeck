@@ -1,35 +1,42 @@
-# Readeck server credentials
-URL = "https://example.com/readeck"
+[Server]
+URL = "https://readeck.com"
+# Obtain this from your Readeck instance
 Token = ""
-
-# Directory to store downloaded EPUB files
-# If it does not exist, it will be created
-Output = "/mnt/onboard/kobodeck"
-
-# Number of articles to fetch (-1 = all)
-Limit = -1
-
-# Number of parallel downloads
-Workers = 2
-
 # HTTP request timeout in seconds
-Timeout = 300
+Timeout = 30
 
-# Delete local EPUBs that are no longer in the unread feed
-Delete = false
-
-# Only sync articles with these labels (comma-separated, empty = all)
+[Fetch]
+# Number of parallel article downloads
+Workers = 2
+# Number of articles to fetch (0 = all)
+Limit = 0
+# Only fetch articles based on readeck bookmarks with these labels (comma-separated, empty: all)
 Labels = ""
 
-# Path to a log file (empty = stdout only), rotated automatically
-Log = "/mnt/onboard/.kobodeck.log"
+[Sync]
+# if an article is completed on your kobo
+# it will be marked as archived on Readeck
+Archive = true
+# Articles in the following collection
+# will be set as favourite in Readeck
+# (empty: disabled)
+FavouriteCollection = ""
 
-# Verbose logging
+[Log]
+# Path to log file on Kobo device (empty = stdout only)
+Path = "/mnt/onboard/.kobodeck.log"
 Verbose = false
+# Max log size in KB
+Size = 200
 
+[Output]
+# Directory to store downloaded (K)EPUB files
+# If it does not exist, it will be created
+Path = "/mnt/onboard/kobodeck"
+# Delete local EPUBs that are no longer in the unread feed
+Delete = false
 # Add a cover image to each downloaded article for library thumbnail display
 Covers = true
-
 # Convert downloaded EPUBs to Kobo's KEPUB format:
 # per-chapter progress, faster page turns and tap-zone navigation
 Kepub = true
