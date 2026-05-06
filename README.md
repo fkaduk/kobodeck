@@ -90,11 +90,10 @@ sqlite3 /media/$USER/KOBOeReader/.kobo/KoboReader.sqlite ".schema" > testdata/ni
 
 ### Known issues
 
-- Critical: readeck statuses are not correctly mapped to kobo statuses
-- Sync favourite/starred status from the Kobo to Readeck (in addition to
-  read status).
+- missing tests
 - Sync highlights and annotations from the Kobo (`Bookmark` table in
   `KoboReader.sqlite`) to Readeck's annotations API.
-- Sync reading progress (current position) from the Kobo to Readeck,
-  once Readeck exposes a progress field in its API.
-- heavily missing tests
+- Add Sync of reading progress (current position) from the Kobo to Readeck - note that progress might be handled differently between EPUB and KEPUB
+- Add functionality to fetch archived articles
+- Add functionality to fetch favourites only
+- Syncing is only one way, as we are avoiding to write to Kobos NickelDB. Maybe that feature might still be interesting?
