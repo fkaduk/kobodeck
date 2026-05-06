@@ -91,6 +91,7 @@ sqlite3 /media/$USER/KOBOeReader/.kobo/KoboReader.sqlite ".schema" > testdata/ni
 ### Known issues
 
 - missing tests
+- tests are not using the toml template
 - Sync highlights and annotations from the Kobo (`Bookmark` table in
   `KoboReader.sqlite`) to Readeck's annotations API.
 - Add Sync of reading progress (current position) from the Kobo to Readeck - note that progress might be handled differently between EPUB and KEPUB
