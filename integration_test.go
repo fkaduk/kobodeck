@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -83,9 +84,12 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	config.URL = baseURL
-	config.Token = token
-	config.Limit = -1
+	if _, err := toml.DecodeFile(".kobodeck.toml", &config); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to load .kobodeck.toml: %v\n", err)
+		os.Exit(1)
+	}
+	config.Server.URL = baseURL
+	config.Server.Token = token
 
 	os.Exit(m.Run())
 }
@@ -136,11 +140,11 @@ func bootstrapToken(baseURL string) (string, error) {
 // Readeck instance under test and returns the response.
 func apiRequest(t *testing.T, method, path string, body io.Reader) *http.Response {
 	t.Helper()
-	req, err := http.NewRequest(method, config.URL+path, body)
+	req, err := http.NewRequest(method, config.Server.URL+path, body)
 	if err != nil {
 		t.Fatalf("build request %s %s: %v", method, path, err)
 	}
-	req.Header.Set("Authorization", "Bearer "+config.Token)
+	req.Header.Set("Authorization", "Bearer "+config.Server.Token)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -282,17 +286,17 @@ func testFullSyncWithSchema(t *testing.T, id string, schemaPath string) {
 	dbPath := createNickelDB(t, t.TempDir(), schemaPath)
 
 	// Override config for this test, restore on cleanup.
-	origOutput := config.Output
+	origOutput := config.Output.Path
 	origNickelDB := nickelDBPath
-	origDelete := config.Delete
+	origDelete := config.Output.Delete
 	t.Cleanup(func() {
-		config.Output = origOutput
+		config.Output.Path = origOutput
 		nickelDBPath = origNickelDB
-		config.Delete = origDelete
+		config.Output.Delete = origDelete
 	})
-	config.Output = outputDir
+	config.Output.Path = outputDir
 	nickelDBPath = dbPath
-	config.Delete = true
+	config.Output.Delete = true
 
 	// 1. listBookmarks must include our bookmark and exclude archived ones.
 	entries, err := listBookmarks()
@@ -316,6 +320,9 @@ func testFullSyncWithSchema(t *testing.T, id string, schemaPath string) {
 		t.Fatalf("download: %v", err)
 	}
 	epubPath := filepath.Join(outputDir, id+".epub")
+	if config.Output.Kepub {
+		epubPath = filepath.Join(outputDir, id+".kepub.epub")
+	}
 	info, err := os.Stat(epubPath)
 	if err != nil {
 		t.Fatalf("epub not found after download: %v", err)

@@ -31,17 +31,17 @@ type readeckBookmark struct {
 // listBookmarks fetches all unread bookmarks from Readeck, paging through results
 // in batches. Stops early if config.Limit is reached.
 func listBookmarks() ([]readeckBookmark, error) {
-	client := &http.Client{Timeout: time.Duration(config.Timeout) * time.Second}
+	client := &http.Client{Timeout: time.Duration(config.Server.Timeout) * time.Second}
 	var all []readeckBookmark
 	const batchSize = 100
 	for offset := 0; ; offset += batchSize {
 		url := fmt.Sprintf("%s/api/bookmarks?is_archived=false&limit=%d&offset=%d",
-			config.URL, batchSize, offset)
+			config.Server.URL, batchSize, offset)
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			return nil, fmt.Errorf("build list request: %w", err)
 		}
-		req.Header.Set("Authorization", "Bearer "+config.Token)
+		req.Header.Set("Authorization", "Bearer "+config.Server.Token)
 		req.Header.Set("Accept", "application/json")
 
 		resp, err := client.Do(req)
@@ -59,13 +59,13 @@ func listBookmarks() ([]readeckBookmark, error) {
 		}
 		all = append(all, pageItems...)
 
-		if len(pageItems) < batchSize || (config.Limit > 0 && len(all) >= config.Limit) {
+		if len(pageItems) < batchSize || (config.Fetch.Limit > 0 && len(all) >= config.Fetch.Limit) {
 			break
 		}
 	}
 	total := len(all)
-	if config.Limit > 0 && len(all) > config.Limit {
-		all = all[:config.Limit]
+	if config.Fetch.Limit > 0 && len(all) > config.Fetch.Limit {
+		all = all[:config.Fetch.Limit]
 	}
 	log.Printf("found %d unread bookmarks, will process %d", total, len(all))
 	return all, nil
@@ -85,15 +85,15 @@ func matchesLabelFilter(tags map[string]bool, labels []string) bool {
 // Skips the download if a local file newer than the bookmark's updated timestamp already exists.
 // Deletes the partial file if the write fails.
 func download(client *http.Client, entry readeckBookmark) error {
-	if err := os.MkdirAll(config.Output, os.ModePerm); err != nil {
+	if err := os.MkdirAll(config.Output.Path, os.ModePerm); err != nil {
 		return fmt.Errorf("create output dir: %w", err)
 	}
-	epubURL := config.URL + "/api/bookmarks/" + entry.ID + "/article.epub"
-	output := filepath.Join(config.Output, entry.ID+".epub")
+	epubURL := config.Server.URL + "/api/bookmarks/" + entry.ID + "/article.epub"
+	output := filepath.Join(config.Output.Path, entry.ID+".epub")
 
 	checkPath := output
-	if config.Kepub {
-		checkPath = filepath.Join(config.Output, entry.ID+".kepub.epub")
+	if config.Output.Kepub {
+		checkPath = filepath.Join(config.Output.Path, entry.ID+".kepub.epub")
 	}
 	info, err := os.Stat(checkPath)
 	if err == nil && info.ModTime().After(entry.Updated) && info.Size() > 0 {
@@ -108,7 +108,7 @@ func download(client *http.Client, entry readeckBookmark) error {
 	if err != nil {
 		return fmt.Errorf("build download request: %w", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+config.Token)
+	req.Header.Set("Authorization", "Bearer "+config.Server.Token)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -133,13 +133,13 @@ func download(client *http.Client, entry readeckBookmark) error {
 	filesChanged.Store(true)
 	log.Printf("wrote %s (%d bytes) timestamp %s", output, n, entry.Updated)
 
-	if config.Covers {
+	if config.Output.Covers {
 		if err := fixCover(output); err != nil {
 			log.Printf("warning: cover fix %s: %v", filepath.Base(output), err)
 		}
 	}
 
-	if config.Kepub {
+	if config.Output.Kepub {
 		kepubPath, err := toKepub(output)
 		if err != nil {
 			return fmt.Errorf("kepub convert %s: %w", output, err)
@@ -179,7 +179,7 @@ func toKepub(epubPath string) (string, error) {
 func archiveBookmark(id string) error {
 	log.Printf("marking entry %s as archived", id)
 	body, _ := json.Marshal(map[string]bool{"is_archived": true})
-	_, err := callAPI("PATCH", config.URL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
+	_, err := callAPI("PATCH", config.Server.URL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
 	return err
 }
 
@@ -190,9 +190,9 @@ func callAPI(method, apiURL string, body io.Reader) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+config.Token)
+	req.Header.Set("Authorization", "Bearer "+config.Server.Token)
 	req.Header.Set("Content-Type", "application/json")
-	if config.Verbose {
+	if config.Log.Verbose {
 		dump, _ := httputil.DumpRequestOut(req, true)
 		debugf("request: %q", dump)
 	}
@@ -201,7 +201,7 @@ func callAPI(method, apiURL string, body io.Reader) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if config.Verbose {
+	if config.Log.Verbose {
 		dump, _ := httputil.DumpResponse(resp, true)
 		debugf("response: %q", dump)
 	}
