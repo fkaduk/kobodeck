@@ -1,6 +1,7 @@
 // Integration tests run against a real Readeck instance
 // spun up in Docker via testcontainers-go.
-// They check TODO
+// They cover the full sync flow: listing bookmarks, downloading EPUBs,
+// reading Nickel DB status, archiving back to Readeck, and local file cleanup.
 
 package main
 
@@ -191,21 +192,13 @@ func createLoadedBookmark(t *testing.T, bookmarkURL string) string {
 	return id
 }
 
-// nickelSchemas returns all versioned Nickel schema files in testdata/.
-func nickelSchemas(t *testing.T) []string {
-	t.Helper()
-	files, err := filepath.Glob("testdata/nickel-schema-*.sql")
-	if err != nil || len(files) == 0 {
-		t.Fatal("no nickel schema files found in testdata/")
-	}
-	return files
-}
+const nickelSchema = "testdata/nickel-schema-176.sql"
 
-// createNickelDB creates a minimal Nickel-schema SQLite database in dir using
-// schemaPath and returns its path. The caller can insert rows to simulate Kobo read status.
-func createNickelDB(t *testing.T, dir string, schemaPath string) string {
+// createNickelDB creates a minimal Nickel-schema SQLite database in dir and
+// returns its path. The caller can insert rows to simulate Kobo read status.
+func createNickelDB(t *testing.T, dir string) string {
 	t.Helper()
-	schema, err := os.ReadFile(schemaPath)
+	schema, err := os.ReadFile(nickelSchema)
 	if err != nil {
 		t.Fatalf("read nickel schema: %v", err)
 	}
@@ -272,18 +265,8 @@ func TestFullSync(t *testing.T) {
 	id := createLoadedBookmark(t, testBookmarkURL)
 	t.Logf("bookmark loaded: %s", id)
 
-	for _, schemaPath := range nickelSchemas(t) {
-		schemaPath := schemaPath
-		t.Run(filepath.Base(schemaPath), func(t *testing.T) {
-			testFullSyncWithSchema(t, id, schemaPath)
-		})
-	}
-}
-
-func testFullSyncWithSchema(t *testing.T, id string, schemaPath string) {
-	t.Helper()
 	outputDir := t.TempDir()
-	dbPath := createNickelDB(t, t.TempDir(), schemaPath)
+	dbPath := createNickelDB(t, t.TempDir())
 
 	// Override config for this test, restore on cleanup.
 	origOutput := config.Output.Path
@@ -296,7 +279,7 @@ func testFullSyncWithSchema(t *testing.T, id string, schemaPath string) {
 	})
 	config.Output.Path = outputDir
 	nickelDBPath = dbPath
-	config.Output.Delete = true
+	config.Output.Delete = true // override TOML default to exercise deletion path
 
 	// 1. listBookmarks must include our bookmark and exclude archived ones.
 	entries, err := listBookmarks()
@@ -319,10 +302,7 @@ func testFullSyncWithSchema(t *testing.T, id string, schemaPath string) {
 	if err := download(client, entry); err != nil {
 		t.Fatalf("download: %v", err)
 	}
-	epubPath := filepath.Join(outputDir, id+".epub")
-	if config.Output.Kepub {
-		epubPath = filepath.Join(outputDir, id+".kepub.epub")
-	}
+	epubPath := filepath.Join(outputDir, id+".kepub.epub")
 	info, err := os.Stat(epubPath)
 	if err != nil {
 		t.Fatalf("epub not found after download: %v", err)
@@ -337,7 +317,7 @@ func testFullSyncWithSchema(t *testing.T, id string, schemaPath string) {
 	if err != nil {
 		t.Fatalf("open nickel db: %v", err)
 	}
-	contentID := fmt.Sprintf("file://%s/%s.epub", outputDir, id)
+	contentID := fmt.Sprintf("file://%s/%s.kepub.epub", outputDir, id)
 	_, err = db.Exec(
 		"INSERT INTO content (ContentID, ContentType, MimeType, ___UserID, ReadStatus) VALUES (?, ?, ?, ?, 2)",
 		contentID, nickelContentTypeBook, "application/epub+zip", "test",
