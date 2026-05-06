@@ -26,8 +26,8 @@ func nickelReadStatus(ID string, outputDir string) (bookStatus, error) {
 	}
 	defer db.Close()
 
-	// Nickel stores books as file:// URIs matching the on-device path
-	path := fmt.Sprintf("file://%s/%s.epub", outputDir, ID)
+	// Nickel stores books as file:// URIs matching the on-device path.
+	path := fmt.Sprintf("file://%s/%s.kepub.epub", outputDir, ID)
 	row := db.QueryRow("SELECT ReadStatus FROM content WHERE ContentID = $1 AND ContentType = $2 LIMIT 1", path, nickelContentTypeBook)
 	var status int
 	if err := row.Scan(&status); err == sql.ErrNoRows {

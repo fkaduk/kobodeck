@@ -91,10 +91,7 @@ func download(client *http.Client, entry readeckBookmark) error {
 	epubURL := config.Server.URL + "/api/bookmarks/" + entry.ID + "/article.epub"
 	output := filepath.Join(config.Output.Path, entry.ID+".epub")
 
-	checkPath := output
-	if config.Output.Kepub {
-		checkPath = filepath.Join(config.Output.Path, entry.ID+".kepub.epub")
-	}
+	checkPath := filepath.Join(config.Output.Path, entry.ID+".kepub.epub")
 	info, err := os.Stat(checkPath)
 	if err == nil && info.ModTime().After(entry.Updated) && info.Size() > 0 {
 		debugf("skipping %s: local file newer than bookmark (%s > %s)", checkPath, info.ModTime(), entry.Updated)
@@ -139,13 +136,11 @@ func download(client *http.Client, entry readeckBookmark) error {
 		}
 	}
 
-	if config.Output.Kepub {
-		kepubPath, err := toKepub(output)
-		if err != nil {
-			return fmt.Errorf("kepub convert %s: %w", output, err)
-		}
-		log.Printf("converted to %s", kepubPath)
+	kepubPath, err := toKepub(output)
+	if err != nil {
+		return fmt.Errorf("kepub convert %s: %w", output, err)
 	}
+	log.Printf("converted to %s", kepubPath)
 	return nil
 }
 

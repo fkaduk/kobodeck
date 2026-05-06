@@ -37,6 +37,3 @@ Path = "/mnt/onboard/kobodeck"
 Delete = false
 # Add a cover image to each downloaded article for library thumbnail display
 Covers = true
-# Convert downloaded EPUBs to Kobo's KEPUB format:
-# per-chapter progress, faster page turns and tap-zone navigation
-Kepub = true
