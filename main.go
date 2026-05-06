@@ -27,38 +27,61 @@ var (
 )
 
 type appConfig struct {
+	Server serverConfig `toml:"Server"`
+	Fetch  fetchConfig  `toml:"Fetch"`
+	Sync   syncConfig   `toml:"Sync"`
+	Log    logConfig    `toml:"Log"`
+	Output outputConfig `toml:"Output"`
+}
+
+type serverConfig struct {
 	URL     string `toml:"URL"`
 	Token   string `toml:"Token"`
-	Verbose bool   `toml:"Verbose"`
-	Delete  bool   `toml:"Delete"`
-	Log     string `toml:"Log"`
+	Timeout int    `toml:"Timeout"`
+}
+
+type fetchConfig struct {
 	Workers int    `toml:"Workers"`
 	Limit   int    `toml:"Limit"`
-	Output  string `toml:"Output"`
-	Timeout int    `toml:"Timeout"`
 	Labels  string `toml:"Labels"`
-	Kepub   bool   `toml:"Kepub"`
-	Covers  bool   `toml:"Covers"`
+}
+
+type syncConfig struct {
+	Archive             bool   `toml:"Archive"`
+	FavouriteCollection string `toml:"FavouriteCollection"`
+}
+
+type logConfig struct {
+	Path    string `toml:"Path"`
+	Verbose bool   `toml:"Verbose"`
+	Size    int    `toml:"Size"` // in KB
+}
+
+type outputConfig struct {
+	Path   string `toml:"Path"`
+	Delete bool   `toml:"Delete"`
+	Covers bool   `toml:"Covers"`
+	Kepub  bool   `toml:"Kepub"`
 }
 
 var config appConfig
 
 // validate checks that all required config fields are present and sane.
 func (c *appConfig) validate() error {
-	if c.URL == "" {
-		return fmt.Errorf("URL is required")
+	if c.Server.URL == "" {
+		return fmt.Errorf("Server.URL is required")
 	}
-	if c.Token == "" {
-		return fmt.Errorf("Token is required")
+	if c.Server.Token == "" {
+		return fmt.Errorf("Server.Token is required")
 	}
-	if c.Output == "" {
-		return fmt.Errorf("Output is required")
+	if c.Output.Path == "" {
+		return fmt.Errorf("Output.Path is required")
 	}
-	if c.Workers <= 0 {
-		return fmt.Errorf("Workers must be greater than 0")
+	if c.Fetch.Workers <= 0 {
+		return fmt.Errorf("Fetch.Workers must be greater than 0")
 	}
-	if c.Timeout <= 0 {
-		return fmt.Errorf("Timeout must be greater than 0")
+	if c.Server.Timeout <= 0 {
+		return fmt.Errorf("Server.Timeout must be greater than 0")
 	}
 	return nil
 }
@@ -78,7 +101,7 @@ func main() {
 	debug.SetPanicOnFault(true)
 
 	if configErr != nil {
-		setupLogging(appConfig{Log: "/mnt/onboard/.kobodeck.log"})
+		setupLogging(appConfig{Log: logConfig{Path: "/mnt/onboard/.kobodeck.log"}})
 		log.Println("no config found at", confPath, "— uninstalling")
 		uninstall()
 	}
@@ -105,9 +128,9 @@ func main() {
 	}
 	defer lock.Close()
 
-	log.Println("connecting to", config.URL)
+	log.Println("connecting to", config.Server.URL)
 	client := &http.Client{
-		Timeout: time.Duration(config.Timeout) * time.Second,
+		Timeout: time.Duration(config.Server.Timeout) * time.Second,
 	}
 
 	sigc := make(chan os.Signal, 1)
@@ -126,14 +149,14 @@ func main() {
 
 	valid := make(map[string]bool)
 	tags := make(map[string]bool)
-	if len(config.Labels) > 0 {
-		for _, tag := range strings.Split(strings.ToLower(config.Labels), ",") {
+	if len(config.Fetch.Labels) > 0 {
+		for _, tag := range strings.Split(strings.ToLower(config.Fetch.Labels), ",") {
 			tags[strings.TrimSpace(tag)] = true
 		}
 	}
 
 	var g errgroup.Group
-	g.SetLimit(config.Workers)
+	g.SetLimit(config.Fetch.Workers)
 
 	for _, entry := range entries {
 		if len(tags) > 0 && !matchesLabelFilter(tags, entry.Labels) {
@@ -159,7 +182,7 @@ done:
 
 	reconcileLocalFiles(config, valid)
 
-	if config.Verbose {
+	if config.Log.Verbose {
 		fds := listOpenFds()
 		log.Printf("%d open file descriptors: %s", len(fds), fds)
 	}
@@ -178,7 +201,7 @@ done:
 }
 
 func debugf(format string, args ...interface{}) {
-	if config.Verbose {
+	if config.Log.Verbose {
 		log.Printf(format, args...)
 	}
 }
@@ -187,10 +210,14 @@ func debugf(format string, args ...interface{}) {
 // to a size-capped rotating log file when cfg.Log is set.
 func setupLogging(cfg appConfig, extraWriters ...io.Writer) {
 	var writers []io.Writer
-	if len(cfg.Log) > 0 {
+	if len(cfg.Log.Path) > 0 {
+		maxSizeMB := cfg.Log.Size / 1024
+		if maxSizeMB < 1 {
+			maxSizeMB = 1
+		}
 		writers = append(writers, &lumberjack.Logger{
-			Filename:   cfg.Log,
-			MaxSize:    1,
+			Filename:   cfg.Log.Path,
+			MaxSize:    maxSizeMB,
 			MaxBackups: 7,
 			MaxAge:     7,
 		})
@@ -262,13 +289,13 @@ func acquireLock() (*os.File, error) {
 // synced, without downloading anything. Used by the --check flag.
 func runCheck(w io.Writer) error {
 	fmt.Fprintln(w, "Configuration:")
-	fmt.Fprintf(w, "  URL:     %s\n", config.URL)
-	fmt.Fprintf(w, "  Output:  %s\n", config.Output)
-	fmt.Fprintf(w, "  Workers: %d\n", config.Workers)
-	fmt.Fprintf(w, "  Limit:   %d\n", config.Limit)
-	fmt.Fprintf(w, "  Delete:  %v\n", config.Delete)
-	if config.Labels != "" {
-		fmt.Fprintf(w, "  Labels:  %s\n", config.Labels)
+	fmt.Fprintf(w, "  URL:     %s\n", config.Server.URL)
+	fmt.Fprintf(w, "  Output:  %s\n", config.Output.Path)
+	fmt.Fprintf(w, "  Workers: %d\n", config.Fetch.Workers)
+	fmt.Fprintf(w, "  Limit:   %d\n", config.Fetch.Limit)
+	fmt.Fprintf(w, "  Delete:  %v\n", config.Output.Delete)
+	if config.Fetch.Labels != "" {
+		fmt.Fprintf(w, "  Labels:  %s\n", config.Fetch.Labels)
 	} else {
 		fmt.Fprintln(w, "  Labels:  (all)")
 	}
@@ -283,8 +310,8 @@ func runCheck(w io.Writer) error {
 	fmt.Fprintln(w)
 
 	labelFilter := make(map[string]bool)
-	if config.Labels != "" {
-		for _, l := range strings.Split(strings.ToLower(config.Labels), ",") {
+	if config.Fetch.Labels != "" {
+		for _, l := range strings.Split(strings.ToLower(config.Fetch.Labels), ",") {
 			labelFilter[strings.TrimSpace(l)] = true
 		}
 	}
@@ -311,7 +338,7 @@ func runCheck(w io.Writer) error {
 // set. Books marked as read in Nickel are archived in Readeck. Books no longer
 // in the unread feed are deleted if cfg.Delete is set, unless currently being read.
 func reconcileLocalFiles(cfg appConfig, valid map[string]bool) {
-	outputDir := strings.TrimSuffix(cfg.Output, "/")
+	outputDir := strings.TrimSuffix(cfg.Output.Path, "/")
 	files, _ := filepath.Glob(outputDir + "/*.epub")
 	debugf("local files to inspect: %v", files)
 	for _, file := range files {
@@ -326,14 +353,14 @@ func reconcileLocalFiles(cfg appConfig, valid map[string]bool) {
 			log.Println(err)
 			continue
 		}
-		if status == bookRead {
+		if cfg.Sync.Archive && status == bookRead {
 			if err = archiveBookmark(uid); err != nil {
 				log.Println("failed to mark as read:", err)
 			} else {
 				valid[uid] = false
 			}
 		}
-		if cfg.Delete && !valid[uid] {
+		if cfg.Output.Delete && !valid[uid] {
 			if status == bookReading {
 				log.Printf("not deleting book currently being read: %s", file)
 			} else if err = os.Remove(file); err != nil {
