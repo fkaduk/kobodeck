@@ -207,7 +207,8 @@ func debugf(format string, args ...interface{}) {
 // setupLogging configures the global logger to write to stdout and optionally
 // to a size-capped rotating log file when cfg.Log is set.
 func setupLogging(cfg appConfig, extraWriters ...io.Writer) {
-	var writers []io.Writer
+	writers := []io.Writer{os.Stdout}
+	writers = append(writers, extraWriters...)
 	if len(cfg.Log.Path) > 0 {
 		maxSizeMB := cfg.Log.Size / 1024
 		if maxSizeMB < 1 {
@@ -220,8 +221,6 @@ func setupLogging(cfg appConfig, extraWriters ...io.Writer) {
 			MaxAge:     7,
 		})
 	}
-	writers = append(writers, os.Stdout)
-	writers = append(writers, extraWriters...)
 	log.SetOutput(io.MultiWriter(writers...))
 }
 
