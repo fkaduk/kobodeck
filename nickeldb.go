@@ -18,6 +18,29 @@ const (
 
 const nickelContentTypeBook = 6
 
+// nickelIsInCollection reports whether a book is in the named Kobo collection.
+func nickelIsInCollection(ID, outputDir, collection string) (bool, error) {
+	db, err := sql.Open("sqlite", nickelDBPath+"?mode=ro")
+	if err != nil {
+		return false, err
+	}
+	defer db.Close()
+
+	contentID := fmt.Sprintf("file://%s/%s.kepub.epub", outputDir, ID)
+	var count int
+	err = db.QueryRow(`
+		SELECT COUNT(*) FROM ShelfContent sc
+		JOIN Shelf s ON sc.ShelfName = s.InternalName
+		WHERE sc.ContentId = ? AND s.Name = ?
+		  AND COALESCE(sc._IsDeleted, 0) = 0
+		  AND COALESCE(s._IsDeleted, 0) = 0`,
+		contentID, collection).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func nickelReadStatus(ID string, outputDir string) (bookStatus, error) {
 	// KoboReader.sqlite is Nickel's main database; open read-write is fine, we never write.
 	db, err := sql.Open("sqlite", nickelDBPath+"?mode=ro")
