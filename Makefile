@@ -30,4 +30,5 @@ test:
 	go mod tidy
 	@out=$$(git diff --name-only go.mod go.sum); if [ -n "$$out" ]; then echo "go.mod/go.sum out of sync, run go mod tidy"; git checkout go.mod go.sum; exit 1; fi
 	CGO_ENABLED=0 go test -timeout 120s ./...
+	markdownlint **/*.md
 
