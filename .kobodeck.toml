@@ -26,8 +26,8 @@ FavouriteCollection = ""
 # Path to log file on Kobo device (empty = stdout only)
 Path = "/mnt/onboard/.kobodeck.log"
 Verbose = false
-# Max log size in KB
-Size = 200
+# Max log size in MB
+Size = 1
 
 [Output]
 # Directory to store downloaded (K)EPUB files
