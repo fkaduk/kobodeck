@@ -19,7 +19,7 @@ const (
 const nickelContentTypeBook = 6
 
 func openNickelDB() (*sql.DB, error) {
-	return sql.Open("sqlite", nickelDBPath+"?mode=ro")
+	return sql.Open("sqlite", "file:"+nickelDBPath+"?mode=ro")
 }
 
 // nickelIsInCollection reports whether a book is in the named Kobo collection.
