@@ -358,6 +358,16 @@ func reconcileLocalFiles(cfg appConfig, valid map[string]bool) {
 				valid[uid] = false
 			}
 		}
+		if cfg.Sync.FavouriteCollection != "" {
+			inCollection, err := nickelIsInCollection(uid, outputDir, cfg.Sync.FavouriteCollection)
+			if err != nil {
+				log.Println("failed to check collection:", err)
+			} else if inCollection {
+				if err = markBookmarkFavourite(uid); err != nil {
+					log.Println("failed to mark as favourite:", err)
+				}
+			}
+		}
 		if cfg.Output.Delete && !valid[uid] {
 			if status == bookReading {
 				log.Printf("not deleting book currently being read: %s", file)

@@ -176,6 +176,14 @@ func archiveBookmark(id string) error {
 	return err
 }
 
+// markBookmarkFavourite marks a bookmark as favourite in Readeck.
+func markBookmarkFavourite(id string) error {
+	log.Printf("marking entry %s as favourite", id)
+	body, _ := json.Marshal(map[string]bool{"is_marked": true})
+	_, err := callAPI("PATCH", config.Server.URL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
+	return err
+}
+
 // callAPI sends an authenticated API request and returns the response body.
 // Returns an error if the status code is outside the 2xx range.
 func callAPI(method, apiURL string, body io.Reader) ([]byte, error) {
