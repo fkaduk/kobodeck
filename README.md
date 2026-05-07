@@ -24,8 +24,8 @@ This plugin could be useful for you if you
 ## how to use it
 
 When wifi is turned on, kobodeck connects to your Readeck instance in the
-background, downloads new unread articles as KEPUBs with cover images, and syncs read status
-back to Readeck.
+background, downloads new unread articles as KEPUBs with cover images, and
+syncs read status back to Readeck.
 
 If any files changed, it triggers a fake USB
 connection to prompt Nickel to rescan the library.
@@ -84,15 +84,18 @@ where `{version}` is the `DbVersion` from the `KoboReader.sqlite` database.
 After a firmware update that changes the database schema, dump the new schema with:
 
 ```sh
-VER=$(sqlite3 /media/$USER/KOBOeReader/.kobo/KoboReader.sqlite "SELECT version FROM DbVersion;")
-sqlite3 /media/$USER/KOBOeReader/.kobo/KoboReader.sqlite ".schema" > testdata/nickel-schema-${VER}.sql
+DB=/media/$USER/KOBOeReader/.kobo/KoboReader.sqlite
+VER=$(sqlite3 "$DB" "SELECT version FROM DbVersion;")
+sqlite3 "$DB" ".schema" > testdata/nickel-schema-${VER}.sql
 ```
 
 ### Future work
 
 - Sync highlights and annotations from the Kobo (`Bookmark` table in
   `KoboReader.sqlite`) to Readeck's annotations API.
-- Add Sync of reading progress (current position) from the Kobo to Readeck - note that progress might be handled differently between EPUB and KEPUB
+- Add sync of reading progress (current position) from the Kobo to Readeck —
+  note that progress may differ between EPUB and KEPUB formats
 - Add functionality to also fetch archived articles
 - Add functionality to fetch favourites only
-- Syncing is only one way, as we are avoiding to write to Kobos NickelDB. Maybe that feature might still be interesting?
+- Syncing is only one way, as we avoid writing to Kobo's NickelDB — reverse
+  sync may still be worth exploring
