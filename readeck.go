@@ -159,12 +159,16 @@ func toKepub(epubPath string) (string, error) {
 	}
 
 	c := kepub.NewConverterWithOptions(kepub.ConverterOptionDummyTitlepage(false))
-	if err := c.Convert(context.Background(), f, &r.Reader); err != nil {
-		f.Close()
+	convertErr := c.Convert(context.Background(), f, &r.Reader)
+	closeErr := f.Close()
+	if convertErr != nil || closeErr != nil {
 		os.Remove(kepubPath)
-		return "", err
+		os.Remove(epubPath)
+		if convertErr != nil {
+			return "", convertErr
+		}
+		return "", closeErr
 	}
-	f.Close()
 	os.Remove(epubPath)
 	return kepubPath, nil
 }
@@ -198,7 +202,9 @@ func callAPI(method, apiURL string, body io.Reader) ([]byte, error) {
 	req.Header.Set("Authorization", "Bearer "+config.Server.Token)
 	req.Header.Set("Content-Type", "application/json")
 	if config.Log.Verbose {
-		dump, _ := httputil.DumpRequestOut(req, true)
+		redacted := req.Clone(req.Context())
+		redacted.Header.Set("Authorization", "Bearer [redacted]")
+		dump, _ := httputil.DumpRequestOut(redacted, true)
 		debugf("request: %q", dump)
 	}
 	resp, err := http.DefaultClient.Do(req)
