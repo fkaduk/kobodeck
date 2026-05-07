@@ -130,10 +130,8 @@ func download(client *http.Client, entry readeckBookmark) error {
 	filesChanged.Store(true)
 	log.Printf("wrote %s (%d bytes) timestamp %s", output, n, entry.Updated)
 
-	if config.Output.Covers {
-		if err := fixCover(output); err != nil {
-			log.Printf("warning: cover fix %s: %v", filepath.Base(output), err)
-		}
+	if err := fixCover(output); err != nil {
+		log.Printf("warning: cover fix %s: %v", filepath.Base(output), err)
 	}
 
 	kepubPath, err := toKepub(output)
