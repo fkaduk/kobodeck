@@ -3,7 +3,7 @@ URL = "https://readeck.com"
 # Obtain this from your Readeck instance
 Token = ""
 # HTTP request timeout in seconds
-Timeout = 30
+Timeout = 300
 
 [Fetch]
 # Number of parallel article downloads
