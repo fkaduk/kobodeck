@@ -93,7 +93,9 @@ var (
 func main() {
 	flag.Parse()
 	configFile, configErr := findConfig()
-	debugf("config: %#v", config)
+	debugf("config: URL=%s workers=%d limit=%d labels=%q output=%s delete=%v archive=%v",
+		config.Server.URL, config.Fetch.Workers, config.Fetch.Limit,
+		config.Fetch.Labels, config.Output.Path, config.Output.Delete, config.Sync.Archive)
 
 	setupLogging(config)
 	debug.SetPanicOnFault(true)
