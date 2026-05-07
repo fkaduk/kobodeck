@@ -48,13 +48,15 @@ func listBookmarks() ([]readeckBookmark, error) {
 		if err != nil {
 			return nil, fmt.Errorf("list bookmarks: %w", err)
 		}
-		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
 			return nil, fmt.Errorf("list bookmarks: unexpected status %s", resp.Status)
 		}
 
 		var pageItems []readeckBookmark
-		if err = json.NewDecoder(resp.Body).Decode(&pageItems); err != nil {
+		err = json.NewDecoder(resp.Body).Decode(&pageItems)
+		resp.Body.Close()
+		if err != nil {
 			return nil, fmt.Errorf("decode bookmarks: %w", err)
 		}
 		all = append(all, pageItems...)
