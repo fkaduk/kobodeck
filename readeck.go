@@ -174,27 +174,15 @@ func toKepub(epubPath string) (string, error) {
 }
 
 // patchBookmark sends a partial update to a bookmark in Readeck.
-func patchBookmark(id string, fields map[string]bool) error {
+func patchBookmark(client *http.Client, id string, fields map[string]bool) error {
 	body, _ := json.Marshal(fields)
-	_, err := callAPI("PATCH", config.Server.URL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
+	_, err := callAPI(client, "PATCH", config.Server.URL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
 	return err
-}
-
-// archiveBookmark archives a bookmark in Readeck, removing it from the unread feed.
-func archiveBookmark(id string) error {
-	log.Printf("marking entry %s as archived", id)
-	return patchBookmark(id, map[string]bool{"is_archived": true})
-}
-
-// markBookmarkFavourite marks a bookmark as favourite in Readeck.
-func markBookmarkFavourite(id string) error {
-	log.Printf("marking entry %s as favourite", id)
-	return patchBookmark(id, map[string]bool{"is_marked": true})
 }
 
 // callAPI sends an authenticated API request and returns the response body.
 // Returns an error if the status code is outside the 2xx range.
-func callAPI(method, apiURL string, body io.Reader) ([]byte, error) {
+func callAPI(client *http.Client, method, apiURL string, body io.Reader) ([]byte, error) {
 	req, err := http.NewRequest(method, apiURL, body)
 	if err != nil {
 		return nil, err
@@ -207,7 +195,7 @@ func callAPI(method, apiURL string, body io.Reader) ([]byte, error) {
 		dump, _ := httputil.DumpRequestOut(redacted, true)
 		debugf("request: %q", dump)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
