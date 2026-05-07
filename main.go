@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -100,10 +101,12 @@ func main() {
 	setupLogging(config)
 	debug.SetPanicOnFault(true)
 
-	if configErr != nil {
+	if errors.Is(configErr, os.ErrNotExist) {
 		setupLogging(appConfig{Log: logConfig{Path: "/mnt/onboard/.kobodeck.log"}})
 		log.Println("no config found at", confPath, "— uninstalling")
 		uninstall()
+	} else if configErr != nil {
+		log.Fatal("invalid configuration: ", configErr)
 	}
 	if err := config.validate(); err != nil {
 		log.Fatal("invalid configuration: ", err)
@@ -229,15 +232,24 @@ func setupLogging(cfg appConfig, extraWriters ...io.Writer) {
 const confPath = "/mnt/onboard/.kobodeck.toml"
 
 // findConfig loads the config file, using --config if provided, otherwise the
-// default path on the Kobo's onboard storage.
+// default path on the Kobo's onboard storage. Unknown keys are rejected so
+// typos in the config surface immediately rather than being silently ignored.
 func findConfig() (string, error) {
 	path := confPath
 	if *configFileFlag != "" {
 		path = *configFileFlag
 	}
-	_, err := toml.DecodeFile(path, &config)
+	f, err := os.Open(path)
 	if err != nil {
 		return "", fmt.Errorf("load config %s: %w", path, err)
+	}
+	defer f.Close()
+	md, err := toml.NewDecoder(f).Decode(&config)
+	if err != nil {
+		return "", fmt.Errorf("load config %s: %w", path, err)
+	}
+	if keys := md.Undecoded(); len(keys) > 0 {
+		return "", fmt.Errorf("load config %s: unknown keys: %v", path, keys)
 	}
 	return path, nil
 }

@@ -42,7 +42,7 @@ func nickelIsInCollection(ID, outputDir, collection string) (bool, error) {
 }
 
 func nickelReadStatus(ID string, outputDir string) (bookStatus, error) {
-	// KoboReader.sqlite is Nickel's main database; open read-write is fine, we never write.
+	// Nickel's main database; opened read-only since we never write to it.
 	db, err := sql.Open("sqlite", nickelDBPath+"?mode=ro")
 	if err != nil {
 		return bookUnread, err
