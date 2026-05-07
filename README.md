@@ -41,7 +41,7 @@ To install or upgrade,
 1. obtain the latest `KoboRoot.tgz` either by downloading the binary or
    by building from source via `make tarball`
 1. save the file in the `.kobo` directory of your e-reader
-1. copy and edit the configuration file [`.kobodeck.toml`](root/etc/kobodeck.toml)
+1. copy and edit the configuration file [`.kobodeck.toml`](.kobodeck.toml)
 1. optionally verify your configuration with
    `kobodeck --config .kobodeck.toml --check`
 1. store the `.kobodeck.toml` in the root of your kobo device
