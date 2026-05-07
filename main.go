@@ -205,7 +205,7 @@ func debugf(format string, args ...interface{}) {
 }
 
 // setupLogging configures the global logger to write to stdout and optionally
-// to a size-capped rotating log file when cfg.Log is set.
+// to a size-capped rotating log file when cfg.Log.Path is set.
 func setupLogging(cfg appConfig, extraWriters ...io.Writer) {
 	writers := []io.Writer{os.Stdout}
 	writers = append(writers, extraWriters...)
@@ -332,8 +332,10 @@ func runCheck(w io.Writer) error {
 }
 
 // reconcileLocalFiles checks each local EPUB against the Nickel DB and the valid
-// set. Books marked as read in Nickel are archived in Readeck. Books no longer
-// in the unread feed are deleted if cfg.Delete is set, unless currently being read.
+// set. Books marked as read in Nickel are archived in Readeck. Books in the
+// configured FavouriteCollection shelf are marked as favourite. Books no longer
+// in the unread feed are deleted if cfg.Output.Delete is set, unless currently
+// being read.
 func reconcileLocalFiles(cfg appConfig, valid map[string]bool) {
 	outputDir := strings.TrimSuffix(cfg.Output.Path, "/")
 	files, _ := filepath.Glob(outputDir + "/*.epub")

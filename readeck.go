@@ -81,7 +81,7 @@ func matchesLabelFilter(tags map[string]bool, labels []string) bool {
 	return false
 }
 
-// download fetches the EPUB for a bookmark and writes it to config.Output.
+// download fetches the EPUB for a bookmark and writes it to config.Output.Path.
 // Skips the download if a local file newer than the bookmark's updated timestamp already exists.
 // Deletes the partial file if the write fails.
 func download(client *http.Client, entry readeckBookmark) error {
