@@ -18,9 +18,13 @@ const (
 
 const nickelContentTypeBook = 6
 
+func openNickelDB() (*sql.DB, error) {
+	return sql.Open("sqlite", nickelDBPath+"?mode=ro")
+}
+
 // nickelIsInCollection reports whether a book is in the named Kobo collection.
 func nickelIsInCollection(ID, outputDir, collection string) (bool, error) {
-	db, err := sql.Open("sqlite", nickelDBPath+"?mode=ro")
+	db, err := openNickelDB()
 	if err != nil {
 		return false, err
 	}
@@ -43,7 +47,7 @@ func nickelIsInCollection(ID, outputDir, collection string) (bool, error) {
 
 func nickelReadStatus(ID string, outputDir string) (bookStatus, error) {
 	// Nickel's main database; opened read-only since we never write to it.
-	db, err := sql.Open("sqlite", nickelDBPath+"?mode=ro")
+	db, err := openNickelDB()
 	if err != nil {
 		return bookUnread, err
 	}
