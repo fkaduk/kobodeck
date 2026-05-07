@@ -54,7 +54,7 @@ type syncConfig struct {
 type logConfig struct {
 	Path    string `toml:"Path"`
 	Verbose bool   `toml:"Verbose"`
-	Size    int    `toml:"Size"` // in KB
+	Size    int    `toml:"Size"` // in MB
 }
 
 type outputConfig struct {
@@ -212,7 +212,7 @@ func setupLogging(cfg appConfig, extraWriters ...io.Writer) {
 	writers := []io.Writer{os.Stdout}
 	writers = append(writers, extraWriters...)
 	if len(cfg.Log.Path) > 0 {
-		maxSizeMB := cfg.Log.Size / 1024
+		maxSizeMB := cfg.Log.Size
 		if maxSizeMB < 1 {
 			maxSizeMB = 1
 		}
