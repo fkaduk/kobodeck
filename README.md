@@ -1,7 +1,6 @@
 # Kobodeck
 
 A minimalist article downloader for Kobo devices.
-
 It can
 
 - fetch content from a **Readeck instance**
@@ -19,7 +18,7 @@ This plugin could be useful for you if you
   includes an article fetcher
 - are ok with mixing ebooks and articles in the native Kobo UI — if you want to
   keep them separate, check out [kobeck](https://github.com/Lukas0907/kobeck)
-- are fine with a lack of ui: content fetching happens in the background
+- are fine with a lack of ui: syncing happens in the background
 
 ## how to use it
 
@@ -28,7 +27,7 @@ background, downloads new unread articles as KEPUBs with cover images, and
 syncs read status back to Readeck.
 
 If any files changed, it triggers a fake USB
-connection to prompt Nickel to rescan the library.
+connection to prompt the reader to rescan the library.
 Press **Connect** to rescan
 immediately, or **Cancel** — the files are already downloaded either way.
 
@@ -36,7 +35,7 @@ immediately, or **Cancel** — the files are already downloaded either way.
 
 ## Installation or Upgrade
 
-To install or upgrade,
+To install or upgrade
 
 1. obtain the latest `KoboRoot.tgz` either by downloading the binary or
    by building from source via `make tarball`
@@ -50,13 +49,13 @@ To install or upgrade,
 
 ## Uninstalling
 
-Delete `.kobodeck.toml` and connect to wifi:
-kobodeck will remove itself and exit.
+Delete `.kobodeck.toml` and connect to wifi.
 
 ### Manual uninstall
 
 Manual removal of the files deployed by `KoboRoot.tgz`
 requires root access to the device.
+The following files need to be deleted:
 
 ```text
 etc/udev/rules.d/90-kobodeck.rules
@@ -64,9 +63,6 @@ usr/local/bin/kobodeck
 usr/local/bin/fake-connect-usb
 usr/local/bin/kobodeck-run
 ```
-
-Removing `/etc/udev/rules.d/90-kobodeck.rules` is enough to prevent kobodeck
-from running automatically on network changes.
 
 ## Development
 
