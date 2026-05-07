@@ -30,8 +30,7 @@ type readeckBookmark struct {
 
 // listBookmarks fetches all unread bookmarks from Readeck, paging through results
 // in batches. Stops early if config.Limit is reached.
-func listBookmarks() ([]readeckBookmark, error) {
-	client := &http.Client{Timeout: time.Duration(config.Server.Timeout) * time.Second}
+func listBookmarks(client *http.Client) ([]readeckBookmark, error) {
 	var all []readeckBookmark
 	const batchSize = 100
 	for offset := 0; ; offset += batchSize {

@@ -136,12 +136,12 @@ func main() {
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 
-	entries, err := listBookmarks()
+	entries, err := listBookmarks(client)
 	for attempt := 1; err != nil && attempt < 5; attempt++ {
 		delay := time.Duration(1<<uint(attempt)) * time.Second
 		log.Printf("failed to connect, retrying in %s: %v", delay, err)
 		time.Sleep(delay)
-		entries, err = listBookmarks()
+		entries, err = listBookmarks(client)
 	}
 	if err != nil {
 		log.Fatal(err)
@@ -301,7 +301,8 @@ func runCheck(w io.Writer) error {
 	fmt.Fprintln(w)
 
 	fmt.Fprint(w, "Connecting to Readeck... ")
-	entries, err := listBookmarks()
+	client := &http.Client{Timeout: time.Duration(config.Server.Timeout) * time.Second}
+	entries, err := listBookmarks(client)
 	if err != nil {
 		return err
 	}

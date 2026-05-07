@@ -288,7 +288,8 @@ func setupSyncEnv(t *testing.T) (outputDir, dbPath string) {
 // returns the local kepub path.
 func downloadEntry(t *testing.T, id string) string {
 	t.Helper()
-	entries, err := listBookmarks()
+	client := &http.Client{Timeout: 30 * time.Second}
+	entries, err := listBookmarks(client)
 	if err != nil {
 		t.Fatalf("listBookmarks: %v", err)
 	}
