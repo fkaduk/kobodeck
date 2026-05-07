@@ -169,20 +169,23 @@ func toKepub(epubPath string) (string, error) {
 	return kepubPath, nil
 }
 
+// patchBookmark sends a partial update to a bookmark in Readeck.
+func patchBookmark(id string, fields map[string]bool) error {
+	body, _ := json.Marshal(fields)
+	_, err := callAPI("PATCH", config.Server.URL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
+	return err
+}
+
 // archiveBookmark archives a bookmark in Readeck, removing it from the unread feed.
 func archiveBookmark(id string) error {
 	log.Printf("marking entry %s as archived", id)
-	body, _ := json.Marshal(map[string]bool{"is_archived": true})
-	_, err := callAPI("PATCH", config.Server.URL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
-	return err
+	return patchBookmark(id, map[string]bool{"is_archived": true})
 }
 
 // markBookmarkFavourite marks a bookmark as favourite in Readeck.
 func markBookmarkFavourite(id string) error {
 	log.Printf("marking entry %s as favourite", id)
-	body, _ := json.Marshal(map[string]bool{"is_marked": true})
-	_, err := callAPI("PATCH", config.Server.URL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
-	return err
+	return patchBookmark(id, map[string]bool{"is_marked": true})
 }
 
 // callAPI sends an authenticated API request and returns the response body.
