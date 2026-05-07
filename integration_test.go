@@ -194,24 +194,21 @@ func createLoadedBookmark(t *testing.T, bookmarkURL string) string {
 
 const nickelSchema = "testdata/nickel-schema-176.sql"
 
-// createNickelDB creates a minimal Nickel-schema SQLite database in dir and
-// returns its path. The caller can insert rows to simulate Kobo read status.
-func createNickelDB(t *testing.T, dir string) string {
+// createDB creates a SQLite database at dbPath from schema.
+func createDB(t *testing.T, dbPath string, schema string) {
 	t.Helper()
-	schema, err := os.ReadFile(nickelSchema)
+	data, err := os.ReadFile(schema)
 	if err != nil {
-		t.Fatalf("read nickel schema: %v", err)
+		t.Fatalf("read schema: %v", err)
 	}
-	dbPath := filepath.Join(dir, "KoboReader.sqlite")
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
-		t.Fatalf("create nickel db: %v", err)
+		t.Fatalf("create db: %v", err)
 	}
 	defer db.Close()
-	if _, err = db.Exec(string(schema)); err != nil {
-		t.Fatalf("apply nickel schema: %v", err)
+	if _, err = db.Exec(string(data)); err != nil {
+		t.Fatalf("apply schema: %v", err)
 	}
-	return dbPath
 }
 
 // --- Tests ---
@@ -266,7 +263,8 @@ func TestFullSync(t *testing.T) {
 	t.Logf("bookmark loaded: %s", id)
 
 	outputDir := t.TempDir()
-	dbPath := createNickelDB(t, t.TempDir())
+	dbPath := filepath.Join(t.TempDir(), "KoboReader.sqlite")
+	createDB(t, dbPath, nickelSchema)
 
 	// Override config for this test, restore on cleanup.
 	origOutput := config.Output.Path
