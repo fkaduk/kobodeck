@@ -60,7 +60,6 @@ type logConfig struct {
 type outputConfig struct {
 	Path   string `toml:"Path"`
 	Delete bool   `toml:"Delete"`
-	Covers bool   `toml:"Covers"`
 }
 
 var config appConfig

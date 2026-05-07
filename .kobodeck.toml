@@ -35,5 +35,3 @@ Size = 200
 Path = "/mnt/onboard/kobodeck"
 # Delete local EPUBs that are no longer in the unread feed
 Delete = false
-# Add a cover image to each downloaded article for library thumbnail display
-Covers = true
