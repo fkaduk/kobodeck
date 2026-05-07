@@ -254,105 +254,187 @@ func TestCheckMode(t *testing.T) {
 	}
 }
 
-// TestFullSync exercises the complete sync flow end-to-end:
-// list → download → simulate read in Nickel DB → reconcileLocalFiles → verify archived + deleted.
-// Also verifies that listBookmarks only returns unread bookmarks and that
-// archiving removes a bookmark from the unread feed.
-func TestFullSync(t *testing.T) {
-	id := createLoadedBookmark(t, testBookmarkURL)
-	t.Logf("bookmark loaded: %s", id)
-
-	outputDir := t.TempDir()
-	dbPath := filepath.Join(t.TempDir(), "KoboReader.sqlite")
+// setupSyncEnv creates a temp output dir and Nickel DB, saves the full config
+// and nickelDBPath, and restores them on cleanup.
+func setupSyncEnv(t *testing.T) (outputDir, dbPath string) {
+	t.Helper()
+	outputDir = t.TempDir()
+	dbPath = filepath.Join(t.TempDir(), "KoboReader.sqlite")
 	createDB(t, dbPath, nickelSchema)
-
-	// Override config for this test, restore on cleanup.
-	origOutput := config.Output.Path
-	origNickelDB := nickelDBPath
-	origDelete := config.Output.Delete
+	savedConfig := config
+	savedDB := nickelDBPath
 	t.Cleanup(func() {
-		config.Output.Path = origOutput
-		nickelDBPath = origNickelDB
-		config.Output.Delete = origDelete
+		config = savedConfig
+		nickelDBPath = savedDB
 	})
 	config.Output.Path = outputDir
 	nickelDBPath = dbPath
-	config.Output.Delete = true // override TOML default to exercise deletion path
+	return
+}
 
-	// 1. listBookmarks must include our bookmark and exclude archived ones.
+// downloadEntry finds bookmark id in the unread feed, downloads it, and
+// returns the local kepub path.
+func downloadEntry(t *testing.T, id string) string {
+	t.Helper()
 	entries, err := listBookmarks()
 	if err != nil {
 		t.Fatalf("listBookmarks: %v", err)
 	}
-	var entry readeckBookmark
 	for _, e := range entries {
 		if e.ID == id {
-			entry = e
-			break
+			client := &http.Client{Timeout: 30 * time.Second}
+			if err := download(client, e); err != nil {
+				t.Fatalf("download %s: %v", id, err)
+			}
+			path := filepath.Join(config.Output.Path, id+".kepub.epub")
+			if info, err := os.Stat(path); err != nil || info.Size() == 0 {
+				t.Fatalf("downloaded file missing or empty: %s", path)
+			}
+			return path
 		}
 	}
-	if entry.ID == "" {
-		t.Fatalf("bookmark %s not found in listBookmarks output", id)
-	}
+	t.Fatalf("bookmark %s not found in unread feed", id)
+	return ""
+}
 
-	// 2. download must produce a non-empty EPUB file.
-	client := &http.Client{Timeout: 30 * time.Second}
-	if err := download(client, entry); err != nil {
-		t.Fatalf("download: %v", err)
-	}
-	epubPath := filepath.Join(outputDir, id+".kepub.epub")
-	info, err := os.Stat(epubPath)
-	if err != nil {
-		t.Fatalf("epub not found after download: %v", err)
-	}
-	if info.Size() == 0 {
-		t.Fatal("downloaded epub is empty")
-	}
-	t.Logf("downloaded %s (%d bytes)", epubPath, info.Size())
-
-	// 3. Simulate reading: insert ReadStatus=2 into the Nickel DB.
+// simulateRead inserts ReadStatus=2 for id into the Nickel DB.
+func simulateRead(t *testing.T, dbPath, outputDir, id string) {
+	t.Helper()
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		t.Fatalf("open nickel db: %v", err)
 	}
+	defer db.Close()
 	contentID := fmt.Sprintf("file://%s/%s.kepub.epub", outputDir, id)
-	_, err = db.Exec(
+	if _, err = db.Exec(
 		"INSERT INTO content (ContentID, ContentType, MimeType, ___UserID, ReadStatus) VALUES (?, ?, ?, ?, 2)",
 		contentID, nickelContentTypeBook, "application/epub+zip", "test",
-	)
-	db.Close()
-	if err != nil {
+	); err != nil {
 		t.Fatalf("insert read status: %v", err)
 	}
+}
 
-	// 4. reconcileLocalFiles must mark the bookmark archived and delete the file.
-	valid := map[string]bool{id: true}
-	reconcileLocalFiles(config, valid)
+// addToShelf inserts id into a named shelf in the Nickel DB.
+func addToShelf(t *testing.T, dbPath, outputDir, id, shelfName string) {
+	t.Helper()
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open nickel db: %v", err)
+	}
+	defer db.Close()
+	internalName := shelfName + "_internal"
+	if _, err = db.Exec(
+		"INSERT INTO Shelf (Id, InternalName, Name, _IsDeleted) VALUES (?, ?, ?, 0)",
+		shelfName+"_id", internalName, shelfName,
+	); err != nil {
+		t.Fatalf("insert shelf: %v", err)
+	}
+	contentID := fmt.Sprintf("file://%s/%s.kepub.epub", outputDir, id)
+	if _, err = db.Exec(
+		"INSERT INTO ShelfContent (ShelfName, ContentId, _IsDeleted) VALUES (?, ?, 0)",
+		internalName, contentID,
+	); err != nil {
+		t.Fatalf("insert shelf content: %v", err)
+	}
+}
 
-	// 5. Verify archived in Readeck via direct API call.
+// bookmarkAPIState returns the is_archived and is_marked state of a bookmark.
+func bookmarkAPIState(t *testing.T, id string) (archived, marked bool) {
+	t.Helper()
 	resp := apiRequest(t, http.MethodGet, "/api/bookmarks/"+id, nil)
 	var bm struct {
 		IsArchived bool `json:"is_archived"`
+		IsMarked   bool `json:"is_marked"`
 	}
 	json.NewDecoder(resp.Body).Decode(&bm)
 	resp.Body.Close()
-	if !bm.IsArchived {
-		t.Error("bookmark should be archived after sync")
-	}
+	return bm.IsArchived, bm.IsMarked
+}
 
-	// 6. Verify archived bookmark no longer appears in the unread feed.
-	entries, err = listBookmarks()
-	if err != nil {
-		t.Fatalf("listBookmarks after archive: %v", err)
-	}
-	for _, e := range entries {
-		if e.ID == id {
-			t.Errorf("archived bookmark %s still appears in unread feed", id)
+// TestSync exercises reconcileLocalFiles under different config combinations.
+func TestSync(t *testing.T) {
+	t.Run("archives completed book", func(t *testing.T) {
+		id := createLoadedBookmark(t, testBookmarkURL)
+		outputDir, dbPath := setupSyncEnv(t)
+		config.Sync.Archive = true
+		config.Output.Delete = true
+
+		epubPath := downloadEntry(t, id)
+		simulateRead(t, dbPath, outputDir, id)
+		reconcileLocalFiles(config, map[string]bool{id: true})
+
+		archived, _ := bookmarkAPIState(t, id)
+		if !archived {
+			t.Error("bookmark should be archived after reading")
 		}
-	}
+		if _, err := os.Stat(epubPath); !os.IsNotExist(err) {
+			t.Error("file should be deleted after archiving")
+		}
+	})
 
-	// 7. Verify file deleted from output dir.
-	if _, err := os.Stat(epubPath); !os.IsNotExist(err) {
-		t.Errorf("epub should have been deleted from %s", epubPath)
-	}
+	t.Run("skips archiving when disabled", func(t *testing.T) {
+		id := createLoadedBookmark(t, testBookmarkURL)
+		outputDir, dbPath := setupSyncEnv(t)
+		config.Sync.Archive = false
+
+		epubPath := downloadEntry(t, id)
+		simulateRead(t, dbPath, outputDir, id)
+		reconcileLocalFiles(config, map[string]bool{id: true})
+
+		archived, _ := bookmarkAPIState(t, id)
+		if archived {
+			t.Error("bookmark should not be archived when Archive=false")
+		}
+		if _, err := os.Stat(epubPath); err != nil {
+			t.Error("file should still exist when Archive=false")
+		}
+	})
+
+	t.Run("keeps file when delete disabled", func(t *testing.T) {
+		id := createLoadedBookmark(t, testBookmarkURL)
+		outputDir, dbPath := setupSyncEnv(t)
+		config.Sync.Archive = true
+		config.Output.Delete = false
+
+		epubPath := downloadEntry(t, id)
+		simulateRead(t, dbPath, outputDir, id)
+		reconcileLocalFiles(config, map[string]bool{id: true})
+
+		archived, _ := bookmarkAPIState(t, id)
+		if !archived {
+			t.Error("bookmark should be archived")
+		}
+		if _, err := os.Stat(epubPath); err != nil {
+			t.Error("file should still exist when Delete=false")
+		}
+	})
+
+	t.Run("label filter excludes non-matching bookmark", func(t *testing.T) {
+		id := createLoadedBookmark(t, testBookmarkURL)
+		setupSyncEnv(t)
+		config.Fetch.Labels = "nonexistentlabel"
+
+		var buf bytes.Buffer
+		if err := runCheck(&buf); err != nil {
+			t.Fatalf("runCheck: %v", err)
+		}
+		if strings.Contains(buf.String(), id) {
+			t.Errorf("bookmark %s should be excluded by label filter", id)
+		}
+	})
+
+	t.Run("marks favourite from collection", func(t *testing.T) {
+		id := createLoadedBookmark(t, testBookmarkURL)
+		outputDir, dbPath := setupSyncEnv(t)
+		config.Sync.FavouriteCollection = "MyFavourites"
+
+		downloadEntry(t, id)
+		addToShelf(t, dbPath, outputDir, id, "MyFavourites")
+		reconcileLocalFiles(config, map[string]bool{id: true})
+
+		_, marked := bookmarkAPIState(t, id)
+		if !marked {
+			t.Error("bookmark should be marked as favourite")
+		}
+	})
 }
