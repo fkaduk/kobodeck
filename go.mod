@@ -8,7 +8,6 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/pgaskin/kepubify/v4 v4.0.4
 	github.com/testcontainers/testcontainers-go v0.42.0
-	golang.org/x/image v0.39.0
 	golang.org/x/sync v0.20.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	modernc.org/sqlite v1.44.3
