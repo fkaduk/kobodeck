@@ -5,7 +5,7 @@
 It can
 
 - fetch content from a **Readeck instance**
-- sync its status (read/archived) from the **Kobo device** to the Readeck server
+- sync some properties (read/archived/favorite) from the **Kobo device** to Readeck
 
 The code is forked from
 [wallabako](https://gitlab.com/anarcat/wallabako).
@@ -41,26 +41,22 @@ To install or upgrade,
 1. obtain the latest `KoboRoot.tgz` either by downloading the binary or
    by building from source via `make tarball`
 1. save the file in the `.kobo` directory of your e-reader
-1. copy and edit the configuration file [`.kobodeck.toml`](.kobodeck.toml)
+1. edit the configuration file [`.kobodeck.toml`](.kobodeck.toml)
 1. optionally verify your configuration with
    `kobodeck --config .kobodeck.toml --check`
 1. store the `.kobodeck.toml` in the root of your kobo device
-1. safely disconnect the reader; it should restart, install kobodeck and remove
+1. safely disconnect the reader - it should restart, install kobodeck and remove
    `KoboRoot.tgz`
 
 ## Uninstalling
 
-Delete `.kobodeck.toml` and connect to wifi.
+Delete `.kobodeck.toml` and connect to wifi:
 kobodeck will remove itself and exit.
 
 ### Manual uninstall
 
 Manual removal of the files deployed by `KoboRoot.tgz`
-requires root access to the device, for example via
-[niluje's usbnet](https://www.mobileread.com/forums/showthread.php?t=254214),
-which provides SSH over USB.
-
-Once you have access, remove:
+requires root access to the device.
 
 ```text
 etc/udev/rules.d/90-kobodeck.rules
