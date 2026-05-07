@@ -1,6 +1,6 @@
-# Readeck Article Downloader for Kobo Devices
+# Kobodeck
 
-**kobodeck** is a minimalist article downloader for Kobo devices.
+A minimalist article downloader for Kobo devices.
 
 It can
 
