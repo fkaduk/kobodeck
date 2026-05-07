@@ -64,7 +64,6 @@ Once you have access, remove:
 
 ```text
 etc/udev/rules.d/90-kobodeck.rules
-etc/kobodeck.toml
 usr/local/bin/kobodeck
 usr/local/bin/fake-connect-usb
 usr/local/bin/kobodeck-run
