@@ -183,7 +183,7 @@ done:
 		log.Println("download error:", err)
 	}
 
-	reconcileLocalFiles(config, valid)
+	reconcileLocalFiles(client, config, valid)
 
 	if config.Log.Verbose {
 		fds := listOpenFds()
@@ -360,7 +360,7 @@ func runCheck(w io.Writer) error {
 // configured FavouriteCollection shelf are marked as favourite. Books no longer
 // in the unread feed are deleted if cfg.Output.Delete is set, unless currently
 // being read.
-func reconcileLocalFiles(cfg appConfig, valid map[string]bool) {
+func reconcileLocalFiles(client *http.Client, cfg appConfig, valid map[string]bool) {
 	outputDir := strings.TrimSuffix(cfg.Output.Path, "/")
 	files, _ := filepath.Glob(outputDir + "/*.epub")
 	debugf("local files to inspect: %v", files)
@@ -377,7 +377,8 @@ func reconcileLocalFiles(cfg appConfig, valid map[string]bool) {
 			continue
 		}
 		if cfg.Sync.Archive && status == bookRead {
-			if err = archiveBookmark(uid); err != nil {
+			log.Printf("marking entry %s as archived", uid)
+			if err = patchBookmark(client, uid, map[string]bool{"is_archived": true}); err != nil {
 				log.Println("failed to mark as read:", err)
 			} else {
 				valid[uid] = false
@@ -388,7 +389,8 @@ func reconcileLocalFiles(cfg appConfig, valid map[string]bool) {
 			if err != nil {
 				log.Println("failed to check collection:", err)
 			} else if inCollection {
-				if err = markBookmarkFavourite(uid); err != nil {
+				log.Printf("marking entry %s as favourite", uid)
+				if err = patchBookmark(client, uid, map[string]bool{"is_marked": true}); err != nil {
 					log.Println("failed to mark as favourite:", err)
 				}
 			}

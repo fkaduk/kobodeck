@@ -374,7 +374,7 @@ func TestSync(t *testing.T) {
 		epubPath := downloadEntry(t, id)
 		simulateRead(t, dbPath, outputDir, id)
 		logOutput := captureLog(t)
-		reconcileLocalFiles(config, map[string]bool{id: true})
+		reconcileLocalFiles(&http.Client{Timeout: 30 * time.Second}, config, map[string]bool{id: true})
 		logs := logOutput()
 
 		archived, _ := bookmarkAPIState(t, id)
@@ -399,7 +399,7 @@ func TestSync(t *testing.T) {
 
 		epubPath := downloadEntry(t, id)
 		simulateRead(t, dbPath, outputDir, id)
-		reconcileLocalFiles(config, map[string]bool{id: true})
+		reconcileLocalFiles(&http.Client{Timeout: 30 * time.Second}, config, map[string]bool{id: true})
 
 		archived, _ := bookmarkAPIState(t, id)
 		if archived {
@@ -418,7 +418,7 @@ func TestSync(t *testing.T) {
 
 		epubPath := downloadEntry(t, id)
 		simulateRead(t, dbPath, outputDir, id)
-		reconcileLocalFiles(config, map[string]bool{id: true})
+		reconcileLocalFiles(&http.Client{Timeout: 30 * time.Second}, config, map[string]bool{id: true})
 
 		archived, _ := bookmarkAPIState(t, id)
 		if !archived {
@@ -450,7 +450,7 @@ func TestSync(t *testing.T) {
 
 		downloadEntry(t, id)
 		addToShelf(t, dbPath, outputDir, id, "MyFavourites")
-		reconcileLocalFiles(config, map[string]bool{id: true})
+		reconcileLocalFiles(&http.Client{Timeout: 30 * time.Second}, config, map[string]bool{id: true})
 
 		_, marked := bookmarkAPIState(t, id)
 		if !marked {
