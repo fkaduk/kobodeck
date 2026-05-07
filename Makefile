@@ -21,6 +21,13 @@ $(BINARY): *.go
 	CGO_ENABLED=0 go build $(GFLAGS) -o $@
 	strip $@ || true
 
+tag:
+	@test -z "$$(git status --porcelain)" || (echo "error: working tree is dirty"; exit 1)
+	@read -p "Version (e.g. v2.0.0): " v && \
+	  echo "Tagging $$v at $$(git rev-parse --short HEAD)" && \
+	  read -p "Push to origin? [y/N] " confirm && [ "$$confirm" = "y" ] && \
+	  git tag $$v && git push origin $$v
+
 clean:
 	rm -f build/kobodeck.* build/KoboRoot.tgz
 
