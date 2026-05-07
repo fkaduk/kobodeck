@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -211,6 +212,17 @@ func createDB(t *testing.T, dbPath string, schema string) {
 	}
 }
 
+// captureLog redirects the global logger into a buffer for the duration of the
+// test and returns a function that reads what was captured.
+func captureLog(t *testing.T) func() string {
+	t.Helper()
+	var buf bytes.Buffer
+	prev := log.Writer()
+	log.SetOutput(&buf)
+	t.Cleanup(func() { log.SetOutput(prev) })
+	return func() string { return buf.String() }
+}
+
 // --- Tests ---
 
 // TestSmoke verifies that the container is up, authentication works, and the
@@ -361,7 +373,9 @@ func TestSync(t *testing.T) {
 
 		epubPath := downloadEntry(t, id)
 		simulateRead(t, dbPath, outputDir, id)
+		logOutput := captureLog(t)
 		reconcileLocalFiles(config, map[string]bool{id: true})
+		logs := logOutput()
 
 		archived, _ := bookmarkAPIState(t, id)
 		if !archived {
@@ -369,6 +383,12 @@ func TestSync(t *testing.T) {
 		}
 		if _, err := os.Stat(epubPath); !os.IsNotExist(err) {
 			t.Error("file should be deleted after archiving")
+		}
+		if !strings.Contains(logs, "marking entry "+id+" as archived") {
+			t.Errorf("expected archive log message, got:\n%s", logs)
+		}
+		if !strings.Contains(logs, "deleted") {
+			t.Errorf("expected delete log message, got:\n%s", logs)
 		}
 	})
 
