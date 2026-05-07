@@ -231,25 +231,34 @@ func setupLogging(cfg appConfig, extraWriters ...io.Writer) {
 
 const confPath = "/mnt/onboard/.kobodeck.toml"
 
-// findConfig loads the config file, using --config if provided, otherwise the
-// default path on the Kobo's onboard storage. Unknown keys are rejected so
-// typos in the config surface immediately rather than being silently ignored.
+// loadConfig decodes the TOML file at path into the global config.
+// Returns os.ErrNotExist if the file is absent, or an error for parse
+// failures and unrecognised keys.
+func loadConfig(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	md, err := toml.NewDecoder(f).Decode(&config)
+	if err != nil {
+		return err
+	}
+	if keys := md.Undecoded(); len(keys) > 0 {
+		return fmt.Errorf("unknown keys: %v", keys)
+	}
+	return nil
+}
+
+// findConfig resolves the config path (--config flag or default), loads it,
+// and wraps any error with the path for context.
 func findConfig() (string, error) {
 	path := confPath
 	if *configFileFlag != "" {
 		path = *configFileFlag
 	}
-	f, err := os.Open(path)
-	if err != nil {
+	if err := loadConfig(path); err != nil {
 		return "", fmt.Errorf("load config %s: %w", path, err)
-	}
-	defer f.Close()
-	md, err := toml.NewDecoder(f).Decode(&config)
-	if err != nil {
-		return "", fmt.Errorf("load config %s: %w", path, err)
-	}
-	if keys := md.Undecoded(); len(keys) > 0 {
-		return "", fmt.Errorf("load config %s: unknown keys: %v", path, keys)
 	}
 	return path, nil
 }

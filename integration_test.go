@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -86,19 +85,8 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	f, err := os.Open(".kobodeck.toml")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to open .kobodeck.toml: %v\n", err)
-		os.Exit(1)
-	}
-	md, err := toml.NewDecoder(f).Decode(&config)
-	f.Close()
-	if err != nil {
+	if err := loadConfig(".kobodeck.toml"); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to load .kobodeck.toml: %v\n", err)
-		os.Exit(1)
-	}
-	if keys := md.Undecoded(); len(keys) > 0 {
-		fmt.Fprintf(os.Stderr, "unknown keys in .kobodeck.toml: %v\n", keys)
 		os.Exit(1)
 	}
 	config.Server.URL = baseURL
