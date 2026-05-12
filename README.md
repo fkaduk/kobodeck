@@ -43,7 +43,7 @@ immediately, or **Cancel** — the files are already downloaded either way.
 
 ![screenshot of the connect dialog on a Kobo Glo HD reader](assets/connect-dialog.png)
 
-## Installation or Upgrade
+## installation or upgrade
 
 To install or upgrade
 
@@ -57,7 +57,7 @@ To install or upgrade
 1. safely disconnect the reader - it should restart, install kobodeck and remove
    `KoboRoot.tgz`
 
-## Uninstalling
+## uninstalling
 
 Empty the file `.adds/kobodeck/kobodeck.toml` 
 (delete its contents, but keep the file) and connect to wifi.
@@ -78,11 +78,11 @@ The following need to be deleted:
 The last path is the default output directory
 (`Output.Path` in the config) — adjust if you changed it.
 
-## Development
+## development
 
 Check the Makefile for common operations on the project.
 
-### Updating the Nickel schema
+### updating the Nickel schema
 
 The integration tests use schema files in `testdata/` named `nickel-schema-{version}.sql`,
 where `{version}` is the `DbVersion` from the `KoboReader.sqlite` database.
@@ -94,7 +94,7 @@ VER=$(sqlite3 "$DB" "SELECT version FROM DbVersion;")
 sqlite3 "$DB" ".schema" > testdata/nickel-schema-${VER}.sql
 ```
 
-### Future work
+### future work
 
 - Sync highlights and annotations from the Kobo (`Bookmark` table in
   `KoboReader.sqlite`) to Readeck's annotations API
