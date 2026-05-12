@@ -6,7 +6,18 @@ It can
 - fetch content from a **Readeck instance**
 - sync some properties (read/archived/favorite) from the **Kobo device** to Readeck
 
-The code is forked from
+
+```mermaid
+flowchart LR
+    K[Kobo Device]
+    R[Readeck Instance]
+
+    R -->|unread articles| K
+    K -->|archive completed articles| R
+    K -->|mark favourites| R
+```
+
+The project is forked from
 [wallabako](https://gitlab.com/anarcat/wallabako).
 
 ## who is this for ?
