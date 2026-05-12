@@ -59,18 +59,24 @@ To install or upgrade
 
 ## Uninstalling
 
-Delete `.adds/kobodeck/kobodeck.toml` and connect to wifi.
+Empty the file `.adds/kobodeck/kobodeck.toml` 
+(delete its contents, but keep the file) and connect to wifi.
+Kobodeck will detect the empty config, remove its installed files, and exit.
 
 ### Manual uninstall
 
-Manual removal of the files deployed by `KoboRoot.tgz`
-requires root access to the device.
-The following files need to be deleted:
+Manual removal requires root access to the device.
+The following need to be deleted:
 
 ```text
-etc/udev/rules.d/90-kobodeck.rules
-usr/local/bin/kobodeck
+/etc/udev/rules.d/90-kobodeck.rules
+/usr/local/bin/kobodeck
+/mnt/onboard/.adds/kobodeck/
+/mnt/onboard/kobodeck/
 ```
+
+The last path is the default output directory
+(`Output.Path` in the config) — adjust if you changed it.
 
 ## Development
 
