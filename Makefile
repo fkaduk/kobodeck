@@ -9,6 +9,7 @@ all: test build tarball
 tarball:
 	@echo building Kobo tarball
 	$(MAKE) build BINARY=build/kobodeck.arm $(CROSS_COMPILE_FLAGS)
+	mkdir -p root/usr/local/bin
 	cp build/kobodeck.arm root/usr/local/bin/kobodeck
 	touch root/usr
 	tar -C root/ -c -z -f build/KoboRoot.tgz etc usr

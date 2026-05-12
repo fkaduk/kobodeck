@@ -43,6 +43,11 @@ func startKoboContainer(t *testing.T, ctx context.Context, binaryPath string) te
 					ContainerFilePath: "/usr/local/bin/kobodeck",
 					FileMode:          0755,
 				},
+				{
+					HostFilePath:      "root/etc/udev/rules.d/90-kobodeck.rules",
+					ContainerFilePath: "/etc/udev/rules.d/90-kobodeck.rules",
+					FileMode:          0644,
+				},
 			},
 			WaitingFor: wait.ForExec([]string{"true"}).WithStartupTimeout(30 * time.Second),
 		},
@@ -52,12 +57,6 @@ func startKoboContainer(t *testing.T, ctx context.Context, binaryPath string) te
 		t.Fatalf("start kobo container: %v", err)
 	}
 	t.Cleanup(func() { ctr.Terminate(ctx) })
-
-	// Simulate files installed by KoboRoot.tgz.
-	koboExec(t, ctx, ctr, []string{"sh", "-c",
-		"mkdir -p /etc/udev/rules.d && " +
-			"touch /etc/udev/rules.d/90-kobodeck.rules",
-	})
 	return ctr
 }
 
