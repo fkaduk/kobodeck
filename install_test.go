@@ -88,16 +88,18 @@ func TestKoboNoConfigCreatesTemplate(t *testing.T) {
 	ctr := startKoboContainer(t, ctx, buildLinuxBinary(t))
 
 	// Run kobodeck with no config present — should write template and exit cleanly.
-	code, out := koboRun(t, ctx, ctr, []string{"/usr/local/bin/kobodeck"})
-	if code != 0 {
-		t.Fatalf("expected exit 0, got %d:\n%s", code, out)
-	}
-	if !strings.Contains(out, "template written") {
-		t.Errorf("expected 'template written' in output, got:\n%s", out)
+	if code, _ := koboRun(t, ctx, ctr, []string{"/usr/local/bin/kobodeck"}); code != 0 {
+		t.Fatalf("expected exit 0, got %d", code)
 	}
 
 	// Template must exist and be non-empty.
 	koboExec(t, ctx, ctr, []string{"test", "-s", "/mnt/onboard/.adds/kobodeck/kobodeck.toml"})
+
+	// Log must mention the template.
+	logContent := koboExec(t, ctx, ctr, []string{"cat", "/mnt/onboard/.adds/kobodeck/kobodeck.log"})
+	if !strings.Contains(logContent, "template written") {
+		t.Errorf("expected 'template written' in log, got:\n%s", logContent)
+	}
 }
 
 func TestKoboEmptyConfigUninstalls(t *testing.T) {
@@ -115,12 +117,8 @@ func TestKoboEmptyConfigUninstalls(t *testing.T) {
 		"echo 'previous run' > /mnt/onboard/.adds/kobodeck/kobodeck.log",
 	})
 
-	code, out := koboRun(t, ctx, ctr, []string{"/usr/local/bin/kobodeck"})
-	if code != 0 {
-		t.Fatalf("expected exit 0, got %d:\n%s", code, out)
-	}
-	if !strings.Contains(out, "uninstall complete") {
-		t.Errorf("expected 'uninstall complete' in output, got:\n%s", out)
+	if code, _ := koboRun(t, ctx, ctr, []string{"/usr/local/bin/kobodeck"}); code != 0 {
+		t.Fatalf("expected exit 0, got %d", code)
 	}
 
 	// All installed files and the config directory must be gone.

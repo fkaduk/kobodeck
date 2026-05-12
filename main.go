@@ -56,9 +56,8 @@ type syncConfig struct {
 }
 
 type logConfig struct {
-	Path    string `toml:"Path"`
-	Verbose bool   `toml:"Verbose"`
-	Size    int    `toml:"Size"` // in MB
+	Verbose bool `toml:"Verbose"`
+	Size    int  `toml:"Size"` // in MB
 }
 
 type outputConfig struct {
@@ -205,24 +204,21 @@ func debugf(format string, args ...interface{}) {
 	}
 }
 
-// setupLogging configures the global logger to write to stdout and optionally
-// to a size-capped rotating log file when cfg.Log.Path is set.
-func setupLogging(cfg appConfig, extraWriters ...io.Writer) {
-	writers := []io.Writer{os.Stdout}
-	writers = append(writers, extraWriters...)
-	if len(cfg.Log.Path) > 0 {
-		maxSizeMB := cfg.Log.Size
-		if maxSizeMB < 1 {
-			maxSizeMB = 1
-		}
-		writers = append(writers, &lumberjack.Logger{
-			Filename:   cfg.Log.Path,
-			MaxSize:    maxSizeMB,
-			MaxBackups: 7,
-			MaxAge:     7,
-		})
+const logPath = "/mnt/onboard/.adds/kobodeck/kobodeck.log"
+
+// setupLogging configures the global logger to write to a size-capped rotating
+// log file at the hardcoded path.
+func setupLogging(cfg appConfig) {
+	maxSizeMB := cfg.Log.Size
+	if maxSizeMB < 1 {
+		maxSizeMB = 1
 	}
-	log.SetOutput(io.MultiWriter(writers...))
+	log.SetOutput(&lumberjack.Logger{
+		Filename:   logPath,
+		MaxSize:    maxSizeMB,
+		MaxBackups: 7,
+		MaxAge:     7,
+	})
 }
 
 const confPath = "/mnt/onboard/.adds/kobodeck/kobodeck.toml"
