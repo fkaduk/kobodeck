@@ -7,4 +7,5 @@ echo starting kobodeck
 PATH=$PATH:/mnt/onboard/.adds/koreader:/mnt/onboard/.niluje/usbnet/bin:/usr/local/kfmon/bin:/usr/local/bin:/sbin:/usr/sbin:/bin:/usr/bin
 export PATH
 
+mkdir -p /mnt/onboard/.adds/kobodeck
 /usr/local/bin/kobodeck &
