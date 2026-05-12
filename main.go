@@ -22,7 +22,7 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-//go:embed .kobodeck.toml
+//go:embed kobodeck.toml
 var configTemplate []byte
 
 var (
