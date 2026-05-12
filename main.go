@@ -204,7 +204,9 @@ func debugf(format string, args ...interface{}) {
 	}
 }
 
-const logPath = "/mnt/onboard/.adds/kobodeck/kobodeck.log"
+const confPath = "/mnt/onboard/.adds/kobodeck/kobodeck.toml"
+
+var logPath = filepath.Join(filepath.Dir(confPath), "kobodeck.log")
 
 // setupLogging configures the global logger to write to a size-capped rotating
 // log file at the hardcoded path.
@@ -220,8 +222,6 @@ func setupLogging(cfg appConfig) {
 		MaxAge:     7,
 	})
 }
-
-const confPath = "/mnt/onboard/.adds/kobodeck/kobodeck.toml"
 
 var errUninstallRequested = errors.New("uninstall requested")
 
