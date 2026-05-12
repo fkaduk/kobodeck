@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"errors"
 	"flag"
 	"fmt"
@@ -21,6 +22,9 @@ import (
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
+
+//go:embed .kobodeck.toml
+var configTemplate []byte
 
 var (
 	configFileFlag = flag.String("config", "", "path to the configuration file")
@@ -93,18 +97,20 @@ var (
 
 func main() {
 	flag.Parse()
+	os.MkdirAll(filepath.Dir(confPath), 0755)
 	configFile, configErr := findConfig()
-	debugf("config: URL=%s workers=%d limit=%d labels=%q output=%s delete=%v archive=%v",
-		config.Server.URL, config.Fetch.Workers, config.Fetch.Limit,
-		config.Fetch.Labels, config.Output.Path, config.Output.Delete, config.Sync.Archive)
-
 	setupLogging(config)
 	debug.SetPanicOnFault(true)
 
-	if errors.Is(configErr, os.ErrNotExist) {
-		setupLogging(appConfig{Log: logConfig{Path: "/mnt/onboard/.adds/kobodeck/kobodeck.log"}})
-		log.Println("no config found at", confPath, "— uninstalling")
-		uninstall()
+	if errors.Is(configErr, errConfigCreated) {
+		log.Printf("no config found — template written to %s, please edit it", confPath)
+		return
+	} else if errors.Is(configErr, errUninstallRequested) {
+		log.Println("empty config found — uninstalling")
+		doUninstall(os.Args[0], installFiles)
+		os.RemoveAll(filepath.Dir(confPath))
+		log.Println("uninstall complete")
+		return
 	} else if configErr != nil {
 		log.Fatal("invalid configuration: ", configErr)
 	}
@@ -231,15 +237,24 @@ func setupLogging(cfg appConfig, extraWriters ...io.Writer) {
 
 const confPath = "/mnt/onboard/.adds/kobodeck/kobodeck.toml"
 
+var errUninstallRequested = errors.New("uninstall requested")
+
 // loadConfig decodes the TOML file at path into the global config.
-// Returns os.ErrNotExist if the file is absent, or an error for parse
-// failures and unrecognised keys.
+// Returns os.ErrNotExist if the file is absent, errUninstallRequested if
+// the file is empty, or an error for parse failures and unrecognised keys.
 func loadConfig(path string) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	if info.Size() == 0 {
+		return errUninstallRequested
+	}
 	md, err := toml.NewDecoder(f).Decode(&config)
 	if err != nil {
 		return err
@@ -250,36 +265,48 @@ func loadConfig(path string) error {
 	return nil
 }
 
-// findConfig resolves the config path (--config flag or default), loads it,
-// and wraps any error with the path for context.
+// findConfig resolves the config path (--config flag or default) and loads it.
+// For the default path only: if no config exists, a template is written there
+// and the function returns errConfigCreated. If the config is empty,
+// errUninstallRequested is returned.
 func findConfig() (string, error) {
-	path := confPath
 	if *configFileFlag != "" {
-		path = *configFileFlag
+		if err := loadConfig(*configFileFlag); err != nil {
+			return "", fmt.Errorf("load config %s: %w", *configFileFlag, err)
+		}
+		return *configFileFlag, nil
 	}
-	if err := loadConfig(path); err != nil {
-		return "", fmt.Errorf("load config %s: %w", path, err)
+	if _, err := os.Stat(confPath); errors.Is(err, os.ErrNotExist) {
+		if err := os.WriteFile(confPath, configTemplate, 0600); err != nil {
+			return "", fmt.Errorf("write config template: %w", err)
+		}
+		return confPath, errConfigCreated
 	}
-	return path, nil
+	if err := loadConfig(confPath); err != nil {
+		return "", fmt.Errorf("load config %s: %w", confPath, err)
+	}
+	return confPath, nil
 }
 
-// uninstall removes all files deployed by KoboRoot.tgz and exits.
-// Refuses to run if the binary is not under /usr/local to prevent accidents.
-func uninstall() {
+var errConfigCreated = errors.New("config template created")
+
+var installFiles = []string{
+	"/etc/udev/rules.d/90-kobodeck.rules",
+	"/usr/local/bin/fake-connect-usb",
+	"/usr/local/bin/kobodeck",
+}
+
+// doUninstall removes the given files and logs the result.
+// Refuses to run if binaryPath is not under /usr/local to prevent accidents.
+func doUninstall(binaryPath string, files []string) {
 	log.Println("uninstall requested, clearing myself out")
-	if !strings.HasPrefix(os.Args[0], "/usr/local") {
-		log.Fatal("unexpected command path, aborting uninstall:", os.Args[0])
-	}
-	files := []string{
-		"/etc/udev/rules.d/90-kobodeck.rules",
-		"/usr/local/bin/fake-connect-usb",
-		"/usr/local/bin/kobodeck-run",
-		"/usr/local/bin/kobodeck",
+	if !strings.HasPrefix(binaryPath, "/usr/local") {
+		log.Fatal("unexpected command path, aborting uninstall:", binaryPath)
 	}
 	var lastErr error
 	for _, file := range files {
-		if err := os.Remove(file); err != nil {
-			log.Printf("failed: %s", err)
+		if err := os.Remove(file); err != nil && !errors.Is(err, os.ErrNotExist) {
+			log.Printf("failed to remove %s: %s", file, err)
 			lastErr = err
 		} else {
 			log.Printf("deleted %s", file)
@@ -288,7 +315,6 @@ func uninstall() {
 	if lastErr != nil {
 		log.Fatal("uninstall partially failed")
 	}
-	log.Fatal("uninstall complete")
 }
 
 // acquireLock acquires an exclusive non-blocking flock on /tmp/kobodeck.lock.

@@ -71,7 +71,6 @@ The following files need to be deleted:
 etc/udev/rules.d/90-kobodeck.rules
 usr/local/bin/kobodeck
 usr/local/bin/fake-connect-usb
-usr/local/bin/kobodeck-run
 ```
 
 ## Development
