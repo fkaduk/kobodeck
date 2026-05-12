@@ -39,7 +39,7 @@ syncs read status back to Readeck.
 If any files changed, it triggers a fake USB
 connection to prompt the reader to rescan the library.
 Press **Connect** to rescan
-immediately, or **Cancel** — the files are already downloaded either way.
+immediately, or **Cancel** - the files are already downloaded either way.
 
 ![screenshot of the connect dialog on a Kobo Glo HD reader](assets/connect-dialog.png)
 
@@ -59,7 +59,7 @@ To install or upgrade
 
 ## uninstalling
 
-Empty the file `.adds/kobodeck/kobodeck.toml` 
+Empty the file `.adds/kobodeck/kobodeck.toml`
 (delete its contents, but keep the file) and connect to wifi.
 Kobodeck will detect the empty config, remove its installed files, and exit.
 
@@ -76,7 +76,7 @@ The following need to be deleted:
 ```
 
 The last path is the default output directory
-(`Output.Path` in the config) — adjust if you changed it.
+(`Output.Path` in the config) - adjust if you changed it.
 
 ## development
 
@@ -98,12 +98,12 @@ sqlite3 "$DB" ".schema" > testdata/nickel-schema-${VER}.sql
 
 - Sync highlights and annotations from the Kobo (`Bookmark` table in
   `KoboReader.sqlite`) to Readeck's annotations API
-- Add sync of reading progress (current position) from the Kobo to Readeck —
+- Add sync of reading progress (current position) from the Kobo to Readeck -
   note that progress may differ between EPUB and KEPUB formats
 - Add functionality to also fetch archived articles
 - Add functionality to fetch favourites only
 - Syncing is currently only one way, as we avoid writing to Kobo's NickelDB — reverse
   sync may still be worth exploring
-- The run script does not inhibit device sleep — if the Kobo sleeps during a
+- The run script does not inhibit device sleep - if the Kobo sleeps during a
   long sync, downloads may be interrupted
 
