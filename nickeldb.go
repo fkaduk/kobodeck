@@ -35,9 +35,7 @@ func nickelIsInCollection(ID, outputDir, collection string) (bool, error) {
 	err = db.QueryRow(`
 		SELECT COUNT(*) FROM ShelfContent sc
 		JOIN Shelf s ON sc.ShelfName = s.InternalName
-		WHERE sc.ContentId = ? AND s.Name = ?
-		  AND COALESCE(sc._IsDeleted, 0) = 0
-		  AND COALESCE(s._IsDeleted, 0) = 0`,
+		WHERE sc.ContentId = ? AND s.Name = ?`,
 		contentID, collection).Scan(&count)
 	if err != nil {
 		return false, err
