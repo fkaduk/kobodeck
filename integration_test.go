@@ -336,14 +336,14 @@ func addToShelf(t *testing.T, dbPath, outputDir, id, shelfName string) {
 	defer db.Close()
 	internalName := shelfName + "_internal"
 	if _, err = db.Exec(
-		"INSERT INTO Shelf (Id, InternalName, Name, _IsDeleted) VALUES (?, ?, ?, 0)",
+		"INSERT INTO Shelf (Id, InternalName, Name, _IsDeleted) VALUES (?, ?, ?, 'false')",
 		shelfName+"_id", internalName, shelfName,
 	); err != nil {
 		t.Fatalf("insert shelf: %v", err)
 	}
 	contentID := fmt.Sprintf("file://%s/%s.kepub.epub", outputDir, id)
 	if _, err = db.Exec(
-		"INSERT INTO ShelfContent (ShelfName, ContentId, _IsDeleted) VALUES (?, ?, 0)",
+		"INSERT INTO ShelfContent (ShelfName, ContentId, _IsDeleted) VALUES (?, ?, 'false')",
 		internalName, contentID,
 	); err != nil {
 		t.Fatalf("insert shelf content: %v", err)
