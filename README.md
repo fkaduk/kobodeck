@@ -100,3 +100,8 @@ sqlite3 "$DB" ".schema" > testdata/nickel-schema-${VER}.sql
   sync may still be worth exploring
 - The run script does not inhibit device sleep — if the Kobo sleeps during a
   long sync, downloads may be interrupted
+
+## TODO
+
+- why is kobodeck.toml now hidden in pwd, but not in adds?
+- same with the log. really needs to be hidden? isnt everything in .adds hidden?
