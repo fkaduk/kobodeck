@@ -54,6 +54,7 @@ To install or upgrade
 1. store it as `.adds/kobodeck/kobodeck.toml` on your Kobo device
 1. optionally verify your configuration with
    `kobodeck --config .adds/kobodeck/kobodeck.toml --check`
+   via the binary provided in the tarball
 1. safely disconnect the reader - it should restart, install kobodeck and remove
    `KoboRoot.tgz`
 
@@ -62,8 +63,9 @@ To install or upgrade
 Empty the file `.adds/kobodeck/kobodeck.toml`
 (delete its contents, but keep the file) and connect to wifi.
 Kobodeck will detect the empty config, remove its installed files, and exit.
+After this `.adds/kobodeck/` should be deleted.
 
-### Manual uninstall
+### manual uninstall
 
 Manual removal requires root access to the device.
 The following need to be deleted:
@@ -106,4 +108,3 @@ sqlite3 "$DB" ".schema" > testdata/nickel-schema-${VER}.sql
   sync may still be worth exploring
 - The run script does not inhibit device sleep - if the Kobo sleeps during a
   long sync, downloads may be interrupted
-
