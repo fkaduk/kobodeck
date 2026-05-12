@@ -83,10 +83,12 @@ sqlite3 "$DB" ".schema" > testdata/nickel-schema-${VER}.sql
 ### Future work
 
 - Sync highlights and annotations from the Kobo (`Bookmark` table in
-  `KoboReader.sqlite`) to Readeck's annotations API.
+  `KoboReader.sqlite`) to Readeck's annotations API
 - Add sync of reading progress (current position) from the Kobo to Readeck —
   note that progress may differ between EPUB and KEPUB formats
 - Add functionality to also fetch archived articles
 - Add functionality to fetch favourites only
-- Syncing is only one way, as we avoid writing to Kobo's NickelDB — reverse
+- Syncing is currently only one way, as we avoid writing to Kobo's NickelDB — reverse
   sync may still be worth exploring
+- The run script does not inhibit device sleep — if the Kobo sleeps during a
+  long sync, downloads may be interrupted
