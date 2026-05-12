@@ -50,7 +50,7 @@ To install or upgrade
 1. obtain the latest `KoboRoot.tgz` either by downloading the binary or
    by building from source via `make tarball`
 1. save the file in the `.kobo` directory of your e-reader
-1. copy and edit the configuration file [`.kobodeck.toml`](.kobodeck.toml)
+1. copy and edit the configuration file [`kobodeck.toml`](kobodeck.toml)
 1. store it as `.adds/kobodeck/kobodeck.toml` on your Kobo device
 1. optionally verify your configuration with
    `kobodeck --config .adds/kobodeck/kobodeck.toml --check`
@@ -101,7 +101,3 @@ sqlite3 "$DB" ".schema" > testdata/nickel-schema-${VER}.sql
 - The run script does not inhibit device sleep — if the Kobo sleeps during a
   long sync, downloads may be interrupted
 
-## TODO
-
-- why is kobodeck.toml now hidden in pwd, but not in adds?
-- same with the log. really needs to be hidden? isnt everything in .adds hidden?
