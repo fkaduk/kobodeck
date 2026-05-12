@@ -23,16 +23,10 @@ func openNickelDB() (*sql.DB, error) {
 }
 
 // nickelIsInCollection reports whether a book is in the named Kobo collection.
-func nickelIsInCollection(ID, outputDir, collection string) (bool, error) {
-	db, err := openNickelDB()
-	if err != nil {
-		return false, err
-	}
-	defer db.Close()
-
+func nickelIsInCollection(db *sql.DB, ID, outputDir, collection string) (bool, error) {
 	contentID := fmt.Sprintf("file://%s/%s.kepub.epub", outputDir, ID)
 	var count int
-	err = db.QueryRow(`
+	err := db.QueryRow(`
 		SELECT COUNT(*) FROM ShelfContent sc
 		JOIN Shelf s ON sc.ShelfName = s.InternalName
 		WHERE sc.ContentId = ? AND s.Name = ?`,
@@ -43,14 +37,7 @@ func nickelIsInCollection(ID, outputDir, collection string) (bool, error) {
 	return count > 0, nil
 }
 
-func nickelReadStatus(ID string, outputDir string) (bookStatus, error) {
-	// Nickel's main database; opened read-only since we never write to it.
-	db, err := openNickelDB()
-	if err != nil {
-		return bookUnread, err
-	}
-	defer db.Close()
-
+func nickelReadStatus(db *sql.DB, ID string, outputDir string) (bookStatus, error) {
 	// Nickel stores books as file:// URIs matching the on-device path.
 	path := fmt.Sprintf("file://%s/%s.kepub.epub", outputDir, ID)
 	row := db.QueryRow("SELECT ReadStatus FROM content WHERE ContentID = $1 AND ContentType = $2 LIMIT 1", path, nickelContentTypeBook)

@@ -398,10 +398,23 @@ func reconcileLocalFiles(client *http.Client, cfg appConfig, valid map[string]bo
 			log.Println("skipping file with empty name:", file)
 			continue
 		}
-		status, err := nickelReadStatus(uid, outputDir)
+		db, err := openNickelDB()
 		if err != nil {
+			log.Println("cannot open Nickel DB:", err)
+			continue
+		}
+		status, statusErr := nickelReadStatus(db, uid, outputDir)
+		var inCollection bool
+		if cfg.Sync.FavouriteCollection != "" {
+			inCollection, err = nickelIsInCollection(db, uid, outputDir, cfg.Sync.FavouriteCollection)
+			if err != nil {
+				log.Println("failed to check collection:", err)
+			}
+		}
+		db.Close()
+		if statusErr != nil {
 			// Skip entirely — don't delete a book we can't confirm the read state of.
-			log.Println(err)
+			log.Println(statusErr)
 			continue
 		}
 		if cfg.Sync.Archive && status == bookRead {
@@ -412,15 +425,10 @@ func reconcileLocalFiles(client *http.Client, cfg appConfig, valid map[string]bo
 				valid[uid] = false
 			}
 		}
-		if cfg.Sync.FavouriteCollection != "" {
-			inCollection, err := nickelIsInCollection(uid, outputDir, cfg.Sync.FavouriteCollection)
-			if err != nil {
-				log.Println("failed to check collection:", err)
-			} else if inCollection {
-				log.Printf("marking entry %s as favourite", uid)
-				if err = patchBookmark(client, uid, map[string]bool{"is_marked": true}); err != nil {
-					log.Println("failed to mark as favourite:", err)
-				}
+		if inCollection {
+			log.Printf("marking entry %s as favourite", uid)
+			if err = patchBookmark(client, uid, map[string]bool{"is_marked": true}); err != nil {
+				log.Println("failed to mark as favourite:", err)
 			}
 		}
 		if cfg.Output.Delete && !valid[uid] {
