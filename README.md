@@ -36,10 +36,9 @@ When wifi is turned on, kobodeck connects to your Readeck instance in the
 background, downloads new unread articles as KEPUBs with cover images, and
 syncs read status back to Readeck.
 
-If any files changed, it triggers a fake USB
-connection to prompt the reader to rescan the library.
-Press **Connect** to rescan
-immediately, or **Cancel** - the files are already downloaded either way.
+If any files changed, it triggers a Nickel library rescan via a simulated USB event.
+Press **Connect** to rescan immediately, or **Cancel** —
+the files are already downloaded either way.
 
 ![screenshot of the connect dialog on a Kobo Glo HD reader](assets/connect-dialog.png)
 
@@ -47,8 +46,9 @@ immediately, or **Cancel** - the files are already downloaded either way.
 
 To install or upgrade
 
-1. obtain the latest `KoboRoot.tgz` either by downloading the binary or
-   by building from source via `make tarball`
+1. obtain the latest `KoboRoot.tgz`:
+   - download it from the releases page, or
+   - build from source via `make tarball`
 1. save the file in the `.kobo` directory of your e-reader
 1. copy and edit the configuration file [`kobodeck.toml`](kobodeck.toml)
 1. store it as `.adds/kobodeck/kobodeck.toml` on your Kobo device
@@ -63,7 +63,7 @@ To install or upgrade
 Empty the file `.adds/kobodeck/kobodeck.toml`
 (delete its contents, but keep the file) and connect to wifi.
 Kobodeck will detect the empty config, remove its installed files, and exit.
-After this `.adds/kobodeck/` should be deleted.
+If uninstall succeeded, `.adds/kobodeck/` will no longer exist.
 
 ### manual uninstall
 
@@ -104,7 +104,7 @@ sqlite3 "$DB" ".schema" > testdata/nickel-schema-${VER}.sql
   note that progress may differ between EPUB and KEPUB formats
 - Add functionality to also fetch archived articles
 - Add functionality to fetch favourites only
-- Syncing is currently only one way, as we avoid writing to Kobo's NickelDB — reverse
+- Syncing is currently only one way, as we avoid writing to Kobo's NickelDB - reverse
   sync may still be worth exploring
-- The run script does not inhibit device sleep - if the Kobo sleeps during a
+- Kobodeck does not inhibit device sleep - if the Kobo sleeps during a
   long sync, downloads may be interrupted
