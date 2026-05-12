@@ -6,6 +6,7 @@ toolchain go1.25.7
 
 require (
 	github.com/BurntSushi/toml v1.6.0
+	github.com/docker/docker v28.5.2+incompatible
 	github.com/pgaskin/kepubify/v4 v4.0.4
 	github.com/testcontainers/testcontainers-go v0.42.0
 	golang.org/x/sync v0.20.0
