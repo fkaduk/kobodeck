@@ -6,7 +6,6 @@ It can
 - fetch content from a **Readeck instance**
 - sync some properties (read/archived/favorite) from the **Kobo device** to Readeck
 
-
 ```mermaid
 flowchart LR
     K[Kobo Device]
@@ -27,9 +26,9 @@ This plugin could be useful for you if you
 - do not want to use [KOReader](https://koreader.rocks/), which has a native
   Readeck/OPDS plugin or [Plato](https://github.com/baskerville/plato/), which
   includes an article fetcher
-- are ok with mixing ebooks and articles in the native Kobo UI — if you want to
+- are ok with mixing ebooks and articles in the native Kobo UI - if you want to
   keep them separate, check out [kobeck](https://github.com/Lukas0907/kobeck)
-- are fine with a lack of ui: syncing happens in the background
+- are fine with a lack of ui - syncing happens in the background
 
 ## how to use it
 
@@ -51,16 +50,16 @@ To install or upgrade
 1. obtain the latest `KoboRoot.tgz` either by downloading the binary or
    by building from source via `make tarball`
 1. save the file in the `.kobo` directory of your e-reader
-1. edit the configuration file [`.kobodeck.toml`](.kobodeck.toml)
+1. copy and edit the configuration file [`.kobodeck.toml`](.kobodeck.toml)
+1. store it as `.adds/kobodeck/kobodeck.toml` on your Kobo device
 1. optionally verify your configuration with
-   `kobodeck --config .kobodeck.toml --check`
-1. store the `.kobodeck.toml` in the root of your kobo device
+   `kobodeck --config .adds/kobodeck/kobodeck.toml --check`
 1. safely disconnect the reader - it should restart, install kobodeck and remove
    `KoboRoot.tgz`
 
 ## Uninstalling
 
-Delete `.kobodeck.toml` and connect to wifi.
+Delete `.adds/kobodeck/kobodeck.toml` and connect to wifi.
 
 ### Manual uninstall
 

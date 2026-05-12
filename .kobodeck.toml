@@ -24,7 +24,7 @@ FavouriteCollection = ""
 
 [Log]
 # Path to log file on Kobo device (empty = stdout only)
-Path = "/mnt/onboard/.kobodeck.log"
+Path = "/mnt/onboard/.adds/kobodeck/kobodeck.log"
 Verbose = false
 # Max log size in MB
 Size = 1

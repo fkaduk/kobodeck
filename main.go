@@ -102,7 +102,7 @@ func main() {
 	debug.SetPanicOnFault(true)
 
 	if errors.Is(configErr, os.ErrNotExist) {
-		setupLogging(appConfig{Log: logConfig{Path: "/mnt/onboard/.kobodeck.log"}})
+		setupLogging(appConfig{Log: logConfig{Path: "/mnt/onboard/.adds/kobodeck/kobodeck.log"}})
 		log.Println("no config found at", confPath, "— uninstalling")
 		uninstall()
 	} else if configErr != nil {
@@ -229,7 +229,7 @@ func setupLogging(cfg appConfig, extraWriters ...io.Writer) {
 	log.SetOutput(io.MultiWriter(writers...))
 }
 
-const confPath = "/mnt/onboard/.kobodeck.toml"
+const confPath = "/mnt/onboard/.adds/kobodeck/kobodeck.toml"
 
 // loadConfig decodes the TOML file at path into the global config.
 // Returns os.ErrNotExist if the file is absent, or an error for parse
