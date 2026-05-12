@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"runtime/debug"
@@ -195,17 +194,8 @@ done:
 		fds := listOpenFds()
 		log.Printf("%d open file descriptors: %s", len(fds), fds)
 	}
-	const fakeConnectUSB = "/usr/local/bin/fake-connect-usb"
 	if filesChanged.Load() {
-		if _, err := os.Stat(fakeConnectUSB); err == nil {
-			log.Println("triggering Nickel rescan")
-			out, err := exec.Command(fakeConnectUSB).CombinedOutput()
-			if err != nil {
-				log.Println("fake-connect-usb failed:", err)
-			} else if len(out) > 0 {
-				log.Println(string(out))
-			}
-		}
+		nickelRescan()
 	}
 }
 
@@ -292,7 +282,6 @@ var errConfigCreated = errors.New("config template created")
 
 var installFiles = []string{
 	"/etc/udev/rules.d/90-kobodeck.rules",
-	"/usr/local/bin/fake-connect-usb",
 	"/usr/local/bin/kobodeck",
 }
 
@@ -314,6 +303,23 @@ func doUninstall(binaryPath string, files []string) {
 	}
 	if lastErr != nil {
 		log.Fatal("uninstall partially failed")
+	}
+}
+
+// nickelRescan triggers a Nickel library rescan by simulating a USB plug/unplug
+// via /tmp/nickel-hardware-status. The user will see a Connect/Cancel dialog;
+// pressing Connect rescans immediately, Cancel still picks up changes on reboot.
+func nickelRescan() {
+	const nickelStatus = "/tmp/nickel-hardware-status"
+	log.Println("triggering Nickel rescan")
+	if f, err := os.OpenFile(nickelStatus, os.O_APPEND|os.O_WRONLY, 0); err == nil {
+		f.WriteString("usb plug add\n")
+		f.Close()
+		time.Sleep(10 * time.Second)
+		if f, err = os.OpenFile(nickelStatus, os.O_APPEND|os.O_WRONLY, 0); err == nil {
+			f.WriteString("usb plug remove\n")
+			f.Close()
+		}
 	}
 }
 

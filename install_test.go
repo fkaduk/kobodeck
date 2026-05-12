@@ -56,7 +56,7 @@ func startKoboContainer(t *testing.T, ctx context.Context, binaryPath string) te
 	// Simulate files installed by KoboRoot.tgz.
 	koboExec(t, ctx, ctr, []string{"sh", "-c",
 		"mkdir -p /etc/udev/rules.d && " +
-			"touch /usr/local/bin/fake-connect-usb /etc/udev/rules.d/90-kobodeck.rules",
+			"touch /etc/udev/rules.d/90-kobodeck.rules",
 	})
 	return ctr
 }
@@ -127,7 +127,6 @@ func TestKoboEmptyConfigUninstalls(t *testing.T) {
 	// All installed files and the config directory must be gone.
 	for _, path := range []string{
 		"/usr/local/bin/kobodeck",
-		"/usr/local/bin/fake-connect-usb",
 		"/etc/udev/rules.d/90-kobodeck.rules",
 		"/mnt/onboard/.adds/kobodeck",
 	} {
