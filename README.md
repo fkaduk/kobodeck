@@ -106,7 +106,7 @@ Check the Makefile for common operations on the project.
 - build `KoboRoot.tgz`
   - no errors
 - install on device, connect wifi
-  - article downloaded 
+  - article downloaded
 - mark article as read, add to favorite collection, reconnect
   - article archived in Readeck
   - article favourited
