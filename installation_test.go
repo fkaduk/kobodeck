@@ -111,6 +111,38 @@ func TestKoboNoConfigCreatesTemplate(t *testing.T) {
 	}
 }
 
+func TestKoboConcurrentRunPrevented(t *testing.T) {
+	ctx := context.Background()
+	ctr := startKoboContainer(t, ctx, buildLinuxBinary(t))
+
+	// Write a valid config pointing to an unreachable address with a short
+	// timeout so the first instance holds the lock while retrying the network.
+	koboExec(t, ctx, ctr, []string{"sh", "-c",
+		"mkdir -p /mnt/onboard/.adds/kobodeck && cat > /mnt/onboard/.adds/kobodeck/kobodeck.toml << 'EOF'\n" +
+			"[Server]\nURL = \"http://192.0.2.1\"\nToken = \"test\"\nTimeout = 1\n" +
+			"[Fetch]\nWorkers = 1\nLimit = 0\nLabels = \"\"\nStatus = \"\"\n" +
+			"[Sync]\nArchive = false\nFavouriteCollection = \"\"\n" +
+			"[Log]\nVerbose = false\nSize = 1\n" +
+			"[Output]\nPath = \"/mnt/onboard/kobodeck\"\nDelete = false\n" +
+			"EOF",
+	})
+
+	// Start first instance in the background — it will acquire the lock then
+	// block retrying the unreachable server.
+	koboExec(t, ctx, ctr, []string{"sh", "-c", "/usr/local/bin/kobodeck &"})
+	time.Sleep(2 * time.Second)
+
+	// Second instance must fail immediately.
+	if code, _ := koboRun(t, ctx, ctr, []string{"/usr/local/bin/kobodeck"}); code == 0 {
+		t.Fatal("expected second instance to fail, but it exited 0")
+	}
+
+	logContent := koboExec(t, ctx, ctr, []string{"cat", "/mnt/onboard/.adds/kobodeck/kobodeck.log"})
+	if !strings.Contains(logContent, "already running") {
+		t.Errorf("expected 'already running' in log, got:\n%s", logContent)
+	}
+}
+
 func TestKoboEmptyConfigUninstalls(t *testing.T) {
 	ctx := context.Background()
 	ctr := startKoboContainer(t, ctx, buildLinuxBinary(t))
