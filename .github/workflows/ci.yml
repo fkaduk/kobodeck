@@ -19,7 +19,10 @@ jobs:
         with:
           platforms: arm
       - run: npm install -g markdownlint-cli
-      - run: make test
+      - run: make test TESTFLAGS="-coverprofile=coverage.txt"
+      - uses: codecov/codecov-action@v4
+        with:
+          files: coverage.txt
 
   build:
     needs: check
