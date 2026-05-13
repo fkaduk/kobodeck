@@ -12,6 +12,8 @@ Workers = 2
 Limit = 0
 # Only fetch articles based on readeck bookmarks with these labels (comma-separated, empty: all)
 Labels = ""
+# Only fetch articles with these read statuses (comma-separated: unread, reading, read; empty: all non-archived)
+Status = ""
 
 [Sync]
 # if an article is completed on your kobo

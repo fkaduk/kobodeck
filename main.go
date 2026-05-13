@@ -48,6 +48,7 @@ type fetchConfig struct {
 	Workers int    `toml:"Workers"`
 	Limit   int    `toml:"Limit"`
 	Labels  string `toml:"Labels"`
+	Status  string `toml:"Status"`
 }
 
 type syncConfig struct {

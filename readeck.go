@@ -36,6 +36,11 @@ func listBookmarks(client *http.Client) ([]readeckBookmark, error) {
 	for offset := 0; ; offset += batchSize {
 		url := fmt.Sprintf("%s/api/bookmarks?is_archived=false&limit=%d&offset=%d",
 			config.Server.URL, batchSize, offset)
+		for _, s := range strings.Split(config.Fetch.Status, ",") {
+			if s = strings.TrimSpace(s); s != "" {
+				url += "&read_status=" + s
+			}
+		}
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			return nil, fmt.Errorf("build list request: %w", err)
@@ -68,7 +73,7 @@ func listBookmarks(client *http.Client) ([]readeckBookmark, error) {
 	if config.Fetch.Limit > 0 && len(all) > config.Fetch.Limit {
 		all = all[:config.Fetch.Limit]
 	}
-	log.Printf("found %d unread bookmarks, will process %d", total, len(all))
+	log.Printf("found %d bookmarks, will process %d", total, len(all))
 	return all, nil
 }
 
