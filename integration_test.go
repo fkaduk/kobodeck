@@ -438,6 +438,50 @@ func TestSync(t *testing.T) {
 		}
 	})
 
+	t.Run("status filter excludes read bookmark", func(t *testing.T) {
+		id := createLoadedBookmark(t, testBookmarkURL)
+		setupSyncEnv(t)
+		config.Fetch.Status = "unread"
+
+		// Mark as read in Readeck.
+		body, _ := json.Marshal(map[string]any{"read_progress": 100})
+		resp := apiRequest(t, http.MethodPatch, "/api/bookmarks/"+id, bytes.NewBuffer(body))
+		resp.Body.Close()
+
+		client := &http.Client{Timeout: 30 * time.Second}
+		entries, err := listBookmarks(client)
+		if err != nil {
+			t.Fatalf("listBookmarks: %v", err)
+		}
+		for _, e := range entries {
+			if e.ID == id {
+				t.Errorf("bookmark %s should be excluded by status filter", id)
+			}
+		}
+	})
+
+	t.Run("status filter includes matching bookmark", func(t *testing.T) {
+		id := createLoadedBookmark(t, testBookmarkURL)
+		setupSyncEnv(t)
+		config.Fetch.Status = "unread, reading"
+
+		client := &http.Client{Timeout: 30 * time.Second}
+		entries, err := listBookmarks(client)
+		if err != nil {
+			t.Fatalf("listBookmarks: %v", err)
+		}
+		found := false
+		for _, e := range entries {
+			if e.ID == id {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("bookmark %s should be included by status filter unread,reading", id)
+		}
+	})
+
 	t.Run("label filter excludes non-matching bookmark", func(t *testing.T) {
 		id := createLoadedBookmark(t, testBookmarkURL)
 		setupSyncEnv(t)
