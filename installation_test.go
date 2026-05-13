@@ -28,9 +28,9 @@ func buildLinuxBinary(t *testing.T) string {
 }
 
 // startKoboContainer starts a container simulating a Kobo device:
-// - kobodeck and companion files installed under /usr/local
-// - /mnt/onboard mounted as a FAT32 loop device (matching Kobo's vfat partition,
-//   including 2-second mtime precision and case-insensitive filenames)
+//   - kobodeck and companion files installed under /usr/local
+//   - /mnt/onboard mounted as a FAT32 loop device (matching Kobo's vfat partition,
+//     including 2-second mtime precision and case-insensitive filenames)
 func startKoboContainer(t *testing.T, ctx context.Context, binaryPath string) testcontainers.Container {
 	t.Helper()
 	const setup = "apk add -q dosfstools && " +
