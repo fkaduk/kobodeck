@@ -130,7 +130,18 @@ func TestKoboConcurrentRunPrevented(t *testing.T) {
 	// Start first instance in the background — it will acquire the lock then
 	// block retrying the unreachable server.
 	koboExec(t, ctx, ctr, []string{"sh", "-c", "/usr/local/bin/kobodeck &"})
-	time.Sleep(2 * time.Second)
+
+	// Poll until the first instance logs "connecting to", which is emitted
+	// immediately after the lock is acquired. Under QEMU the ARM binary can
+	// take several seconds to start, so a fixed sleep is not reliable.
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		time.Sleep(500 * time.Millisecond)
+		_, out := koboRun(t, ctx, ctr, []string{"sh", "-c", "cat /mnt/onboard/.adds/kobodeck/kobodeck.log 2>/dev/null"})
+		if strings.Contains(out, "connecting to") {
+			break
+		}
+	}
 
 	// Second instance must fail immediately.
 	if code, _ := koboRun(t, ctx, ctr, []string{"/usr/local/bin/kobodeck"}); code == 0 {
