@@ -423,12 +423,17 @@ func reconcileLocalFiles(client *http.Client, cfg appConfig, valid map[string]bo
 				log.Println("failed to mark as read:", err)
 			} else {
 				valid[uid] = false
+				now := time.Now()
+				os.Chtimes(file, now, now)
 			}
 		}
 		if inCollection {
 			log.Printf("marking entry %s as favourite", uid)
 			if err = patchBookmark(client, uid, map[string]bool{"is_marked": true}); err != nil {
 				log.Println("failed to mark as favourite:", err)
+			} else {
+				now := time.Now()
+				os.Chtimes(file, now, now)
 			}
 		}
 		if cfg.Output.Delete && !valid[uid] {
