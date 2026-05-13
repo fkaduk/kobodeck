@@ -133,6 +133,8 @@ sqlite3 "$DB" ".schema" > testdata/nickel-schema-${VER}.sql
 - Already downloaded articles are never re-downloaded, even if the local file
   is corrupted or unreadable. To force a re-download, delete the file from
   `.adds/kobodeck/` manually.
+- Articles in a favourite collection are re-marked as favourite on every sync,
+  even if already marked in Readeck (redundant API calls).
 
 ### future work
 
