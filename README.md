@@ -52,7 +52,8 @@ the files are already downloaded either way.
 - a running [hosted](https://readeck.com) or
   [self-hosted](https://readeck.org/en/) Readeck instance
 - a Readeck API token (generate one in Readeck under Settings → API tokens)
-- a Kobo device running the stock Nickel firmware
+- a Kobo device from the Glo generation or newer running the stock Nickel firmware
+  (tested on Kobo Libra Color; very old models may not work)
 
 ## installation or upgrade
 
