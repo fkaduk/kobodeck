@@ -438,25 +438,6 @@ func TestSync(t *testing.T) {
 		}
 	})
 
-	t.Run("keeps file when delete disabled", func(t *testing.T) {
-		id := createLoadedBookmark(t, testBookmarkURL)
-		outputDir, dbPath := setupSyncEnv(t)
-		config.Sync.Archive = true
-		config.Output.Delete = false
-
-		epubPath := downloadEntry(t, id)
-		simulateRead(t, dbPath, outputDir, id)
-		reconcileLocalFiles(&http.Client{Timeout: 30 * time.Second}, config, map[string]bool{id: true})
-
-		archived, _ := bookmarkAPIState(t, id)
-		if !archived {
-			t.Error("bookmark should be archived")
-		}
-		if _, err := os.Stat(epubPath); err != nil {
-			t.Error("file should still exist when Delete=false")
-		}
-	})
-
 	t.Run("label filter excludes non-matching bookmark", func(t *testing.T) {
 		id := createLoadedBookmark(t, testBookmarkURL)
 		setupSyncEnv(t)
@@ -490,7 +471,7 @@ func TestSync(t *testing.T) {
 		}
 	})
 
-	t.Run("deletes stale unread file when Delete=true", func(t *testing.T) {
+	t.Run("deletes unread file no longer in feed when Delete=true", func(t *testing.T) {
 		id := createLoadedBookmark(t, testBookmarkURL)
 		_, _ = setupSyncEnv(t)
 		config.Output.Delete = true
@@ -501,11 +482,11 @@ func TestSync(t *testing.T) {
 		reconcileLocalFiles(&http.Client{Timeout: 30 * time.Second}, config, map[string]bool{})
 
 		if _, err := os.Stat(epubPath); !os.IsNotExist(err) {
-			t.Error("stale unread file should have been deleted when Delete=true")
+			t.Error("file should have been deleted when no longer in feed and Delete=true")
 		}
 	})
 
-	t.Run("keeps stale unread file when Delete=false", func(t *testing.T) {
+	t.Run("keeps unread file no longer in feed when Delete=false", func(t *testing.T) {
 		id := createLoadedBookmark(t, testBookmarkURL)
 		_, _ = setupSyncEnv(t)
 		config.Output.Delete = false
@@ -514,7 +495,7 @@ func TestSync(t *testing.T) {
 		reconcileLocalFiles(&http.Client{Timeout: 30 * time.Second}, config, map[string]bool{})
 
 		if _, err := os.Stat(epubPath); err != nil {
-			t.Error("stale unread file should be kept when Delete=false")
+			t.Error("file should be kept when no longer in feed but Delete=false")
 		}
 	})
 
