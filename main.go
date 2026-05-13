@@ -387,7 +387,7 @@ func runCheck(w io.Writer) error {
 // reconcileLocalFiles checks each local EPUB against the Nickel DB and the valid
 // set. Books marked as read in Nickel are archived in Readeck. Books in the
 // configured FavouriteCollection shelf are marked as favourite. Books no longer
-// in the unread feed are deleted if cfg.Output.Delete is set, unless currently
+// in the fetched feed are deleted if cfg.Output.Delete is set, unless currently
 // being read.
 func reconcileLocalFiles(client *http.Client, cfg appConfig, valid map[string]bool) {
 	outputDir := strings.TrimSuffix(cfg.Output.Path, "/")
