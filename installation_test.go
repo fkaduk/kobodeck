@@ -29,15 +29,22 @@ func buildLinuxBinary(t *testing.T) string {
 
 // startKoboContainer starts a container simulating a Kobo device:
 // - kobodeck and companion files installed under /usr/local
-// - /mnt/onboard mounted as tmpfs (simulating the Kobo user storage partition)
+// - /mnt/onboard mounted as a FAT32 loop device (matching Kobo's vfat partition,
+//   including 2-second mtime precision and case-insensitive filenames)
 func startKoboContainer(t *testing.T, ctx context.Context, binaryPath string) testcontainers.Container {
 	t.Helper()
+	const setup = "apk add -q dosfstools && " +
+		"mkdir -p /mnt/onboard && " +
+		"dd if=/dev/zero of=/fat32.img bs=1M count=16 2>/dev/null && " +
+		"mkfs.vfat /fat32.img && " +
+		"mount -o loop /fat32.img /mnt/onboard && " +
+		"exec sleep 60"
 	ctr, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image:    "arm32v7/alpine:latest",
+			Image:         "arm32v7/alpine:latest",
 			ImagePlatform: "linux/arm/v7",
-			Cmd:   []string{"sleep", "60"},
-			Tmpfs: map[string]string{"/mnt/onboard": "rw"},
+			Privileged:    true,
+			Cmd:           []string{"sh", "-c", setup},
 			Files: []testcontainers.ContainerFile{
 				{
 					HostFilePath:      binaryPath,
@@ -50,7 +57,8 @@ func startKoboContainer(t *testing.T, ctx context.Context, binaryPath string) te
 					FileMode:          0644,
 				},
 			},
-			WaitingFor: wait.ForExec([]string{"true"}).WithStartupTimeout(30 * time.Second),
+			WaitingFor: wait.ForExec([]string{"sh", "-c", "grep -q /mnt/onboard /proc/mounts"}).
+				WithStartupTimeout(60 * time.Second),
 		},
 		Started: true,
 	})
