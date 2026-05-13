@@ -396,6 +396,30 @@ func TestSync(t *testing.T) {
 		}
 	})
 
+	t.Run("does not re-archive on second run", func(t *testing.T) {
+		id := createLoadedBookmark(t, testBookmarkURL)
+		outputDir, dbPath := setupSyncEnv(t)
+		config.Sync.Archive = true
+		config.Output.Delete = false
+
+		downloadEntry(t, id)
+		simulateRead(t, dbPath, outputDir, id)
+
+		// First run: archives and removes from valid set.
+		reconcileLocalFiles(&http.Client{Timeout: 30 * time.Second}, config, map[string]bool{id: true})
+		archived, _ := bookmarkAPIState(t, id)
+		if !archived {
+			t.Fatal("bookmark should be archived after first run")
+		}
+
+		// Second run: book is no longer in the unread feed (valid is empty).
+		logOutput := captureLog(t)
+		reconcileLocalFiles(&http.Client{Timeout: 30 * time.Second}, config, map[string]bool{})
+		if strings.Contains(logOutput(), "marking entry "+id+" as archived") {
+			t.Error("should not re-archive on second run when book is no longer in unread feed")
+		}
+	})
+
 	t.Run("skips archiving when disabled", func(t *testing.T) {
 		id := createLoadedBookmark(t, testBookmarkURL)
 		outputDir, dbPath := setupSyncEnv(t)

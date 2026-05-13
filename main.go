@@ -417,7 +417,7 @@ func reconcileLocalFiles(client *http.Client, cfg appConfig, valid map[string]bo
 			log.Println(statusErr)
 			continue
 		}
-		if cfg.Sync.Archive && status == bookRead {
+		if cfg.Sync.Archive && status == bookRead && valid[uid] {
 			log.Printf("marking entry %s as archived", uid)
 			if err = patchBookmark(client, uid, map[string]bool{"is_archived": true}); err != nil {
 				log.Println("failed to mark as read:", err)
