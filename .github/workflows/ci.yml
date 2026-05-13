@@ -15,6 +15,9 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm
       - run: npm install -g markdownlint-cli
       - run: make test
 
