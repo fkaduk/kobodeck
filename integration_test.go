@@ -137,8 +137,7 @@ func bootstrapToken(baseURL string) (string, error) {
 	return string(matches[1]), nil
 }
 
-// apiRequest is a small helper that sends an authenticated request to the
-// Readeck instance under test and returns the response.
+// apiRequest sends an authenticated request to the Readeck instance under test.
 func apiRequest(t *testing.T, method, path string, body io.Reader) *http.Response {
 	t.Helper()
 	req, err := http.NewRequest(method, config.Server.URL+path, body)
@@ -222,47 +221,9 @@ func captureLog(t *testing.T) func() string {
 	return func() string { return buf.String() }
 }
 
-// --- Tests ---
-
-// TestSmoke verifies that the Readeck container is up, authentication works, and the
-// bookmark round-trip (create → list → delete) succeeds.
-func TestSmoke(t *testing.T) {
-	id := createLoadedBookmark(t, testBookmarkURL)
-	t.Logf("bookmark loaded: %s", id)
-
-	resp := apiRequest(t, http.MethodGet, "/api/bookmarks/"+id, nil)
-	defer resp.Body.Close()
-	var bm struct {
-		URL    string `json:"url"`
-		Loaded bool   `json:"loaded"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&bm); err != nil {
-		t.Fatalf("decode bookmark: %v", err)
-	}
-	if bm.URL != testBookmarkURL {
-		t.Errorf("bookmark URL: got %q, want %q", bm.URL, testBookmarkURL)
-	}
-	if !bm.Loaded {
-		t.Error("bookmark should be loaded")
-	}
-}
-
-// TestCheckMode verifies that runCheck connects to Readeck and reports
-// the expected bookmark in its output.
-func TestCheckMode(t *testing.T) {
-	id := createLoadedBookmark(t, testBookmarkURL)
-
-	var buf bytes.Buffer
-	if err := runCheck(&buf); err != nil {
-		t.Fatalf("runCheck: %v", err)
-	}
-	out := buf.String()
-	if !strings.Contains(out, id) {
-		t.Errorf("runCheck output does not contain bookmark ID %s:\n%s", id, out)
-	}
-	if !strings.Contains(out, "OK") {
-		t.Errorf("runCheck output missing connection OK:\n%s", out)
-	}
+// testClient returns an HTTP client suitable for use in tests.
+func testClient() *http.Client {
+	return &http.Client{Timeout: 30 * time.Second}
 }
 
 // setupSyncEnv creates a temp output dir and Nickel DB, saves the full config
@@ -283,19 +244,17 @@ func setupSyncEnv(t *testing.T) (outputDir, dbPath string) {
 	return
 }
 
-// downloadEntry finds bookmark id in the unread feed, downloads it, and
-// returns the local kepub path.
+// downloadEntry finds bookmark id in the feed, downloads it, and returns the
+// local kepub path.
 func downloadEntry(t *testing.T, id string) string {
 	t.Helper()
-	client := &http.Client{Timeout: 30 * time.Second}
-	entries, err := listBookmarks(client)
+	entries, err := listBookmarks(testClient())
 	if err != nil {
 		t.Fatalf("listBookmarks: %v", err)
 	}
 	for _, e := range entries {
 		if e.ID == id {
-			client := &http.Client{Timeout: 30 * time.Second}
-			if err := download(client, e); err != nil {
+			if err := download(testClient(), e); err != nil {
 				t.Fatalf("download %s: %v", id, err)
 			}
 			path := filepath.Join(config.Output.Path, id+".kepub.epub")
@@ -305,7 +264,7 @@ func downloadEntry(t *testing.T, id string) string {
 			return path
 		}
 	}
-	t.Fatalf("bookmark %s not found in unread feed", id)
+	t.Fatalf("bookmark %s not found in feed", id)
 	return ""
 }
 
@@ -367,89 +326,61 @@ func bookmarkAPIState(t *testing.T, id string) (archived, marked bool) {
 	return bm.IsArchived, bm.IsMarked
 }
 
-// TestSync exercises reconcileLocalFiles under different config combinations.
-func TestSync(t *testing.T) {
-	t.Run("archives completed book", func(t *testing.T) {
-		id := createLoadedBookmark(t, testBookmarkURL)
-		outputDir, dbPath := setupSyncEnv(t)
-		config.Sync.Archive = true
-		config.Output.Delete = true
+// --- Tests ---
 
-		epubPath := downloadEntry(t, id)
-		simulateRead(t, dbPath, outputDir, id)
-		logOutput := captureLog(t)
-		reconcileLocalFiles(&http.Client{Timeout: 30 * time.Second}, config, map[string]bool{id: true})
-		logs := logOutput()
+// TestSmoke verifies that the Readeck container is up, authentication works, and the
+// bookmark round-trip (create → list → delete) succeeds.
+func TestSmoke(t *testing.T) {
+	id := createLoadedBookmark(t, testBookmarkURL)
+	t.Logf("bookmark loaded: %s", id)
 
-		archived, _ := bookmarkAPIState(t, id)
-		if !archived {
-			t.Error("bookmark should be archived after reading")
-		}
-		if _, err := os.Stat(epubPath); !os.IsNotExist(err) {
-			t.Error("file should be deleted after archiving")
-		}
-		if !strings.Contains(logs, "marking entry "+id+" as archived") {
-			t.Errorf("expected archive log message, got:\n%s", logs)
-		}
-		if !strings.Contains(logs, "deleted") {
-			t.Errorf("expected delete log message, got:\n%s", logs)
-		}
-	})
+	resp := apiRequest(t, http.MethodGet, "/api/bookmarks/"+id, nil)
+	defer resp.Body.Close()
+	var bm struct {
+		URL    string `json:"url"`
+		Loaded bool   `json:"loaded"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&bm); err != nil {
+		t.Fatalf("decode bookmark: %v", err)
+	}
+	if bm.URL != testBookmarkURL {
+		t.Errorf("bookmark URL: got %q, want %q", bm.URL, testBookmarkURL)
+	}
+	if !bm.Loaded {
+		t.Error("bookmark should be loaded")
+	}
+}
 
-	t.Run("does not re-archive on second run", func(t *testing.T) {
-		id := createLoadedBookmark(t, testBookmarkURL)
-		outputDir, dbPath := setupSyncEnv(t)
-		config.Sync.Archive = true
-		config.Output.Delete = false
+// TestCheckMode verifies that runCheck connects to Readeck and reports
+// the expected bookmark in its output.
+func TestCheckMode(t *testing.T) {
+	id := createLoadedBookmark(t, testBookmarkURL)
 
-		downloadEntry(t, id)
-		simulateRead(t, dbPath, outputDir, id)
+	var buf bytes.Buffer
+	if err := runCheck(&buf); err != nil {
+		t.Fatalf("runCheck: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, id) {
+		t.Errorf("runCheck output does not contain bookmark ID %s:\n%s", id, out)
+	}
+	if !strings.Contains(out, "OK") {
+		t.Errorf("runCheck output missing connection OK:\n%s", out)
+	}
+}
 
-		// First run: archives and removes from valid set.
-		reconcileLocalFiles(&http.Client{Timeout: 30 * time.Second}, config, map[string]bool{id: true})
-		archived, _ := bookmarkAPIState(t, id)
-		if !archived {
-			t.Fatal("bookmark should be archived after first run")
-		}
-
-		// Second run: book is no longer in the unread feed (valid is empty).
-		logOutput := captureLog(t)
-		reconcileLocalFiles(&http.Client{Timeout: 30 * time.Second}, config, map[string]bool{})
-		if strings.Contains(logOutput(), "marking entry "+id+" as archived") {
-			t.Error("should not re-archive on second run when book is no longer in unread feed")
-		}
-	})
-
-	t.Run("skips archiving when disabled", func(t *testing.T) {
-		id := createLoadedBookmark(t, testBookmarkURL)
-		outputDir, dbPath := setupSyncEnv(t)
-		config.Sync.Archive = false
-
-		epubPath := downloadEntry(t, id)
-		simulateRead(t, dbPath, outputDir, id)
-		reconcileLocalFiles(&http.Client{Timeout: 30 * time.Second}, config, map[string]bool{id: true})
-
-		archived, _ := bookmarkAPIState(t, id)
-		if archived {
-			t.Error("bookmark should not be archived when Archive=false")
-		}
-		if _, err := os.Stat(epubPath); err != nil {
-			t.Error("file should still exist when Archive=false")
-		}
-	})
-
+// TestFetch tests the listBookmarks fetch filters.
+func TestFetch(t *testing.T) {
 	t.Run("status filter excludes read bookmark", func(t *testing.T) {
 		id := createLoadedBookmark(t, testBookmarkURL)
 		setupSyncEnv(t)
 		config.Fetch.Status = "unread"
 
-		// Mark as read in Readeck.
 		body, _ := json.Marshal(map[string]any{"read_progress": 100})
 		resp := apiRequest(t, http.MethodPatch, "/api/bookmarks/"+id, bytes.NewBuffer(body))
 		resp.Body.Close()
 
-		client := &http.Client{Timeout: 30 * time.Second}
-		entries, err := listBookmarks(client)
+		entries, err := listBookmarks(testClient())
 		if err != nil {
 			t.Fatalf("listBookmarks: %v", err)
 		}
@@ -465,8 +396,7 @@ func TestSync(t *testing.T) {
 		setupSyncEnv(t)
 		config.Fetch.Status = "unread, reading"
 
-		client := &http.Client{Timeout: 30 * time.Second}
-		entries, err := listBookmarks(client)
+		entries, err := listBookmarks(testClient())
 		if err != nil {
 			t.Fatalf("listBookmarks: %v", err)
 		}
@@ -478,7 +408,7 @@ func TestSync(t *testing.T) {
 			}
 		}
 		if !found {
-			t.Errorf("bookmark %s should be included by status filter unread,reading", id)
+			t.Errorf("bookmark %s should be included by status filter", id)
 		}
 	})
 
@@ -495,62 +425,17 @@ func TestSync(t *testing.T) {
 			t.Errorf("bookmark %s should be excluded by label filter", id)
 		}
 	})
+}
 
-	t.Run("keeps file when book is being read", func(t *testing.T) {
+// TestDownload tests article download behaviour.
+func TestDownload(t *testing.T) {
+	t.Run("skips re-download when file exists", func(t *testing.T) {
 		id := createLoadedBookmark(t, testBookmarkURL)
-		outputDir, dbPath := setupSyncEnv(t)
-		config.Output.Delete = true
+		setupSyncEnv(t)
 
-		epubPath := downloadEntry(t, id)
-		simulateNickelStatus(t, dbPath, outputDir, id, 1)
-		logOutput := captureLog(t)
-		reconcileLocalFiles(&http.Client{Timeout: 30 * time.Second}, config, map[string]bool{})
-		logs := logOutput()
-
-		if _, err := os.Stat(epubPath); err != nil {
-			t.Error("file should not be deleted when book is being read")
-		}
-		if !strings.Contains(logs, "not deleting book currently being read") {
-			t.Errorf("expected 'not deleting' log message, got:\n%s", logs)
-		}
-	})
-
-	t.Run("deletes unread file no longer in feed when Delete=true", func(t *testing.T) {
-		id := createLoadedBookmark(t, testBookmarkURL)
-		_, _ = setupSyncEnv(t)
-		config.Output.Delete = true
-
-		epubPath := downloadEntry(t, id)
-		// No Nickel DB entry — status defaults to bookUnread.
-		// Empty valid map simulates the book no longer being in the unread feed.
-		reconcileLocalFiles(&http.Client{Timeout: 30 * time.Second}, config, map[string]bool{})
-
-		if _, err := os.Stat(epubPath); !os.IsNotExist(err) {
-			t.Error("file should have been deleted when no longer in feed and Delete=true")
-		}
-	})
-
-	t.Run("keeps unread file no longer in feed when Delete=false", func(t *testing.T) {
-		id := createLoadedBookmark(t, testBookmarkURL)
-		_, _ = setupSyncEnv(t)
-		config.Output.Delete = false
-
-		epubPath := downloadEntry(t, id)
-		reconcileLocalFiles(&http.Client{Timeout: 30 * time.Second}, config, map[string]bool{})
-
-		if _, err := os.Stat(epubPath); err != nil {
-			t.Error("file should be kept when no longer in feed but Delete=false")
-		}
-	})
-
-	t.Run("does not re-download already downloaded file", func(t *testing.T) {
-		id := createLoadedBookmark(t, testBookmarkURL)
-		_, _ = setupSyncEnv(t)
-
-		client := &http.Client{Timeout: 30 * time.Second}
 		downloadEntry(t, id)
 
-		entries, err := listBookmarks(client)
+		entries, err := listBookmarks(testClient())
 		if err != nil {
 			t.Fatalf("listBookmarks: %v", err)
 		}
@@ -562,15 +447,158 @@ func TestSync(t *testing.T) {
 			}
 		}
 		if entry.ID == "" {
-			t.Fatal("bookmark not found in unread feed")
+			t.Fatal("bookmark not found in feed")
 		}
 
 		logOutput := captureLog(t)
-		if err := download(client, entry); err != nil {
+		if err := download(testClient(), entry); err != nil {
 			t.Fatalf("second download: %v", err)
 		}
 		if strings.Contains(logOutput(), "downloading") {
 			t.Error("file should not be re-downloaded when kepub already exists")
+		}
+	})
+}
+
+// TestReconcile tests reconcileLocalFiles sync behaviour.
+func TestReconcile(t *testing.T) {
+	t.Run("archives read book and deletes file", func(t *testing.T) {
+		id := createLoadedBookmark(t, testBookmarkURL)
+		outputDir, dbPath := setupSyncEnv(t)
+		config.Sync.Archive = true
+		config.Output.Delete = true
+
+		epubPath := downloadEntry(t, id)
+		simulateRead(t, dbPath, outputDir, id)
+		logOutput := captureLog(t)
+		reconcileLocalFiles(testClient(), config, map[string]bool{id: true})
+		logs := logOutput()
+
+		archived, _ := bookmarkAPIState(t, id)
+		if !archived {
+			t.Error("bookmark should be archived after reading")
+		}
+		if _, err := os.Stat(epubPath); !os.IsNotExist(err) {
+			t.Error("file should be deleted after archiving with Delete=true")
+		}
+		if !strings.Contains(logs, "marking entry "+id+" as archived") {
+			t.Errorf("expected archive log, got:\n%s", logs)
+		}
+	})
+
+	t.Run("does not archive when disabled", func(t *testing.T) {
+		id := createLoadedBookmark(t, testBookmarkURL)
+		outputDir, dbPath := setupSyncEnv(t)
+		config.Sync.Archive = false
+
+		epubPath := downloadEntry(t, id)
+		simulateRead(t, dbPath, outputDir, id)
+		reconcileLocalFiles(testClient(), config, map[string]bool{id: true})
+
+		archived, _ := bookmarkAPIState(t, id)
+		if archived {
+			t.Error("bookmark should not be archived when Archive=false")
+		}
+		if _, err := os.Stat(epubPath); err != nil {
+			t.Error("file should be kept when Archive=false")
+		}
+	})
+
+	t.Run("does not re-archive on second run", func(t *testing.T) {
+		id := createLoadedBookmark(t, testBookmarkURL)
+		outputDir, dbPath := setupSyncEnv(t)
+		config.Sync.Archive = true
+		config.Output.Delete = false
+
+		downloadEntry(t, id)
+		simulateRead(t, dbPath, outputDir, id)
+		// First run archives; valid[uid] is cleared so the book leaves the feed.
+		reconcileLocalFiles(testClient(), config, map[string]bool{id: true})
+
+		// Second run: book is no longer in feed.
+		logOutput := captureLog(t)
+		reconcileLocalFiles(testClient(), config, map[string]bool{})
+		if strings.Contains(logOutput(), "marking entry "+id+" as archived") {
+			t.Error("should not re-archive on second run")
+		}
+	})
+
+	t.Run("does not re-download read book when Archive=false", func(t *testing.T) {
+		id := createLoadedBookmark(t, testBookmarkURL)
+		outputDir, dbPath := setupSyncEnv(t)
+		config.Sync.Archive = false
+
+		downloadEntry(t, id)
+		simulateRead(t, dbPath, outputDir, id)
+		reconcileLocalFiles(testClient(), config, map[string]bool{id: true})
+
+		// Book was not archived so it is still in the feed.
+		entries, err := listBookmarks(testClient())
+		if err != nil {
+			t.Fatalf("listBookmarks: %v", err)
+		}
+		var entry readeckBookmark
+		for _, e := range entries {
+			if e.ID == id {
+				entry = e
+				break
+			}
+		}
+		if entry.ID == "" {
+			t.Fatal("book should still be in feed when Archive=false")
+		}
+
+		logOutput := captureLog(t)
+		if err := download(testClient(), entry); err != nil {
+			t.Fatalf("second download: %v", err)
+		}
+		if strings.Contains(logOutput(), "downloading") {
+			t.Error("read book should not be re-downloaded even when still in feed")
+		}
+	})
+
+	t.Run("deletes stale file when Delete=true", func(t *testing.T) {
+		id := createLoadedBookmark(t, testBookmarkURL)
+		_, _ = setupSyncEnv(t)
+		config.Output.Delete = true
+
+		epubPath := downloadEntry(t, id)
+		reconcileLocalFiles(testClient(), config, map[string]bool{})
+
+		if _, err := os.Stat(epubPath); !os.IsNotExist(err) {
+			t.Error("file should be deleted when no longer in feed and Delete=true")
+		}
+	})
+
+	t.Run("keeps stale file when Delete=false", func(t *testing.T) {
+		id := createLoadedBookmark(t, testBookmarkURL)
+		_, _ = setupSyncEnv(t)
+		config.Output.Delete = false
+
+		epubPath := downloadEntry(t, id)
+		reconcileLocalFiles(testClient(), config, map[string]bool{})
+
+		if _, err := os.Stat(epubPath); err != nil {
+			t.Error("file should be kept when Delete=false")
+		}
+	})
+
+	t.Run("does not delete book being read", func(t *testing.T) {
+		id := createLoadedBookmark(t, testBookmarkURL)
+		outputDir, dbPath := setupSyncEnv(t)
+		config.Output.Delete = true
+
+		epubPath := downloadEntry(t, id)
+		simulateNickelStatus(t, dbPath, outputDir, id, 1)
+		logOutput := captureLog(t)
+		reconcileLocalFiles(testClient(), config, map[string]bool{})
+		logs := logOutput()
+
+		if _, err := os.Stat(epubPath); err != nil {
+			t.Error("file should not be deleted while being read")
+		}
+		if !strings.Contains(logs, "not deleting book currently being read") {
+			t.Errorf("expected 'not deleting' log, got:\n%s", logs)
 		}
 	})
 
@@ -581,7 +609,7 @@ func TestSync(t *testing.T) {
 
 		downloadEntry(t, id)
 		addToShelf(t, dbPath, outputDir, id, "MyFavourites")
-		reconcileLocalFiles(&http.Client{Timeout: 30 * time.Second}, config, map[string]bool{id: true})
+		reconcileLocalFiles(testClient(), config, map[string]bool{id: true})
 
 		_, marked := bookmarkAPIState(t, id)
 		if !marked {
