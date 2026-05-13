@@ -15,12 +15,12 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-// buildLinuxBinary compiles kobodeck for linux/amd64 so it runs in the container.
+// buildLinuxBinary compiles kobodeck for linux/arm (ARMv7) matching the Kobo target.
 func buildLinuxBinary(t *testing.T) string {
 	t.Helper()
 	bin := filepath.Join(t.TempDir(), "kobodeck")
 	cmd := exec.Command("go", "build", "-o", bin, ".")
-	cmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS=linux", "GOARCH=amd64")
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS=linux", "GOARCH=arm", "GOARM=7")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("build binary: %v\n%s", err, out)
 	}
@@ -34,7 +34,8 @@ func startKoboContainer(t *testing.T, ctx context.Context, binaryPath string) te
 	t.Helper()
 	ctr, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image: "alpine:latest",
+			Image:    "arm32v7/alpine:latest",
+			ImagePlatform: "linux/arm/v7",
 			Cmd:   []string{"sleep", "60"},
 			Tmpfs: map[string]string{"/mnt/onboard": "rw"},
 			Files: []testcontainers.ContainerFile{
