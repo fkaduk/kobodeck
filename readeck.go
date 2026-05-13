@@ -83,7 +83,7 @@ func matchesLabelFilter(tags map[string]bool, labels []string) bool {
 }
 
 // download fetches the EPUB for a bookmark and writes it to config.Output.Path.
-// Skips the download if a local file newer than the bookmark's updated timestamp already exists.
+// Skips the download if the kepub file already exists and is non-empty.
 // Deletes the partial file if the write fails.
 func download(client *http.Client, entry readeckBookmark) error {
 	if err := os.MkdirAll(config.Output.Path, os.ModePerm); err != nil {
@@ -94,8 +94,8 @@ func download(client *http.Client, entry readeckBookmark) error {
 
 	checkPath := filepath.Join(config.Output.Path, entry.ID+".kepub.epub")
 	info, err := os.Stat(checkPath)
-	if err == nil && info.ModTime().After(entry.Updated) && info.Size() > 0 {
-		debugf("skipping %s: local file newer than bookmark (%s > %s)", checkPath, info.ModTime(), entry.Updated)
+	if err == nil && info.Size() > 0 {
+		debugf("skipping %s: already downloaded", checkPath)
 		return nil
 	} else if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("stat %s: %w", checkPath, err)

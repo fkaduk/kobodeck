@@ -111,6 +111,12 @@ VER=$(sqlite3 "$DB" "SELECT version FROM DbVersion;")
 sqlite3 "$DB" ".schema" > testdata/nickel-schema-${VER}.sql
 ```
 
+### known issues
+
+- Already downloaded articles are never re-downloaded, even if the local file
+  is corrupted or unreadable. To force a re-download, delete the file from
+  `.adds/kobodeck/` manually.
+
 ### future work
 
 - Sync highlights and annotations from the Kobo (`Bookmark` table in
