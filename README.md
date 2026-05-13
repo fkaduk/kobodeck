@@ -100,6 +100,17 @@ The last path is the default output directory
 
 Check the Makefile for common operations on the project.
 
+### manual testing before release
+
+| action | expected |
+| --- | --- |
+| add a new article to Readeck | - |
+| build `KoboRoot.tgz` | no errors |
+| install on device, connect wifi | article downloaded, log shows no errors |
+| read article to the end, reconnect | article archived in Readeck |
+| add article to favourite collection, reconnect | article favourited |
+| reconnect again | no downloads or syncs in log |
+
 ### updating the Nickel schema
 
 The integration tests use schema files in `testdata/` named `nickel-schema-{version}.sql`,
