@@ -1,7 +1,0 @@
-#!/bin/sh
-
-# wrapper script to start wallabako with the right option, but without
-# triggering the USB reload, in the foreground. this is designed to be
-# started from kfmon.
-echo starting wallabako
-/usr/local/bin/wallabako -output /mnt/onboard/wallabako/

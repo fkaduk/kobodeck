@@ -1,0 +1,21 @@
+[Server]
+URL = "https://readeck.hesawthecat.com"
+Token = "Rb8op127yi11sVvF8EE5n3QPcfG1bbDQzoZRZWszWWpeeog9"
+Timeout = 300
+
+[Fetch]
+Workers = 2
+Limit = 0
+Labels = ""
+
+[Sync]
+Archive = true
+FavouriteCollection = ""
+
+[Log]
+Verbose = false
+Size = 1
+
+[Output]
+Path = "/mnt/onboard/kobodeck"
+Delete = false

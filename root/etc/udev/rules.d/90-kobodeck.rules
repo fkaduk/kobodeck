@@ -1,0 +1,2 @@
+KERNEL=="eth*", ACTION=="add", RUN+="/bin/sh -c '/usr/local/bin/kobodeck &'"
+KERNEL=="wlan*", ACTION=="add", RUN+="/bin/sh -c '/usr/local/bin/kobodeck &'"

@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm
+      - run: npm install -g markdownlint-cli
+      - run: make test TESTFLAGS="-coverprofile=coverage.txt"
+      - uses: codecov/codecov-action@v4
+        with:
+          files: coverage.txt
+
+  build:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # needed for git describe
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: make tarball
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KoboRoot
+          path: build/KoboRoot.tgz
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: KoboRoot
+      - run: gh release create ${{ github.ref_name }} KoboRoot.tgz --repo ${{ github.repository }} --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
