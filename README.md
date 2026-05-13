@@ -47,6 +47,13 @@ the files are already downloaded either way.
 
 ![screenshot of the connect dialog on a Kobo Glo HD reader](assets/connect-dialog.png)
 
+## prerequisites
+
+- a running [hosted](https://readeck.com) or
+  [self-hosted](https://readeck.org/en/) Readeck instance
+- a Readeck API token (generate one in Readeck under Settings → API tokens)
+- a Kobo device running the stock Nickel firmware
+
 ## installation or upgrade
 
 To install or upgrade
