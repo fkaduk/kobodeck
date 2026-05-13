@@ -134,7 +134,7 @@ func download(client *http.Client, entry readeckBookmark) error {
 		return fmt.Errorf("write %s: %w", output, err)
 	}
 	filesChanged.Store(true)
-	log.Printf("wrote %s (%d bytes) timestamp %s", output, n, entry.Updated)
+	log.Printf("wrote %s (%d bytes)", output, n)
 
 	if err := fixCover(output); err != nil {
 		log.Printf("warning: cover fix %s: %v", filepath.Base(output), err)
@@ -144,7 +144,13 @@ func download(client *http.Client, entry readeckBookmark) error {
 	if err != nil {
 		return fmt.Errorf("kepub convert %s: %w", output, err)
 	}
-	log.Printf("converted to %s", kepubPath)
+	// Set mtime to the article's update time so Nickel sorts by article date,
+	// not download time. Both fixCover and toKepub create new files, so this
+	// must happen after conversion.
+	if err := os.Chtimes(kepubPath, entry.Updated, entry.Updated); err != nil {
+		log.Printf("warning: set mtime %s: %v", filepath.Base(kepubPath), err)
+	}
+	log.Printf("converted to %s (timestamp %s)", kepubPath, entry.Updated.Format(time.RFC3339))
 	return nil
 }
 
