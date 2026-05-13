@@ -224,7 +224,7 @@ func captureLog(t *testing.T) func() string {
 
 // --- Tests ---
 
-// TestSmoke verifies that the container is up, authentication works, and the
+// TestSmoke verifies that the Readeck container is up, authentication works, and the
 // bookmark round-trip (create → list → delete) succeeds.
 func TestSmoke(t *testing.T) {
 	id := createLoadedBookmark(t, testBookmarkURL)
