@@ -1,5 +1,10 @@
 # Kobodeck
 
+[![CI](https://github.com/fkaduk/kobodeck/actions/workflows/ci.yml/badge.svg)](https://github.com/fkaduk/kobodeck/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/fkaduk/kobodeck)](https://goreportcard.com/report/github.com/fkaduk/kobodeck)
+[![Latest release](https://img.shields.io/github/v/release/fkaduk/kobodeck)](https://github.com/fkaduk/kobodeck/releases/latest)
+[![License](https://img.shields.io/github/license/fkaduk/kobodeck)](LICENSE)
+
 A minimalist article downloader for Kobo devices.
 It can
 
