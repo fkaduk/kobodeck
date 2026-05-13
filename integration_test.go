@@ -309,8 +309,8 @@ func downloadEntry(t *testing.T, id string) string {
 	return ""
 }
 
-// simulateRead inserts ReadStatus=2 for id into the Nickel DB.
-func simulateRead(t *testing.T, dbPath, outputDir, id string) {
+// simulateNickelStatus inserts a content row with the given ReadStatus into the Nickel DB.
+func simulateNickelStatus(t *testing.T, dbPath, outputDir, id string, status int) {
 	t.Helper()
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
@@ -319,11 +319,15 @@ func simulateRead(t *testing.T, dbPath, outputDir, id string) {
 	defer db.Close()
 	contentID := fmt.Sprintf("file://%s/%s.kepub.epub", outputDir, id)
 	if _, err = db.Exec(
-		"INSERT INTO content (ContentID, ContentType, MimeType, ___UserID, ReadStatus) VALUES (?, ?, ?, ?, 2)",
-		contentID, nickelContentTypeBook, "application/epub+zip", "test",
+		"INSERT INTO content (ContentID, ContentType, MimeType, ___UserID, ReadStatus) VALUES (?, ?, ?, ?, ?)",
+		contentID, nickelContentTypeBook, "application/epub+zip", "test", status,
 	); err != nil {
 		t.Fatalf("insert read status: %v", err)
 	}
+}
+
+func simulateRead(t *testing.T, dbPath, outputDir, id string) {
+	simulateNickelStatus(t, dbPath, outputDir, id, 2)
 }
 
 // addToShelf inserts id into a named shelf in the Nickel DB.
@@ -440,6 +444,53 @@ func TestSync(t *testing.T) {
 		}
 		if strings.Contains(buf.String(), id) {
 			t.Errorf("bookmark %s should be excluded by label filter", id)
+		}
+	})
+
+	t.Run("keeps file when book is being read", func(t *testing.T) {
+		id := createLoadedBookmark(t, testBookmarkURL)
+		outputDir, dbPath := setupSyncEnv(t)
+		config.Output.Delete = true
+
+		epubPath := downloadEntry(t, id)
+		simulateNickelStatus(t, dbPath, outputDir, id, 1)
+		logOutput := captureLog(t)
+		reconcileLocalFiles(&http.Client{Timeout: 30 * time.Second}, config, map[string]bool{})
+		logs := logOutput()
+
+		if _, err := os.Stat(epubPath); err != nil {
+			t.Error("file should not be deleted when book is being read")
+		}
+		if !strings.Contains(logs, "not deleting book currently being read") {
+			t.Errorf("expected 'not deleting' log message, got:\n%s", logs)
+		}
+	})
+
+	t.Run("deletes stale unread file when Delete=true", func(t *testing.T) {
+		id := createLoadedBookmark(t, testBookmarkURL)
+		_, _ = setupSyncEnv(t)
+		config.Output.Delete = true
+
+		epubPath := downloadEntry(t, id)
+		// No Nickel DB entry — status defaults to bookUnread.
+		// Empty valid map simulates the book no longer being in the unread feed.
+		reconcileLocalFiles(&http.Client{Timeout: 30 * time.Second}, config, map[string]bool{})
+
+		if _, err := os.Stat(epubPath); !os.IsNotExist(err) {
+			t.Error("stale unread file should have been deleted when Delete=true")
+		}
+	})
+
+	t.Run("keeps stale unread file when Delete=false", func(t *testing.T) {
+		id := createLoadedBookmark(t, testBookmarkURL)
+		_, _ = setupSyncEnv(t)
+		config.Output.Delete = false
+
+		epubPath := downloadEntry(t, id)
+		reconcileLocalFiles(&http.Client{Timeout: 30 * time.Second}, config, map[string]bool{})
+
+		if _, err := os.Stat(epubPath); err != nil {
+			t.Error("stale unread file should be kept when Delete=false")
 		}
 	})
 
