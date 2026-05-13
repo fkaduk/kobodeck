@@ -85,8 +85,8 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	if err := loadConfig(".kobodeck.toml"); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to load .kobodeck.toml: %v\n", err)
+	if err := loadConfig("kobodeck.toml"); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to load kobodeck.toml: %v\n", err)
 		os.Exit(1)
 	}
 	config.Server.URL = baseURL
