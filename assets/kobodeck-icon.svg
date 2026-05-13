@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Readeck e-reader icon</title>
+  <desc id="desc">A near-black e-reader with a dark grey screen and the Readeck folded ribbon mark in blue, cream, yellow, and dark teal.</desc>
+  <defs>
+    <linearGradient id="bodyGradient" x1="170" y1="60" x2="854" y2="960" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#151719"/>
+      <stop offset="0.55" stop-color="#090B0D"/>
+      <stop offset="1" stop-color="#050607"/>
+    </linearGradient>
+    <linearGradient id="screenGradient" x1="252" y1="150" x2="770" y2="788" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#303234"/>
+      <stop offset="1" stop-color="#1D1F21"/>
+    </linearGradient>
+    <linearGradient id="buttonGradient" x1="450" y1="846" x2="574" y2="886" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3E4145"/>
+      <stop offset="1" stop-color="#24272B"/>
+    </linearGradient>
+    <linearGradient id="blueGradient" x1="320" y1="210" x2="710" y2="735" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#18BDEB"/>
+      <stop offset="1" stop-color="#00A4D8"/>
+    </linearGradient>
+    <linearGradient id="creamGradient" x1="320" y1="290" x2="450" y2="705" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFDF5"/>
+      <stop offset="1" stop-color="#F2EFE6"/>
+    </linearGradient>
+    <linearGradient id="yellowGradient" x1="448" y1="405" x2="704" y2="550" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFD85A"/>
+      <stop offset="1" stop-color="#F9B72E"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Transparent canvas: no background rectangle is drawn. -->
+
+  <!-- E-reader body -->
+  <rect x="170" y="60" width="684" height="900" rx="90" fill="url(#bodyGradient)"/>
+
+  <!-- Recessed screen frame -->
+  <rect x="232" y="128" width="560" height="684" rx="31" fill="#030405" opacity="0.96"/>
+  <rect x="252" y="148" width="520" height="644" rx="20" fill="url(#screenGradient)"/>
+
+  <!-- Home button -->
+  <rect x="450" y="846" width="124" height="36" rx="18" fill="url(#buttonGradient)" opacity="0.95"/>
+
+  <!-- Readeck folded ribbon mark -->
+  <g id="readeck-mark">
+    <!-- Cream vertical fold -->
+    <path d="M320 290 L450 360 L450 706 L320 706 Z" fill="url(#creamGradient)"/>
+
+    <!-- Thin folded edge on the cream panel -->
+    <path d="M320 290 L450 360 L450 370 L320 300 Z" fill="#8E9496" opacity="0.75"/>
+
+    <!-- Lower blue ribbon, drawn under the yellow fold -->
+    <path d="M450 462 L606 548 L718 608 L648 658 L662 734 L450 626 Z" fill="url(#blueGradient)"/>
+
+    <!-- Dark inner fold -->
+    <path d="M450 360 L548 410 L450 462 Z" fill="#064B5C"/>
+
+    <!-- Yellow folded connector -->
+    <path d="M450 462 L548 410 L704 488 L606 550 Z" fill="url(#yellowGradient)"/>
+    <path d="M548 410 L704 488 L704 500 L548 422 Z" fill="#927A2C" opacity="0.65"/>
+
+    <!-- Top blue ribbon -->
+    <path d="M320 290 L456 212 L704 335 L704 465 L450 360 Z" fill="url(#blueGradient)"/>
+  </g>
+</svg>

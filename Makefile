@@ -1,85 +1,42 @@
-# flags used to cross-compile to ARM, necessary for Kobo devices
-CROSS_COMPILE_FLAGS=GOARCH=arm GOOS=linux
+GNUARCH ?= $(shell arch)
+BINARY  ?= build/kobodeck.$(GNUARCH)
 
-# comment this out to revert to the old "cgo" implementation that
-# directly links with sqlite3. the "modernc" implementation is a pure
-# go implementation that is much faster to compile and actually
-# cross-compiles correctly for the older kobo kernels (2.6!)
-# GFLAGS+=--tags "sqlite3"
-#
-# this is also necessary, to tell go to use CGO and the right C
-# cross-compiler
-#
-# CROSS_COMPILE_FLAGS+=CGO_ENABLED=1 CC="arm-linux-gnueabihf-gcc"
-#
-# finally, cross-compiling will require the gcc-arm-linux-gnueabihf
-# package as well.
+GFLAGS += -ldflags="-X main.version=$(shell git describe --always --dirty --tags)"
+CROSS_COMPILE_FLAGS = GOARCH=arm GOOS=linux CGO_ENABLED=0
 
-# to do a fully static build we tried this:
-#
-# LDFLAGS=-d -s -v -w -linkmode external -extldflags -static
-# GFLAGS+=-a -tags netgo -installsuffix netgo -v --tags "linux"
-#
-# but this also failed on older kernels, when building on anything
-# older than Debian buster. that is presumably due to a flaw in GCC
-# cross compilation that we couldn't diagnose. we were building the
-# binaries in a debian stretch image (golang:stretch) to work around
-# that problem, but that isn't necessary in "modern" mode.
-
-# embed the version number in the binary
-GFLAGS+=-ldflags="$(LDFLAGS) -X main.version=$(shell git describe --always --dirty)"
-
-# to build for the Kobo, use:
-#
-# GOARCH=arm make build
-#
-# this will fail to connect to the database because the sqlite plugin
-# is a C extension. see the tarball target for how to build the
-# package correctly.
-
-all: lint build tarball
-
-GNUARCH?=$(shell arch)
-
-BINARY?=build/wallabako.$(GNUARCH)
+all: test build tarball
 
 tarball:
 	@echo building Kobo tarball
-	$(MAKE) build BINARY=build/wallabako.arm $(CROSS_COMPILE_FLAGS)
-	cp build/wallabako.arm root/usr/local/bin/wallabako
-    # make sure we ship a SSL certs file as the Kobo doesn't have any (!)
-    # Ensure root/usr modified time is updated to avoid tar 'file changed as we read it' issue in containers
+	$(MAKE) build BINARY=build/kobodeck.arm $(CROSS_COMPILE_FLAGS)
+	mkdir -p root/usr/local/bin
+	cp build/kobodeck.arm root/usr/local/bin/kobodeck
 	touch root/usr
-	tar -C root/ -c -z -f build/KoboRoot.tgz etc /etc/ssl/certs/ca-certificates.crt usr
-    # remove temporary file
-	rm root/usr/local/bin/wallabako
+	tar -C root/ -c -z -f build/KoboRoot.tgz etc usr
+	rm root/usr/local/bin/kobodeck
 
 build: $(BINARY)
 
 $(BINARY): *.go
-	@echo building main program
 	mkdir -p $$(dirname $(BINARY))
-	go build $(GFLAGS) -o $@
+	CGO_ENABLED=0 go build $(GFLAGS) -o $@
 	strip $@ || true
 
+tag:
+	@test -z "$$(git status --porcelain)" || (echo "error: working tree is dirty"; exit 1)
+	@read -p "Version (e.g. v2.0.0): " v && \
+	  echo "Tagging $$v at $$(git rev-parse --short HEAD)" && \
+	  read -p "Push to origin? [y/N] " confirm && [ "$$confirm" = "y" ] && \
+	  git tag $$v && git push origin $$v
+
 clean:
-	rm $(BINARY) || true
+	rm -f build/kobodeck.* build/KoboRoot.tgz
 
-lint:
-	@echo checking idioms and syntax
-	go vet .
-	gofmt  -s -l .
-	go test
+test:
+	go vet ./...
+	@out=$$(gofmt -s -l .); if [ -n "$$out" ]; then echo "gofmt: these files need formatting:"; echo "$$out"; exit 1; fi
+	go mod tidy
+	@out=$$(git diff --name-only go.mod go.sum); if [ -n "$$out" ]; then echo "go.mod/go.sum out of sync, run go mod tidy"; git checkout go.mod go.sum; exit 1; fi
+	CGO_ENABLED=0 go test -timeout 120s $(TESTFLAGS) ./...
+	markdownlint **/*.md
 
-sign: lint build tarball
-	@echo signing all binaries
-	rm -f build/*.asc
-	for bin in build/* ; do \
-		gpg --detach-sign -a "$$bin"; \
-	done
-
-HOST?=localhost
-
-deploy: tarball
-	@echo deploying to $(HOST)
-	pv build/KoboRoot.tgz | ssh root@$(HOST) 'cd / ; tar zxf -'

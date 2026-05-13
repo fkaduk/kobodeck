@@ -1,0 +1,38 @@
+[Server]
+URL = "https://readeck.com"
+# Obtain this from your Readeck instance
+Token = ""
+# HTTP request timeout in seconds
+Timeout = 300
+
+[Fetch]
+# Number of parallel article downloads
+Workers = 2
+# Number of articles to fetch (0 = all)
+Limit = 0
+# Only fetch articles based on readeck bookmarks with these labels (comma-separated, empty: all)
+Labels = ""
+# Only fetch articles with these read statuses (comma-separated: unread, reading, read; empty: all non-archived)
+Status = ""
+
+[Sync]
+# if an article is completed on your kobo
+# it will be marked as archived on Readeck
+Archive = true
+# Articles in the following collection
+# will be set as favourite in Readeck
+# (empty: disabled)
+FavouriteCollection = ""
+
+[Log]
+# The log will be written to the same directory as this config
+Verbose = false
+# Max log file size in MB
+Size = 1
+
+[Output]
+# Directory to store downloaded (K)EPUB files
+# If it does not exist, it will be created
+Path = "/mnt/onboard/kobodeck"
+# Delete local EPUBs that are no longer in the unread feed
+Delete = false

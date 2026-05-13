@@ -1,4 +1,8 @@
-build
-wallabako
-vendor
-/.vagrant/
+build/
+kobodeck
+assets/test/
+/testdata/kobodeck.toml
+/testdata/kobodeck_local.toml
+/testdata/Quirks of Human Anatomy by Lewis Held.epub
+/testdata/downloaded.log
+/testdata/downloaded
