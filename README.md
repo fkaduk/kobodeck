@@ -5,7 +5,7 @@
 [![Latest release](https://img.shields.io/github/v/release/fkaduk/kobodeck)](https://github.com/fkaduk/kobodeck/releases/latest)
 [![License](https://img.shields.io/github/license/fkaduk/kobodeck)](LICENSE)
 
-A minimalist article downloader for Kobo devices.
+A minimalist Readeck article downloader for Kobo e-readers.
 It can
 
 - fetch content from a **Readeck instance**
