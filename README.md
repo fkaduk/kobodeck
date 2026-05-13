@@ -102,14 +102,19 @@ Check the Makefile for common operations on the project.
 
 ### manual testing before release
 
-| action | expected |
-| --- | --- |
-| add a new article to Readeck | - |
-| build `KoboRoot.tgz` | no errors |
-| install on device, connect wifi | article downloaded, log shows no errors |
-| read article to the end, reconnect | article archived in Readeck |
-| add article to favourite collection, reconnect | article favourited |
-| reconnect again | no downloads or syncs in log |
+- add a new article to Readeck
+- build `KoboRoot.tgz`
+  - no errors
+- install on device, connect wifi
+  - article downloaded 
+- mark article as read, add to favorite collection, reconnect
+  - article archived in Readeck
+  - article favourited
+- reconnect again
+- check the logs
+  - first connect: article downloaded, no errors
+  - second connect: article archived, article favourited, no errors
+  - third connect: no downloads, no syncs
 
 ### updating the Nickel schema
 
