@@ -42,7 +42,7 @@ background, downloads new unread articles as KEPUBs with cover images, and
 syncs read status back to Readeck.
 
 If any files changed, it triggers a Nickel library rescan via a simulated USB event.
-Press **Connect** to rescan immediately, or **Cancel** —
+Press **Connect** to rescan immediately, or **Cancel** -
 the files are already downloaded either way.
 
 ![screenshot of the connect dialog on a Kobo Glo HD reader](assets/connect-dialog.png)
@@ -69,6 +69,8 @@ To install or upgrade
    via the binary provided in the tarball
 1. safely disconnect the reader - it should restart, install kobodeck and remove
    `KoboRoot.tgz`
+
+Logs are written to `.adds/kobodeck/kobodeck.log` on the device.
 
 ## uninstalling
 
