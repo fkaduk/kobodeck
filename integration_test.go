@@ -313,6 +313,25 @@ func addToShelf(t *testing.T, dbPath, outputDir, id, shelfName string) {
 	}
 }
 
+// removeFromShelf marks id as deleted in the named shelf (Kobo sets _IsDeleted
+// rather than removing the row).
+func removeFromShelf(t *testing.T, dbPath, outputDir, id, shelfName string) {
+	t.Helper()
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open nickel db: %v", err)
+	}
+	defer db.Close()
+	contentID := fmt.Sprintf("file://%s/%s.kepub.epub", outputDir, id)
+	internalName := shelfName + "_internal"
+	if _, err = db.Exec(
+		"UPDATE ShelfContent SET _IsDeleted = 'true' WHERE ShelfName = ? AND ContentId = ?",
+		internalName, contentID,
+	); err != nil {
+		t.Fatalf("update shelf content: %v", err)
+	}
+}
+
 // bookmarkAPIState returns the is_archived and is_marked state of a bookmark.
 func bookmarkAPIState(t *testing.T, id string) (archived, marked bool) {
 	t.Helper()
@@ -614,6 +633,22 @@ func TestReconcile(t *testing.T) {
 		_, marked := bookmarkAPIState(t, id)
 		if !marked {
 			t.Error("bookmark should be marked as favourite")
+		}
+	})
+
+	t.Run("does not mark favourite when removed from collection (_IsDeleted)", func(t *testing.T) {
+		id := createLoadedBookmark(t, testBookmarkURL)
+		outputDir, dbPath := setupSyncEnv(t)
+		config.Sync.FavouriteCollection = "MyFavourites"
+
+		downloadEntry(t, id)
+		addToShelf(t, dbPath, outputDir, id, "MyFavourites")
+		removeFromShelf(t, dbPath, outputDir, id, "MyFavourites")
+		reconcileLocalFiles(testClient(), config, map[string]bool{id: true})
+
+		_, marked := bookmarkAPIState(t, id)
+		if marked {
+			t.Error("bookmark should not be marked as favourite after removal from collection")
 		}
 	})
 }

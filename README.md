@@ -136,7 +136,7 @@ sqlite3 "$DB" ".schema" > testdata/nickel-schema-${VER}.sql
 - Articles in a favourite collection are re-marked as favourite on every sync,
   even if already marked in Readeck (redundant API calls).
 - Removing an article from the favourite collection on device does not un-favourite
-  it in Readeck — favouriting is one-way only.
+  it in Readeck — favouriting is one-way (kobodeck never sends `is_marked: false`).
 - Un-archiving an article in Readeck does not restore it to the device, because
   the local file already exists and re-downloads are never triggered.
 
