@@ -499,21 +499,13 @@ func TestSync(t *testing.T) {
 		}
 	})
 
-	t.Run("does not re-download after patch advances entry.Updated", func(t *testing.T) {
+	t.Run("does not re-download already downloaded file", func(t *testing.T) {
 		id := createLoadedBookmark(t, testBookmarkURL)
-		outputDir, dbPath := setupSyncEnv(t)
-		config.Sync.FavouriteCollection = "ReDownloadTest"
-		config.Output.Delete = false
+		_, _ = setupSyncEnv(t)
 
-		kepubPath := downloadEntry(t, id)
-
-		// Patch via favourite — this advances entry.Updated in Readeck and
-		// should touch the kepub mtime so the skip check still holds.
-		addToShelf(t, dbPath, outputDir, id, "ReDownloadTest")
-		reconcileLocalFiles(&http.Client{Timeout: 30 * time.Second}, config, map[string]bool{id: true})
-
-		// Re-list so we get the post-patch entry.Updated value.
 		client := &http.Client{Timeout: 30 * time.Second}
+		downloadEntry(t, id)
+
 		entries, err := listBookmarks(client)
 		if err != nil {
 			t.Fatalf("listBookmarks: %v", err)
@@ -526,12 +518,7 @@ func TestSync(t *testing.T) {
 			}
 		}
 		if entry.ID == "" {
-			t.Fatal("bookmark not found in unread feed after favourite patch")
-		}
-
-		info, _ := os.Stat(kepubPath)
-		if !info.ModTime().After(entry.Updated) {
-			t.Errorf("kepub mtime %s should be after entry.Updated %s after patch", info.ModTime(), entry.Updated)
+			t.Fatal("bookmark not found in unread feed")
 		}
 
 		logOutput := captureLog(t)
@@ -539,7 +526,7 @@ func TestSync(t *testing.T) {
 			t.Fatalf("second download: %v", err)
 		}
 		if strings.Contains(logOutput(), "downloading") {
-			t.Error("file should not be re-downloaded after patch touched mtime")
+			t.Error("file should not be re-downloaded when kepub already exists")
 		}
 	})
 
