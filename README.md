@@ -25,6 +25,8 @@ flowchart LR
 The project is forked from
 [wallabako](https://gitlab.com/anarcat/wallabako).
 
+Kobodeck will not write to Kobos sqlite database.
+
 ## who is this for ?
 
 This plugin could be useful for you if you
