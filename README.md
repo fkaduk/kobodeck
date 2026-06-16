@@ -48,6 +48,16 @@ the files are already downloaded either way.
 
 ![screenshot of the connect dialog on a Kobo Glo HD reader](assets/connect-dialog.png)
 
+
+To add an article as favorite on readeck,
+add it to the Kobo collection you set in the configuration
+and wait or retrigger kobodeck by switching device wifi off and on again.
+
+To remove a favourit article:
+
+1. remove the article from your favorite collection on the kobo
+2. unmark article as favorite on readeck
+
 ## prerequisites
 
 - a running [hosted](https://readeck.com) or
