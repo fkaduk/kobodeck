@@ -18,24 +18,51 @@ const (
 
 const nickelContentTypeBook = 6
 
+type collectionStatus int
+
+const (
+	collectionAbsent collectionStatus = iota
+	collectionActive
+	collectionDeleted
+)
+
 func openNickelDB() (*sql.DB, error) {
 	return sql.Open("sqlite", "file:"+nickelDBPath+"?mode=ro")
 }
 
 // nickelIsInCollection reports whether a book is in the named Kobo collection.
 func nickelIsInCollection(db *sql.DB, ID, outputDir, collection string) (bool, error) {
-	contentID := fmt.Sprintf("file://%s/%s.kepub.epub", outputDir, ID)
-	var count int
-	err := db.QueryRow(`
-		SELECT COUNT(*) FROM ShelfContent sc
-		JOIN Shelf s ON sc.ShelfName = s.InternalName
-		WHERE sc.ContentId = ? AND s.Name = ?
-		  AND sc._IsDeleted = 'false' AND s._IsDeleted = 'false'`,
-		contentID, collection).Scan(&count)
+	status, err := nickelCollectionStatus(db, ID, outputDir, collection)
 	if err != nil {
 		return false, err
 	}
-	return count > 0, nil
+	return status == collectionActive, nil
+}
+
+func nickelCollectionStatus(db *sql.DB, ID, outputDir, collection string) (collectionStatus, error) {
+	contentID := fmt.Sprintf("file://%s/%s.kepub.epub", outputDir, ID)
+	var deleted int
+	err := db.QueryRow(`
+		SELECT CASE
+			WHEN lower(coalesce(cast(sc._IsDeleted AS text), 'false')) IN ('1', 'true') THEN 1
+			ELSE 0
+		END
+		FROM ShelfContent sc
+		JOIN Shelf s ON sc.ShelfName = s.InternalName
+		WHERE sc.ContentId = ? AND s.Name = ?
+		  AND lower(coalesce(cast(s._IsDeleted AS text), 'false')) NOT IN ('1', 'true')
+		LIMIT 1`,
+		contentID, collection).Scan(&deleted)
+	if err == sql.ErrNoRows {
+		return collectionAbsent, nil
+	}
+	if err != nil {
+		return collectionAbsent, err
+	}
+	if deleted != 0 {
+		return collectionDeleted, nil
+	}
+	return collectionActive, nil
 }
 
 func nickelReadStatus(db *sql.DB, ID string, outputDir string) (bookStatus, error) {

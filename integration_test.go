@@ -636,19 +636,36 @@ func TestReconcile(t *testing.T) {
 		}
 	})
 
-	t.Run("does not mark favourite when removed from collection (_IsDeleted)", func(t *testing.T) {
+	t.Run("does not mark favourite when absent from collection", func(t *testing.T) {
+		id := createLoadedBookmark(t, testBookmarkURL)
+		_, _ = setupSyncEnv(t)
+		config.Sync.FavouriteCollection = "MyFavourites"
+
+		downloadEntry(t, id)
+		reconcileLocalFiles(testClient(), config, map[string]bool{id: true})
+
+		_, marked := bookmarkAPIState(t, id)
+		if marked {
+			t.Error("bookmark should not be marked as favourite when absent from collection")
+		}
+	})
+
+	t.Run("unmarks favourite when removed from collection (_IsDeleted)", func(t *testing.T) {
 		id := createLoadedBookmark(t, testBookmarkURL)
 		outputDir, dbPath := setupSyncEnv(t)
 		config.Sync.FavouriteCollection = "MyFavourites"
 
 		downloadEntry(t, id)
+		if err := patchBookmark(testClient(), id, map[string]bool{"is_marked": true}); err != nil {
+			t.Fatalf("mark bookmark: %v", err)
+		}
 		addToShelf(t, dbPath, outputDir, id, "MyFavourites")
 		removeFromShelf(t, dbPath, outputDir, id, "MyFavourites")
 		reconcileLocalFiles(testClient(), config, map[string]bool{id: true})
 
 		_, marked := bookmarkAPIState(t, id)
 		if marked {
-			t.Error("bookmark should not be marked as favourite after removal from collection")
+			t.Error("bookmark should be unmarked after removal from collection")
 		}
 	})
 }

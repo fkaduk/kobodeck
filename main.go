@@ -405,9 +405,9 @@ func reconcileLocalFiles(client *http.Client, cfg appConfig, valid map[string]bo
 			continue
 		}
 		status, statusErr := nickelReadStatus(db, uid, outputDir)
-		var inCollection bool
+		collectionState := collectionAbsent
 		if cfg.Sync.FavouriteCollection != "" {
-			inCollection, err = nickelIsInCollection(db, uid, outputDir, cfg.Sync.FavouriteCollection)
+			collectionState, err = nickelCollectionStatus(db, uid, outputDir, cfg.Sync.FavouriteCollection)
 			if err != nil {
 				log.Println("failed to check collection:", err)
 			}
@@ -426,10 +426,16 @@ func reconcileLocalFiles(client *http.Client, cfg appConfig, valid map[string]bo
 				valid[uid] = false
 			}
 		}
-		if inCollection {
+		switch collectionState {
+		case collectionActive:
 			log.Printf("marking entry %s as favourite", uid)
 			if err = patchBookmark(client, uid, map[string]bool{"is_marked": true}); err != nil {
 				log.Println("failed to mark as favourite:", err)
+			}
+		case collectionDeleted:
+			log.Printf("removing entry %s as favourite", uid)
+			if err = patchBookmark(client, uid, map[string]bool{"is_marked": false}); err != nil {
+				log.Println("failed to remove as favourite:", err)
 			}
 		}
 		if cfg.Output.Delete && !valid[uid] {
