@@ -100,12 +100,13 @@ func download(client *http.Client, entry readeckBookmark) error {
 	checkPath := filepath.Join(config.Output.Path, entry.ID+".kepub.epub")
 	info, err := os.Stat(checkPath)
 	if err == nil && info.Size() > 0 {
-		debugf("skipping %s: already downloaded", checkPath)
+		log.Printf("article %s skipped: already downloaded at %s", entry.ID, checkPath)
 		return nil
 	} else if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("stat %s: %w", checkPath, err)
 	}
 
+	log.Printf("article %s download started: %q", entry.ID, entry.Title)
 	log.Printf("downloading %s to %s", epubURL, output)
 	req, err := http.NewRequest("GET", epubURL, nil)
 	if err != nil {
@@ -151,6 +152,7 @@ func download(client *http.Client, entry readeckBookmark) error {
 		log.Printf("warning: set mtime %s: %v", filepath.Base(kepubPath), err)
 	}
 	log.Printf("converted to %s (timestamp %s)", kepubPath, entry.Updated.Format(time.RFC3339))
+	log.Printf("article %s downloaded: %s (%d bytes)", entry.ID, kepubPath, n)
 	return nil
 }
 

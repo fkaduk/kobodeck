@@ -180,7 +180,11 @@ func main() {
 		debugf("dispatching %s", entry.ID)
 		valid[entry.ID] = true
 		g.Go(func() error {
-			return download(client, entry)
+			if err := download(client, entry); err != nil {
+				log.Printf("article %s failed: %v", entry.ID, err)
+				return err
+			}
+			return nil
 		})
 	}
 done:
