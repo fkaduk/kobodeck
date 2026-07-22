@@ -40,3 +40,5 @@ test:
 	CGO_ENABLED=0 go test -timeout 120s $(TESTFLAGS) ./...
 	markdownlint **/*.md
 
+test-vm:
+	CGO_ENABLED=0 go test -tags=vmtest -run '^TestKoboVMNetworkTriggers$$' -timeout 10m $(VMTESTFLAGS) .

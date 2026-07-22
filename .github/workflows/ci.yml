@@ -25,8 +25,33 @@ jobs:
           files: coverage.txt
           token: ${{ secrets.CODECOV_TOKEN }}
 
+  vm-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm
+      - name: Install system-emulation tools
+        run: sudo apt-get update && sudo apt-get install -y qemu-system-arm e2fsprogs dosfstools
+      - uses: actions/cache@v4
+        with:
+          path: .cache/kobodeck-testvm
+          key: kobodeck-testvm-${{ runner.os }}-${{ hashFiles('testvm/**') }}
+          restore-keys: |
+            kobodeck-testvm-${{ runner.os }}-
+      - name: Test Wi-Fi udev trigger in ARM VM
+        run: make test-vm
+        env:
+          KOBODECK_VM_CACHE_DIR: .cache/kobodeck-testvm
+
   build:
-    needs: check
+    needs: [check, vm-test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
