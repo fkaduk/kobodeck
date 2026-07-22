@@ -1,0 +1,30 @@
+#!/bin/sh
+set -eu
+
+mount -t devtmpfs devtmpfs /dev
+mkdir -p /dev/pts /run /tmp /mnt/onboard
+mount -t devpts devpts /dev/pts
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t tmpfs tmpfs /run
+mount -t tmpfs tmpfs /tmp
+mkdir -p /run/udev
+
+mount -t vfat /dev/vdb /mnt/onboard
+
+/sbin/udevd --daemon
+udevadm trigger --type=subsystems --action=add
+udevadm trigger --type=devices --action=add
+udevadm settle
+
+ip link set lo up
+ip link set eth0 up
+udhcpc -q -n -t 10 -i eth0
+
+/usr/sbin/sshd
+echo "KOBODECK_TESTVM_READY" >/dev/ttyAMA0
+
+while :; do
+	sleep 3600
+done
+
