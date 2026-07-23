@@ -68,6 +68,8 @@ type outputConfig struct {
 
 var config appConfig
 
+const networkReadyGrace = 10 * time.Second
+
 // validate checks that all required config fields are present and sane.
 func (c *appConfig) validate() error {
 	if c.Server.URL == "" {
@@ -146,7 +148,7 @@ func main() {
 
 	entries, err := listBookmarks(client)
 	for attempt := 1; err != nil && attempt < 5; attempt++ {
-		delay := time.Duration(1<<uint(attempt)) * time.Second
+		delay := networkReadyGrace + time.Duration(1<<uint(attempt))*time.Second
 		log.Printf("failed to connect, retrying in %s: %v", delay, err)
 		time.Sleep(delay)
 		entries, err = listBookmarks(client)
