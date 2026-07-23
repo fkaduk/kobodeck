@@ -23,9 +23,10 @@ mount -t devtmpfs devtmpfs /dev || fail "mount devtmpfs"
 mount -t proc proc /proc || fail "mount proc"
 mount -t sysfs sysfs /sys || fail "mount sysfs"
 
-# The generic Alpine LTS kernel ships the QEMU virtio NIC and packet socket
-# support as modules inside the initramfs.
-modprobe -a virtio_net af_packet || fail "load network modules"
+# The generic Alpine LTS kernel ships the QEMU virtio transport, NIC driver, and
+# packet socket support as modules inside the initramfs. Loading virtio_mmio is
+# what discovers the virtio-net-device attached to QEMU's ARM "virt" machine.
+modprobe -a virtio_mmio virtio_net af_packet || fail "load network modules"
 mdev -s
 
 ip link set lo up || fail "enable loopback"

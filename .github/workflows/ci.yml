@@ -15,15 +15,8 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm
       - run: npm install -g markdownlint-cli
-      - run: make test TESTFLAGS="-coverprofile=coverage.txt"
-      - uses: codecov/codecov-action@v4
-        with:
-          files: coverage.txt
-          token: ${{ secrets.CODECOV_TOKEN }}
+      - run: make test
 
   vm-test:
     runs-on: ubuntu-latest
@@ -34,15 +27,12 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm
       - name: Install system-emulation tools
-        run: sudo apt-get update && sudo apt-get install -y qemu-system-arm e2fsprogs dosfstools
+        run: sudo apt-get update && sudo apt-get install -y qemu-system-arm cpio
       - uses: actions/cache@v4
         with:
           path: .cache/kobodeck-testvm
-          key: kobodeck-testvm-${{ runner.os }}-${{ hashFiles('testvm/**') }}
+          key: kobodeck-testvm-${{ runner.os }}-${{ hashFiles('vm_test.go', 'testvm/**') }}
           restore-keys: |
             kobodeck-testvm-${{ runner.os }}-
       - name: Smoke-test ARM VM against host-side Readeck
