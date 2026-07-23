@@ -1,7 +1,6 @@
 # Kobodeck
 
 [![CI](https://github.com/fkaduk/kobodeck/actions/workflows/ci.yml/badge.svg)](https://github.com/fkaduk/kobodeck/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/fkaduk/kobodeck/branch/main/graph/badge.svg)](https://codecov.io/gh/fkaduk/kobodeck)
 [![Go Report Card](https://goreportcard.com/badge/github.com/fkaduk/kobodeck)](https://goreportcard.com/report/github.com/fkaduk/kobodeck)
 [![Latest release](https://img.shields.io/github/v/tag/fkaduk/kobodeck?sort=semver&label=release)](https://github.com/fkaduk/kobodeck/releases/latest)
 [![License](https://img.shields.io/github/license/fkaduk/kobodeck)](LICENSE)
@@ -113,24 +112,28 @@ Check the Makefile for common operations on the project.
 
 ### testing VM connectivity to Readeck
 
-`make test-vm` boots a headless ARMv7 QEMU system VM. The guest uses eudev and a
-FAT32 `/mnt/onboard` volume and contains no Docker or Readeck installation. The
-Go test starts an isolated Readeck container on the host, creates a test user,
-API token, and bookmark, and exposes the mapped HTTP port through QEMU's host
-gateway. It then makes an authenticated Readeck API request from inside the VM
-and validates the bookmark response.
+`make test-vm` boots a minimal headless ARMv7 QEMU system VM directly from
+Alpine's official netboot kernel and initramfs. The upstream artifacts are
+pinned by URL and SHA-256 and cached under `.cache/kobodeck-testvm` by default.
+The Go test appends a tiny initramfs overlay containing the smoke-test init
+script and temporary credentials; it does not construct or boot a root disk.
 
-The host needs Docker, QEMU ARM system emulation, `mkfs.ext4`, `mkfs.vfat`,
-OpenSSH, and Go. On Debian or Ubuntu, the additional system packages are:
+The test starts an isolated Readeck container on the host, creates a test user,
+API token, and bookmark, and exposes the mapped HTTP port through QEMU's host
+gateway. BusyBox in the ARM guest obtains a DHCP lease, makes an authenticated
+Readeck API request, and returns the response over the serial console.
+
+The host needs Docker for the Readeck container, QEMU ARM system emulation,
+`cpio`, and Go. On Debian or Ubuntu, the additional system packages are:
 
 ```sh
-sudo apt-get install qemu-system-arm qemu-user-static binfmt-support e2fsprogs dosfstools
+sudo apt-get install qemu-system-arm cpio
 ```
 
 The VM is exclusively the simulated Kobo device; Readeck lifecycle management
 stays in the host-side Go test. This smoke test covers VM boot and authenticated
 guest-to-host Readeck connectivity. It does not yet install or run Kobodeck or
-test the udev Wi-Fi trigger.
+test FAT32 storage or the udev Wi-Fi trigger.
 
 ### manual testing before release
 
@@ -147,18 +150,6 @@ test the udev Wi-Fi trigger.
   - first connect: article downloaded, no errors
   - second connect: article archived, article favourited, no errors
   - third connect: no downloads, no syncs
-
-### updating the Nickel schema
-
-The integration tests use schema files in `testdata/` named `nickel-schema-{version}.sql`,
-where `{version}` is the `DbVersion` from the `KoboReader.sqlite` database.
-After a firmware update that changes the database schema, dump the new schema with:
-
-```sh
-DB=/media/$USER/KOBOeReader/.kobo/KoboReader.sqlite
-VER=$(sqlite3 "$DB" "SELECT version FROM DbVersion;")
-sqlite3 "$DB" ".schema" > testdata/nickel-schema-${VER}.sql
-```
 
 ### known issues
 

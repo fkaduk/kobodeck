@@ -3,10 +3,11 @@
 // This file contains the host-side controller for the minimal ARM system-VM
 // smoke test.
 //
-// Readeck still runs outside the guest in the host-side container owned by
-// TestMain. The simulated Kobo is now built entirely from Alpine's official,
-// pinned ARMv7 netboot kernel and initramfs. A tiny second initramfs archive
-// supplies testvm/smoke-init and the per-test Readeck URL/token.
+// Readeck still runs outside the guest in a host-side container owned directly
+// by TestKoboVMReadeckAPISmoke. The simulated Kobo is built entirely from
+// Alpine's official, pinned ARMv7 netboot kernel and initramfs. A tiny second
+// initramfs archive supplies testvm/smoke-init and the per-test Readeck
+// URL/token.
 //
 // There is intentionally no guest root disk, Docker-built ARM image, FAT
 // volume, eudev, or SSH server in this smoke test. Those belong in later tests
@@ -16,19 +17,26 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const (
@@ -38,7 +46,15 @@ const (
 
 	smokeResponseBegin = "KOBODECK_API_RESPONSE_BEGIN"
 	smokeResponseEnd   = "KOBODECK_API_RESPONSE_END"
+
+	readeckImage    = "codeberg.org/readeck/readeck:latest"
+	testAdminUser   = "testadmin"
+	testAdminPass   = "testpass123"
+	testAdminEmail  = "testadmin@test.invalid"
+	testBookmarkURL = "https://example.com"
 )
+
+var bearerRegexp = regexp.MustCompile(`value="Authorization: Bearer ([^"]+)"`)
 
 // These hashes pin the exact upstream boot artifacts. A changed or corrupted
 // download fails before QEMU starts.
@@ -56,11 +72,170 @@ var alpineNetbootArtifacts = []struct {
 	},
 }
 
+type hostReadeckServer struct {
+	container testcontainers.Container
+	baseURL   string
+	token     string
+}
+
 type koboVM struct {
 	t          *testing.T
 	serialPath string
 	cmd        *exec.Cmd
 	done       chan error
+	exited     chan struct{}
+}
+
+// startHostReadeckServer owns the complete external-service lifecycle for this
+// VM test. Testcontainers does not return until Readeck's own healthcheck
+// succeeds, so no guest work can race an unready server.
+func startHostReadeckServer(t *testing.T) *hostReadeckServer {
+	t.Helper()
+	ctx := context.Background()
+	container, err := testcontainers.Run(ctx, readeckImage,
+		testcontainers.WithWaitStrategy(
+			wait.ForExec([]string{"readeck", "healthcheck"}).
+				WithStartupTimeout(60*time.Second),
+		),
+	)
+	if err != nil {
+		t.Fatalf("start host-side Readeck: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := container.Terminate(ctx); err != nil {
+			t.Errorf("terminate host-side Readeck: %v", err)
+		}
+	})
+
+	exitCode, _, err := container.Exec(ctx, []string{
+		"readeck", "user",
+		"-user", testAdminUser,
+		"-password", testAdminPass,
+		"-email", testAdminEmail,
+	})
+	if err != nil {
+		t.Fatalf("create Readeck admin user: %v", err)
+	}
+	if exitCode != 0 {
+		t.Fatalf("create Readeck admin user: exited with status %d", exitCode)
+	}
+
+	host, err := container.Host(ctx)
+	if err != nil {
+		t.Fatalf("get Readeck container host: %v", err)
+	}
+	port, err := container.MappedPort(ctx, "8000/tcp")
+	if err != nil {
+		t.Fatalf("get Readeck mapped port: %v", err)
+	}
+
+	server := &hostReadeckServer{
+		container: container,
+		baseURL:   fmt.Sprintf("http://%s:%s", host, port.Port()),
+	}
+	server.token, err = bootstrapToken(server.baseURL)
+	if err != nil {
+		t.Fatalf("bootstrap Readeck API token: %v", err)
+	}
+	return server
+}
+
+// bootstrapToken uses Readeck's web session because current Readeck versions
+// do not provide an equivalent token-creation CLI command.
+func bootstrapToken(baseURL string) (string, error) {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return "", err
+	}
+	client := &http.Client{Jar: jar, Timeout: 30 * time.Second}
+
+	resp, err := client.PostForm(baseURL+"/login", url.Values{
+		"username": {testAdminUser},
+		"password": {testAdminPass},
+		"redirect": {""},
+	})
+	if err != nil {
+		return "", fmt.Errorf("login request: %w", err)
+	}
+	resp.Body.Close()
+
+	resp, err = client.Post(baseURL+"/profile/tokens", "application/x-www-form-urlencoded", nil)
+	if err != nil {
+		return "", fmt.Errorf("token creation request: %w", err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("read token page: %w", err)
+	}
+	matches := bearerRegexp.FindSubmatch(body)
+	if len(matches) < 2 {
+		return "", fmt.Errorf("token not found in Readeck profile page")
+	}
+	return string(matches[1]), nil
+}
+
+func (server *hostReadeckServer) apiRequest(t *testing.T, method, path string, body io.Reader) *http.Response {
+	t.Helper()
+	request, err := http.NewRequest(method, server.baseURL+path, body)
+	if err != nil {
+		t.Fatalf("build Readeck request %s %s: %v", method, path, err)
+	}
+	request.Header.Set("Authorization", "Bearer "+server.token)
+	if body != nil {
+		request.Header.Set("Content-Type", "application/json")
+	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatalf("send Readeck request %s %s: %v", method, path, err)
+	}
+	return response
+}
+
+// createLoadedBookmark does not return until Readeck has fetched and parsed the
+// article. This is the final readiness gate before the VM is started.
+func (server *hostReadeckServer) createLoadedBookmark(t *testing.T, bookmarkURL string) string {
+	t.Helper()
+	body, err := json.Marshal(map[string]string{"url": bookmarkURL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := server.apiRequest(t, http.MethodPost, "/api/bookmarks", bytes.NewReader(body))
+	response.Body.Close()
+	if response.StatusCode != http.StatusAccepted {
+		t.Fatalf("create Readeck bookmark: expected 202, got %d", response.StatusCode)
+	}
+	id := response.Header.Get("Bookmark-Id")
+	if id == "" {
+		t.Fatal("create Readeck bookmark: missing Bookmark-Id header")
+	}
+
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		response = server.apiRequest(t, http.MethodGet, "/api/bookmarks/"+id, nil)
+		if response.StatusCode != http.StatusOK {
+			response.Body.Close()
+			t.Fatalf("load Readeck bookmark %s: expected 200, got %d", id, response.StatusCode)
+		}
+		var bookmark struct {
+			Loaded bool `json:"loaded"`
+		}
+		err := json.NewDecoder(response.Body).Decode(&bookmark)
+		response.Body.Close()
+		if err != nil {
+			t.Fatalf("decode Readeck bookmark %s: %v", id, err)
+		}
+		if bookmark.Loaded {
+			t.Cleanup(func() {
+				response := server.apiRequest(t, http.MethodDelete, "/api/bookmarks/"+id, nil)
+				response.Body.Close()
+			})
+			return id
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	t.Fatalf("Readeck bookmark %s did not finish loading within 30s", id)
+	return ""
 }
 
 func requireCommand(t *testing.T, name string) {
@@ -283,19 +458,25 @@ func startKoboVM(t *testing.T, kernelPath, initramfsPath string) *koboVM {
 		serialPath: serialPath,
 		cmd:        cmd,
 		done:       make(chan error, 1),
+		exited:     make(chan struct{}),
 	}
 	go func() {
 		vm.done <- cmd.Wait()
+		close(vm.exited)
 	}()
 
 	t.Cleanup(func() {
-		if vm.cmd.ProcessState == nil {
+		select {
+		case <-vm.exited:
+		default:
 			_ = vm.cmd.Process.Signal(os.Interrupt)
 		}
 		select {
 		case <-vm.done:
 		case <-time.After(5 * time.Second):
-			if vm.cmd.ProcessState == nil {
+			select {
+			case <-vm.exited:
+			default:
 				_ = vm.cmd.Process.Kill()
 			}
 			<-vm.done
@@ -321,8 +502,10 @@ func (vm *koboVM) waitForSerial(marker string) string {
 		if strings.Contains(string(output), marker) {
 			return string(output)
 		}
-		if vm.cmd.ProcessState != nil {
+		select {
+		case <-vm.exited:
 			vm.t.Fatalf("QEMU exited before emitting %q", marker)
+		default:
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -330,15 +513,15 @@ func (vm *koboVM) waitForSerial(marker string) string {
 	return ""
 }
 
-func readeckURLFromVM(t *testing.T) string {
+func readeckURLFromVM(t *testing.T, serverURL string) string {
 	t.Helper()
-	serverURL, err := url.Parse(config.Server.URL)
+	parsedURL, err := url.Parse(serverURL)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, port, err := net.SplitHostPort(serverURL.Host)
+	_, port, err := net.SplitHostPort(parsedURL.Host)
 	if err != nil {
-		t.Fatalf("parse Readeck address %q: %v", config.Server.URL, err)
+		t.Fatalf("parse Readeck address %q: %v", serverURL, err)
 	}
 	return "http://" + net.JoinHostPort(qemuHostGatewayIP, port)
 }
@@ -362,18 +545,18 @@ func TestKoboVMReadeckAPISmoke(t *testing.T) {
 		requireCommand(t, command)
 	}
 
-	// TestMain owns the isolated Readeck container. The bookmark proves the
-	// authenticated response came from that instance rather than a generic
-	// connectivity endpoint.
-	bookmarkID := createLoadedBookmark(t, testBookmarkURL)
-	apiURL := readeckURLFromVM(t) + "/api/bookmarks/" + bookmarkID
+	// The VM test owns Readeck and waits for both its healthcheck and the loaded
+	// bookmark before constructing or starting the guest.
+	server := startHostReadeckServer(t)
+	bookmarkID := server.createLoadedBookmark(t, testBookmarkURL)
+	apiURL := readeckURLFromVM(t, server.baseURL) + "/api/bookmarks/" + bookmarkID
 
 	kernelPath, baseInitramfsPath := ensureNetbootArtifacts(t)
 	smokeInitramfsPath := buildSmokeInitramfs(
 		t,
 		baseInitramfsPath,
 		apiURL,
-		config.Server.Token,
+		server.token,
 	)
 	vm := startKoboVM(t, kernelPath, smokeInitramfsPath)
 	serialOutput := vm.waitForSerial(smokeResponseEnd)
