@@ -111,14 +111,14 @@ The last path is the default output directory
 
 Check the Makefile for common operations on the project.
 
-### testing the Wi-Fi trigger in a VM
+### testing VM connectivity to Readeck
 
-`make test-vm` runs the generated ARMv7 package in a headless QEMU system VM.
-The guest uses eudev and a FAT32 `/mnt/onboard` volume, starts with Kobodeck
-uninstalled, and connects to an isolated Readeck test container. The test then
-installs `KoboRoot.tgz` and creates a `wlan0` kernel interface to simulate Wi-Fi
-being switched on. It verifies that the shipped udev rule starts Kobodeck and
-that an article is downloaded.
+`make test-vm` boots a headless ARMv7 QEMU system VM. The guest uses eudev and a
+FAT32 `/mnt/onboard` volume and contains no Docker or Readeck installation. The
+Go test starts an isolated Readeck container on the host, creates a test user,
+API token, and bookmark, and exposes the mapped HTTP port through QEMU's host
+gateway. It then makes an authenticated Readeck API request from inside the VM
+and validates the bookmark response.
 
 The host needs Docker, QEMU ARM system emulation, `mkfs.ext4`, `mkfs.vfat`,
 OpenSSH, and Go. On Debian or Ubuntu, the additional system packages are:
@@ -127,9 +127,10 @@ OpenSSH, and Go. On Debian or Ubuntu, the additional system packages are:
 sudo apt-get install qemu-system-arm qemu-user-static binfmt-support e2fsprogs dosfstools
 ```
 
-The VM covers the ARM binary, Linux/udev event, package layout, network request,
-and FAT32 storage. It does not emulate Nickel, Kobo's Wi-Fi chipset, suspend, or
-the firmware updater, so release testing should still include a real reader.
+The VM is exclusively the simulated Kobo device; Readeck lifecycle management
+stays in the host-side Go test. This smoke test covers VM boot and authenticated
+guest-to-host Readeck connectivity. It does not yet install or run Kobodeck or
+test the udev Wi-Fi trigger.
 
 ### manual testing before release
 

@@ -38,11 +38,13 @@ const (
 
 var bearerRegexp = regexp.MustCompile(`value="Authorization: Bearer ([^"]+)"`)
 
-// TestMain starts a Readeck container, bootstraps it with an admin user and
-// API token, configures the global config, then runs the integration tests.
-func TestMain(m *testing.M) {
-	ctx := context.Background()
+type hostReadeckServer struct {
+	container testcontainers.Container
+	baseURL   string
+	token     string
+}
 
+func startHostReadeckServer(ctx context.Context) (*hostReadeckServer, error) {
 	ctr, err := testcontainers.Run(ctx, readeckImage,
 		testcontainers.WithWaitStrategy(
 			wait.ForExec([]string{"readeck", "healthcheck"}).
@@ -50,49 +52,78 @@ func TestMain(m *testing.M) {
 		),
 	)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to start readeck container: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("start Readeck container: %w", err)
 	}
-	defer ctr.Terminate(ctx)
 
-	// Create the admin user via the readeck CLI inside the container.
-	if _, _, err = ctr.Exec(ctx, []string{
+	cleanupOnError := func(err error) (*hostReadeckServer, error) {
+		if terminateErr := ctr.Terminate(ctx); terminateErr != nil {
+			return nil, fmt.Errorf("%w (also failed to terminate container: %v)", err, terminateErr)
+		}
+		return nil, err
+	}
+
+	// Create the admin user via the Readeck CLI inside the host container.
+	exitCode, _, err := ctr.Exec(ctx, []string{
 		"readeck", "user",
 		"-user", testAdminUser,
 		"-password", testAdminPass,
 		"-email", testAdminEmail,
-	}); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to create admin user: %v\n", err)
-		os.Exit(1)
+	})
+	if err != nil {
+		return cleanupOnError(fmt.Errorf("create admin user: %w", err))
+	}
+	if exitCode != 0 {
+		return cleanupOnError(fmt.Errorf("create admin user: Readeck exited with status %d", exitCode))
 	}
 
 	host, err := ctr.Host(ctx)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to get container host: %v\n", err)
-		os.Exit(1)
+		return cleanupOnError(fmt.Errorf("get Readeck container host: %w", err))
 	}
 	port, err := ctr.MappedPort(ctx, "8000/tcp")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to get mapped port: %v\n", err)
-		os.Exit(1)
+		return cleanupOnError(fmt.Errorf("get Readeck mapped port: %w", err))
 	}
 	baseURL := fmt.Sprintf("http://%s:%s", host, port.Port())
 
 	// Bootstrap an API token via the web UI (there is no token creation CLI).
 	token, err := bootstrapToken(baseURL)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to bootstrap API token: %v\n", err)
+		return cleanupOnError(fmt.Errorf("bootstrap API token: %w", err))
+	}
+
+	return &hostReadeckServer{
+		container: ctr,
+		baseURL:   baseURL,
+		token:     token,
+	}, nil
+}
+
+// TestMain starts a Readeck container, bootstraps it with an admin user and
+// API token, configures the global config, then runs the integration tests.
+func TestMain(m *testing.M) {
+	ctx := context.Background()
+
+	server, err := startHostReadeckServer(ctx)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to start host-side Readeck: %v\n", err)
 		os.Exit(1)
 	}
 
 	if err := loadConfig("kobodeck.toml"); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to load kobodeck.toml: %v\n", err)
+		_ = server.container.Terminate(ctx)
 		os.Exit(1)
 	}
-	config.Server.URL = baseURL
-	config.Server.Token = token
+	config.Server.URL = server.baseURL
+	config.Server.Token = server.token
 
-	os.Exit(m.Run())
+	exitCode := m.Run()
+	if err := server.container.Terminate(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to terminate host-side Readeck: %v\n", err)
+		exitCode = 1
+	}
+	os.Exit(exitCode)
 }
 
 // --- Helpers ---
@@ -174,21 +205,29 @@ func createLoadedBookmark(t *testing.T, bookmarkURL string) string {
 	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
 		resp = apiRequest(t, http.MethodGet, "/api/bookmarks/"+id, nil)
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			t.Fatalf("load bookmark %s: expected 200, got %d", id, resp.StatusCode)
+		}
 		var bm struct {
 			Loaded bool `json:"loaded"`
 		}
-		json.NewDecoder(resp.Body).Decode(&bm)
+		if err := json.NewDecoder(resp.Body).Decode(&bm); err != nil {
+			resp.Body.Close()
+			t.Fatalf("decode bookmark %s: %v", id, err)
+		}
 		resp.Body.Close()
 		if bm.Loaded {
-			break
+			t.Cleanup(func() {
+				resp := apiRequest(t, http.MethodDelete, "/api/bookmarks/"+id, nil)
+				resp.Body.Close()
+			})
+			return id
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
-	t.Cleanup(func() {
-		resp := apiRequest(t, http.MethodDelete, "/api/bookmarks/"+id, nil)
-		resp.Body.Close()
-	})
-	return id
+	t.Fatalf("bookmark %s did not finish loading within 30s", id)
+	return ""
 }
 
 const nickelSchema = "testdata/nickel-schema-176.sql"

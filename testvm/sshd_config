@@ -7,7 +7,5 @@ KbdInteractiveAuthentication no
 PubkeyAuthentication yes
 AuthorizedKeysFile .ssh/authorized_keys
 StrictModes no
-UsePAM no
 PrintMotd no
 Subsystem sftp internal-sftp
-

@@ -45,7 +45,7 @@ jobs:
           key: kobodeck-testvm-${{ runner.os }}-${{ hashFiles('testvm/**') }}
           restore-keys: |
             kobodeck-testvm-${{ runner.os }}-
-      - name: Test Wi-Fi udev trigger in ARM VM
+      - name: Smoke-test ARM VM against host-side Readeck
         run: make test-vm
         env:
           KOBODECK_VM_CACHE_DIR: .cache/kobodeck-testvm
