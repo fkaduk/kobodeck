@@ -1,0 +1,51 @@
+#!/bin/sh
+set -u
+
+# Alpine's netboot initramfs contains BusyBox and the matching kernel modules,
+# but its normal /init expects to locate and mount a full Alpine installation.
+# This smoke test needs only enough userspace to configure QEMU networking and
+# perform one authenticated HTTP request.
+busybox=/bin/busybox
+
+# Populate the normal BusyBox applet symlinks (mount, ip, wget, udhcpc, etc.).
+# Alpine's stock /init normally performs this step.
+"$busybox" --install -s
+export PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+fail() {
+	echo "KOBODECK_VM_ERROR: $*"
+	while :; do
+		sleep 3600
+	done
+}
+
+mount -t devtmpfs devtmpfs /dev || fail "mount devtmpfs"
+mount -t proc proc /proc || fail "mount proc"
+mount -t sysfs sysfs /sys || fail "mount sysfs"
+
+# The generic Alpine LTS kernel ships the QEMU virtio NIC and packet socket
+# support as modules inside the initramfs.
+modprobe -a virtio_net af_packet || fail "load network modules"
+mdev -s
+
+ip link set lo up || fail "enable loopback"
+ip link set eth0 up || fail "enable eth0"
+udhcpc -q -n -t 10 -i eth0 -s /usr/share/udhcpc/default.script ||
+	fail "obtain DHCP lease"
+
+api_url=$(cat /etc/kobodeck-smoke/url) || fail "read API URL"
+token=$(cat /etc/kobodeck-smoke/token) || fail "read API token"
+
+echo "KOBODECK_VM_READY"
+echo "KOBODECK_API_RESPONSE_BEGIN"
+if ! wget -qO- --header="Authorization: Bearer $token" "$api_url"; then
+	fail "Readeck API request"
+fi
+echo
+echo "KOBODECK_API_RESPONSE_END"
+
+# The host test stops QEMU after reading the response. Remaining alive here
+# keeps the successful serial output stable until the host observes it.
+while :; do
+	sleep 3600
+done

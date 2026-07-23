@@ -1,61 +1,68 @@
 //go:build vmtest
 
-// This file contains the host-side controller for the ARM system-VM smoke test.
+// This file contains the host-side controller for the minimal ARM system-VM
+// smoke test.
 //
-// The topology deliberately mirrors a real installation:
+// Readeck still runs outside the guest in the host-side container owned by
+// TestMain. The simulated Kobo is now built entirely from Alpine's official,
+// pinned ARMv7 netboot kernel and initramfs. A tiny second initramfs archive
+// supplies testvm/smoke-init and the per-test Readeck URL/token.
 //
-//   - Readeck runs outside the simulated Kobo. TestMain starts it in a normal
-//     host-side Docker container and publishes its HTTP port on the host.
-//   - QEMU runs a complete 32-bit ARM Linux guest that represents the Kobo.
-//   - QEMU's user-mode network exposes the host to the guest as 10.0.2.2.
-//   - SSH is only a control channel used by the Go test to execute the API call
-//     and inspect its result.
-//
-// Keeping this behind the vmtest build tag avoids requiring QEMU and the image
-// construction tools during ordinary `go test` runs.
+// There is intentionally no guest root disk, Docker-built ARM image, FAT
+// volume, eudev, or SSH server in this smoke test. Those belong in later tests
+// that actually need Kobo storage and udev behavior.
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
-	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 )
 
 const (
-	// The guest normally reaches sshd in roughly 30 seconds under emulation.
-	// Leave ample headroom for slower CI runners while still failing a wedged
-	// boot much sooner than the overall `go test` timeout.
-	vmSSHTimeout = 90 * time.Second
+	alpineNetbootBaseURL = "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/armv7/netboot-3.24.1"
+	qemuHostGatewayIP    = "10.0.2.2"
+	vmSmokeTimeout       = 60 * time.Second
 
-	// QEMU slirp reserves 10.0.2.2 as the host-side gateway visible to a
-	// guest. A service bound to a host loopback port can therefore be reached
-	// from the VM by replacing 127.0.0.1 with this address.
-	qemuHostGatewayIP = "10.0.2.2"
+	smokeResponseBegin = "KOBODECK_API_RESPONSE_BEGIN"
+	smokeResponseEnd   = "KOBODECK_API_RESPONSE_END"
 )
 
-// koboVM owns a running QEMU process and the information required to reach its
-// SSH server through QEMU's host port forwarding.
-//
-// All fields are host-side values. In particular, sshPort is the ephemeral
-// localhost port forwarded to port 22 in the guest.
-type koboVM struct {
-	t          *testing.T
-	sshKey     string
-	sshPort    int
-	serialPath string
-	cmd        *exec.Cmd
+// These hashes pin the exact upstream boot artifacts. A changed or corrupted
+// download fails before QEMU starts.
+var alpineNetbootArtifacts = []struct {
+	name   string
+	sha256 string
+}{
+	{
+		name:   "vmlinuz-lts",
+		sha256: "f36e6732b8165eb43780b86a87a3eb2e17fbabc9984bab9796a9a72c4d56debc",
+	},
+	{
+		name:   "initramfs-lts",
+		sha256: "32807f8009a39c86bc70d601e9175293d416a7d204275f807e490cd92653cd68",
+	},
 }
 
-// requireCommand gives a direct, actionable error before the test performs any
-// expensive container or VM setup.
+type koboVM struct {
+	t          *testing.T
+	serialPath string
+	cmd        *exec.Cmd
+	done       chan error
+}
+
 func requireCommand(t *testing.T, name string) {
 	t.Helper()
 	if _, err := exec.LookPath(name); err != nil {
@@ -63,45 +70,187 @@ func requireCommand(t *testing.T, name string) {
 	}
 }
 
-// runHostCommand executes one of the build/control programs on the host. Its
-// combined output is included on failure because Docker and image-building
-// errors are otherwise difficult to diagnose from the VM serial console.
-func runHostCommand(t *testing.T, name string, args ...string) string {
+func artifactCacheDir(t *testing.T) string {
 	t.Helper()
-	cmd := exec.Command(name, args...)
-	cmd.Dir = "."
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("%s %s: %v\n%s", name, strings.Join(args, " "), err, out)
+	if cacheDir := os.Getenv("KOBODECK_VM_CACHE_DIR"); cacheDir != "" {
+		return cacheDir
 	}
-	return string(out)
+	return filepath.Join(".cache", "kobodeck-testvm")
 }
 
-// reserveTCPPort asks the host kernel for a currently unused loopback port.
-// QEMU uses this port to forward host TCP connections to guest port 22.
-//
-// The listener must be closed before QEMU starts so QEMU can bind the port.
-// There is consequently a small theoretical bind race, but using a
-// kernel-selected ephemeral port keeps collisions very unlikely in practice.
-func reserveTCPPort(t *testing.T) int {
+func fileSHA256(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+// ensureNetbootArtifacts downloads each pinned Alpine artifact at most once.
+// Downloads use a temporary file and atomic rename so an interrupted run never
+// leaves a partially valid-looking cache entry.
+func ensureNetbootArtifacts(t *testing.T) (kernelPath, initramfsPath string) {
 	t.Helper()
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	cacheDir := artifactCacheDir(t)
+	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	client := &http.Client{Timeout: 2 * time.Minute}
+	paths := make(map[string]string, len(alpineNetbootArtifacts))
+	for _, artifact := range alpineNetbootArtifacts {
+		path := filepath.Join(cacheDir, artifact.name)
+		if sum, err := fileSHA256(path); err == nil && sum == artifact.sha256 {
+			paths[artifact.name] = path
+			continue
+		}
+
+		requestURL := alpineNetbootBaseURL + "/" + artifact.name
+		resp, err := client.Get(requestURL)
+		if err != nil {
+			t.Fatalf("download %s: %v", requestURL, err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			t.Fatalf("download %s: got HTTP %s", requestURL, resp.Status)
+		}
+
+		temp, err := os.CreateTemp(cacheDir, artifact.name+".partial-*")
+		if err != nil {
+			resp.Body.Close()
+			t.Fatal(err)
+		}
+		tempPath := temp.Name()
+		if _, err = io.Copy(temp, resp.Body); err == nil {
+			err = temp.Close()
+		} else {
+			_ = temp.Close()
+		}
+		resp.Body.Close()
+		if err != nil {
+			_ = os.Remove(tempPath)
+			t.Fatalf("save %s: %v", requestURL, err)
+		}
+
+		sum, err := fileSHA256(tempPath)
+		if err != nil {
+			_ = os.Remove(tempPath)
+			t.Fatal(err)
+		}
+		if sum != artifact.sha256 {
+			_ = os.Remove(tempPath)
+			t.Fatalf("verify %s: got sha256 %s, want %s", requestURL, sum, artifact.sha256)
+		}
+		if err := os.Rename(tempPath, path); err != nil {
+			_ = os.Remove(tempPath)
+			t.Fatal(err)
+		}
+		paths[artifact.name] = path
+	}
+
+	return paths["vmlinuz-lts"], paths["initramfs-lts"]
+}
+
+func copyFile(destination string, source io.Reader) error {
+	file, err := os.Create(destination)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(file, source); err != nil {
+		_ = file.Close()
+		return err
+	}
+	return file.Close()
+}
+
+// buildSmokeInitramfs appends a gzip-compressed "newc" cpio archive to Alpine's
+// initramfs. Linux supports a sequence of compressed cpio members, so the
+// official archive remains byte-for-byte unchanged and our overlay adds only:
+//
+//   - /smoke-init
+//   - /etc/kobodeck-smoke/url
+//   - /etc/kobodeck-smoke/token
+func buildSmokeInitramfs(t *testing.T, basePath, apiURL, token string) string {
+	t.Helper()
+	workDir := t.TempDir()
+	overlayDir := filepath.Join(workDir, "overlay")
+	configDir := filepath.Join(overlayDir, "etc", "kobodeck-smoke")
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	initSource, err := os.Open("testvm/smoke-init")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer listener.Close()
-	return listener.Addr().(*net.TCPAddr).Port
+	if err := copyFile(filepath.Join(overlayDir, "smoke-init"), initSource); err != nil {
+		initSource.Close()
+		t.Fatal(err)
+	}
+	initSource.Close()
+	if err := os.Chmod(filepath.Join(overlayDir, "smoke-init"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "url"), []byte(apiURL+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "token"), []byte(token+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	combinedPath := filepath.Join(workDir, "initramfs-smoke")
+	combined, err := os.Create(combinedPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base, err := os.Open(basePath)
+	if err != nil {
+		combined.Close()
+		t.Fatal(err)
+	}
+	if _, err := io.Copy(combined, base); err != nil {
+		base.Close()
+		combined.Close()
+		t.Fatal(err)
+	}
+	base.Close()
+
+	gzipWriter := gzip.NewWriter(combined)
+	cpio := exec.Command("cpio", "--create", "--format=newc", "--quiet")
+	cpio.Dir = overlayDir
+	cpio.Stdin = strings.NewReader(strings.Join([]string{
+		"smoke-init",
+		"etc",
+		"etc/kobodeck-smoke",
+		"etc/kobodeck-smoke/url",
+		"etc/kobodeck-smoke/token",
+	}, "\n") + "\n")
+	cpio.Stdout = gzipWriter
+	var cpioStderr bytes.Buffer
+	cpio.Stderr = &cpioStderr
+	if err := cpio.Run(); err != nil {
+		gzipWriter.Close()
+		combined.Close()
+		t.Fatalf("build initramfs overlay: %v\n%s", err, cpioStderr.String())
+	}
+	if err := gzipWriter.Close(); err != nil {
+		combined.Close()
+		t.Fatal(err)
+	}
+	if err := combined.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return combinedPath
 }
 
-// startKoboVM boots the disk images produced by testvm/build-image.sh and waits
-// until the guest is controllable over SSH.
-//
-// Serial output is always captured to a file instead of being mixed into normal
-// test output. It is printed automatically if the test fails, which gives us
-// kernel, initramfs, udev, DHCP, and sshd diagnostics in one place.
-func startKoboVM(t *testing.T, imageDir, sshKey string) *koboVM {
+func startKoboVM(t *testing.T, kernelPath, initramfsPath string) *koboVM {
 	t.Helper()
-	port := reserveTCPPort(t)
 	serialPath := filepath.Join(t.TempDir(), "serial.log")
 	serial, err := os.Create(serialPath)
 	if err != nil {
@@ -109,41 +258,16 @@ func startKoboVM(t *testing.T, imageDir, sshKey string) *koboVM {
 	}
 
 	args := []string{
-		// "virt" is QEMU's generic ARM platform. It provides standard virtio
-		// block and network devices without pretending to emulate a specific
-		// Kobo motherboard.
 		"-machine", "virt",
-
-		// cortex-a15 is a 32-bit ARMv7 CPU. One CPU and 512 MiB keep the guest
-		// lightweight while leaving enough memory for Alpine, eudev, and sshd.
 		"-cpu", "cortex-a15",
 		"-smp", "1",
-		"-m", "512",
-
-		// Run headlessly and route the PL011 serial console to QEMU stdout.
-		// -no-reboot preserves the useful final state if init crashes.
+		"-m", "256",
 		"-nographic",
 		"-no-reboot",
-
-		// Boot Alpine's kernel/initramfs directly. rootfstype is explicit so
-		// the initramfs loads the modular ext4 driver before mounting vda.
-		// The custom init starts only the services needed by this test.
-		"-kernel", filepath.Join(imageDir, "vmlinuz-virt"),
-		"-initrd", filepath.Join(imageDir, "initramfs-virt"),
-		"-append", "root=/dev/vda rootfstype=ext4 rw rootwait console=ttyAMA0 init=/sbin/kobodeck-test-init",
-
-		// QEMU's ARM virt machine enumerates virtio-mmio block devices in
-		// reverse creation order. Attach the FAT onboard image first so the
-		// ext4 root image becomes /dev/vda and onboard becomes /dev/vdb.
-		"-drive", "file=" + filepath.Join(imageDir, "onboard.fat") + ",if=none,format=raw,id=onboard",
-		"-device", "virtio-blk-device,drive=onboard",
-		"-drive", "file=" + filepath.Join(imageDir, "root.ext4") + ",if=none,format=raw,id=root",
-		"-device", "virtio-blk-device,drive=root",
-
-		// QEMU user networking avoids bridge/tap setup and root privileges.
-		// The guest receives an address such as 10.0.2.15 and sees the host at
-		// 10.0.2.2. Only SSH is forwarded back to a host loopback port.
-		"-netdev", fmt.Sprintf("user,id=net0,hostfwd=tcp:127.0.0.1:%d-:22", port),
+		"-kernel", kernelPath,
+		"-initrd", initramfsPath,
+		"-append", "console=ttyAMA0 rdinit=/smoke-init",
+		"-netdev", "user,id=net0",
 		"-device", "virtio-net-device,netdev=net0",
 	}
 	cmd := exec.Command("qemu-system-arm", args...)
@@ -154,25 +278,27 @@ func startKoboVM(t *testing.T, imageDir, sshKey string) *koboVM {
 		t.Fatal(err)
 	}
 
-	vm := &koboVM{t: t, sshKey: sshKey, sshPort: port, serialPath: serialPath, cmd: cmd}
+	vm := &koboVM{
+		t:          t,
+		serialPath: serialPath,
+		cmd:        cmd,
+		done:       make(chan error, 1),
+	}
+	go func() {
+		vm.done <- cmd.Wait()
+	}()
 
-	// Register cleanup immediately after QEMU starts. Ask QEMU to exit
-	// gracefully first, then kill it after a short deadline so a broken guest
-	// cannot hang the entire test process. Wait is called exactly once.
 	t.Cleanup(func() {
-		if vm.cmd.Process != nil {
+		if vm.cmd.ProcessState == nil {
 			_ = vm.cmd.Process.Signal(os.Interrupt)
-			done := make(chan struct{})
-			go func() {
-				_ = vm.cmd.Wait()
-				close(done)
-			}()
-			select {
-			case <-done:
-			case <-time.After(5 * time.Second):
+		}
+		select {
+		case <-vm.done:
+		case <-time.After(5 * time.Second):
+			if vm.cmd.ProcessState == nil {
 				_ = vm.cmd.Process.Kill()
-				<-done
 			}
+			<-vm.done
 		}
 		_ = serial.Close()
 		if t.Failed() {
@@ -181,69 +307,29 @@ func startKoboVM(t *testing.T, imageDir, sshKey string) *koboVM {
 			}
 		}
 	})
-
-	// An open forwarded TCP port is not enough to prove that boot completed:
-	// sshd must accept an authenticated command. Polling `true` verifies the
-	// kernel, root filesystem, custom init, DHCP, port forward, and SSH key.
-	deadline := time.Now().Add(vmSSHTimeout)
-	for time.Now().Before(deadline) {
-		if out, err := vm.sshRun("true"); err == nil {
-			return vm
-		} else if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
-			t.Fatalf("QEMU exited before SSH was ready: %s", out)
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-	t.Fatalf("VM did not become ready over SSH within %s", vmSSHTimeout)
-	return nil
+	return vm
 }
 
-// sshArgs returns deliberately isolated SSH client settings:
-//
-//   - no user or machine-wide SSH configuration is loaded;
-//   - password prompts are forbidden;
-//   - the disposable test host is not written to known_hosts;
-//   - routine first-connection warnings are suppressed so sshRun can return
-//     clean command output, including JSON.
-func (vm *koboVM) sshArgs() []string {
-	return []string{
-		"-F", "/dev/null",
-		"-i", vm.sshKey,
-		"-p", strconv.Itoa(vm.sshPort),
-		"-o", "BatchMode=yes",
-		"-o", "ConnectTimeout=2",
-		"-o", "LogLevel=ERROR",
-		"-o", "StrictHostKeyChecking=no",
-		"-o", "UserKnownHostsFile=/dev/null",
-	}
-}
-
-// sshRun executes a shell command as root in the guest and returns both stdout
-// and stderr. Combining them makes command failures self-contained; LogLevel
-// is kept at ERROR above so successful JSON output remains parseable.
-func (vm *koboVM) sshRun(command string) (string, error) {
-	args := append(vm.sshArgs(), "root@127.0.0.1", command)
-	output, err := exec.Command("ssh", args...).CombinedOutput()
-	return string(output), err
-}
-
-// mustRun is the assertion-oriented wrapper used once the VM is known to be
-// ready. Marking it as a helper points failures at the test call site.
-func (vm *koboVM) mustRun(command string) string {
+func (vm *koboVM) waitForSerial(marker string) string {
 	vm.t.Helper()
-	output, err := vm.sshRun(command)
-	if err != nil {
-		vm.t.Fatalf("guest command %q: %v\n%s", command, err, output)
+	deadline := time.Now().Add(vmSmokeTimeout)
+	for time.Now().Before(deadline) {
+		output, err := os.ReadFile(vm.serialPath)
+		if err != nil {
+			vm.t.Fatal(err)
+		}
+		if strings.Contains(string(output), marker) {
+			return string(output)
+		}
+		if vm.cmd.ProcessState != nil {
+			vm.t.Fatalf("QEMU exited before emitting %q", marker)
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
-	return output
+	vm.t.Fatalf("VM did not emit %q within %s", marker, vmSmokeTimeout)
+	return ""
 }
 
-// readeckURLFromVM translates TestMain's host-side Readeck URL into the URL
-// visible inside QEMU.
-//
-// Testcontainers publishes Readeck on a random localhost port. The port stays
-// the same across the boundary; only the hostname changes from the host's
-// loopback address to QEMU's 10.0.2.2 gateway.
 func readeckURLFromVM(t *testing.T) string {
 	t.Helper()
 	serverURL, err := url.Parse(config.Server.URL)
@@ -257,60 +343,48 @@ func readeckURLFromVM(t *testing.T) string {
 	return "http://" + net.JoinHostPort(qemuHostGatewayIP, port)
 }
 
-// shellQuote safely turns arbitrary data into one POSIX-shell argument. This is
-// important for the bearer token: it must be interpreted as header data, never
-// as guest shell syntax.
-func shellQuote(value string) string {
-	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
+func serialPayload(t *testing.T, output, begin, end string) string {
+	t.Helper()
+	start := strings.Index(output, begin)
+	if start < 0 {
+		t.Fatalf("serial output does not contain %q", begin)
+	}
+	start += len(begin)
+	finish := strings.Index(output[start:], end)
+	if finish < 0 {
+		t.Fatalf("serial output does not contain %q after %q", end, begin)
+	}
+	return strings.TrimSpace(output[start : start+finish])
 }
 
-// TestKoboVMReadeckAPISmoke verifies only the lowest useful integration layer:
-//
-//  1. the host-side Readeck container is healthy and authenticated;
-//  2. the ARM guest boots and receives QEMU networking;
-//  3. a raw HTTP client inside the guest can reach Readeck;
-//  4. Readeck accepts the bearer token and returns the expected bookmark.
-//
-// It intentionally does not build/install Kobodeck or exercise udev yet. That
-// keeps failures in this test attributable to VM boot or network topology.
 func TestKoboVMReadeckAPISmoke(t *testing.T) {
-	// Docker builds the Alpine rootfs on the host; it is not installed in the
-	// guest. The mkfs tools construct the two disk images consumed by QEMU.
-	for _, command := range []string{"docker", "mkfs.ext4", "mkfs.vfat", "qemu-system-arm", "ssh", "ssh-keygen"} {
+	for _, command := range []string{"cpio", "qemu-system-arm"} {
 		requireCommand(t, command)
 	}
 
-	// TestMain owns the isolated Readeck container on the host. Only its mapped
-	// HTTP endpoint is exposed to this Docker-free ARM guest through QEMU slirp.
+	// TestMain owns the isolated Readeck container. The bookmark proves the
+	// authenticated response came from that instance rather than a generic
+	// connectivity endpoint.
 	bookmarkID := createLoadedBookmark(t, testBookmarkURL)
-
-	// Everything generated for this VM is test-local and removed by Go's test
-	// cleanup. The private key never enters the repository or Docker image.
-	workDir := t.TempDir()
-	sshKey := filepath.Join(workDir, "id_ed25519")
-	runHostCommand(t, "ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", sshKey)
-	imageDir := filepath.Join(workDir, "image")
-	runHostCommand(t, "testvm/build-image.sh", imageDir, sshKey+".pub")
-
-	vm := startKoboVM(t, imageDir, sshKey)
-
-	// BusyBox wget is part of Alpine and provides the most direct possible
-	// smoke check: no Kobodeck code participates in this request.
 	apiURL := readeckURLFromVM(t) + "/api/bookmarks/" + bookmarkID
-	output := vm.mustRun(
-		"wget -qO- --header=" +
-			shellQuote("Authorization: Bearer "+config.Server.Token) + " " +
-			shellQuote(apiURL),
-	)
 
-	// Decode only the fields needed to prove we received the requested,
-	// fully-loaded bookmark rather than a proxy error or login page.
+	kernelPath, baseInitramfsPath := ensureNetbootArtifacts(t)
+	smokeInitramfsPath := buildSmokeInitramfs(
+		t,
+		baseInitramfsPath,
+		apiURL,
+		config.Server.Token,
+	)
+	vm := startKoboVM(t, kernelPath, smokeInitramfsPath)
+	serialOutput := vm.waitForSerial(smokeResponseEnd)
+	responseJSON := serialPayload(t, serialOutput, smokeResponseBegin, smokeResponseEnd)
+
 	var bookmark struct {
 		URL    string `json:"url"`
 		Loaded bool   `json:"loaded"`
 	}
-	if err := json.Unmarshal([]byte(output), &bookmark); err != nil {
-		t.Fatalf("decode Readeck API response from VM: %v\n%s", err, output)
+	if err := json.Unmarshal([]byte(responseJSON), &bookmark); err != nil {
+		t.Fatalf("decode Readeck API response from VM: %v\n%s", err, responseJSON)
 	}
 	if bookmark.URL != testBookmarkURL || !bookmark.Loaded {
 		t.Fatalf("unexpected Readeck API response from VM: %+v", bookmark)
