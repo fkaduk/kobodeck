@@ -1,16 +1,15 @@
-// This file contains the host-side controller for the minimal ARM system-VM
-// smoke test.
+// This file contains the host-side controller for the ARM system-VM release
+// test.
 //
 // Readeck still runs outside the guest in a host-side container owned directly
-// by TestKoboVMReadeckAPISmoke. The test uses the Docker CLI because managing
-// one disposable container does not justify a container SDK and its dependency
-// tree. The simulated Kobo is built entirely from Alpine's official, pinned
-// ARMv7 netboot kernel and initramfs. A tiny second initramfs archive supplies
-// init_vm.sh and the per-test Readeck URL/token.
+// by TestKoboVMEndToEnd. The test uses the Docker CLI because managing one
+// disposable container does not justify a container SDK and its dependency
+// tree. The simulated Kobo uses Alpine's official, pinned ARMv7 netboot kernel
+// and initramfs, the real release tarball, and a FAT32 onboard disk.
 //
-// There is intentionally no guest root disk, Docker-built ARM image, FAT
-// volume, eudev, or SSH server in this smoke test. Those belong in later tests
-// that actually need Kobo storage and udev behavior.
+// There is intentionally no guest root disk, Docker-built ARM image, or SSH
+// server. The writable initramfs installs eudev at runtime, while Go controls
+// setup and assertions through the serial console.
 package main
 
 import (
@@ -37,9 +36,12 @@ import (
 
 const (
 	alpineNetbootBaseURL = "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/armv7/netboot-3.24.1"
-	artifactCacheDir     = ".cache/kobodeck-testvm"
-	qemuHostGatewayIP    = "10.0.2.2"
-	vmSmokeTimeout       = 60 * time.Second
+	// APK verifies the repository signatures. HTTP avoids depending on the
+	// intentionally tiny netboot initramfs having a current TLS trust store.
+	alpineRepositoryURL = "http://dl-cdn.alpinelinux.org/alpine/v3.24/main"
+	artifactCacheDir    = ".cache/kobodeck-testvm"
+	qemuHostGatewayIP   = "10.0.2.2"
+	vmTestTimeout       = 2 * time.Minute
 
 	vmReadyMarker       = "KOBODECK_VM_READY"
 	commandResultMarker = "KOBODECK_VM_COMMAND_DONE"
@@ -48,6 +50,10 @@ const (
 	testAdminUser  = "testadmin"
 	testAdminPass  = "testpass123"
 	testAdminEmail = "testadmin@test.invalid"
+
+	testArticleURL       = "https://example.com"
+	testFavouriteShelf   = "VM Favourites"
+	testOnboardImageSize = 128 << 20
 )
 
 var bearerRegexp = regexp.MustCompile(`value="Authorization: Bearer ([^"]+)"`)
@@ -68,6 +74,12 @@ var alpineNetbootArtifacts = []struct {
 	},
 }
 
+type hostReadeckServer struct {
+	hostURL string
+	vmURL   string
+	token   string
+}
+
 // docker runs the Docker CLI while keeping stdout separate from progress output
 // written to stderr. This matters on the first run: pulling an absent image
 // must not be mistaken for part of the container ID or port mapping.
@@ -85,7 +97,7 @@ func docker(ctx context.Context, args ...string) (string, error) {
 // startHostReadeckServer owns the complete external-service lifecycle. The
 // health loop completes before user/token setup and before QEMU can start, so
 // the guest can never race an unready Readeck process.
-func startHostReadeckServer(t *testing.T) (apiURL, token string) {
+func startHostReadeckServer(t *testing.T) *hostReadeckServer {
 	t.Helper()
 	ctx := t.Context()
 	containerID, err := docker(
@@ -137,11 +149,15 @@ func startHostReadeckServer(t *testing.T) (apiURL, token string) {
 		t.Fatalf("parse Readeck port mapping %q", mapping)
 	}
 
-	token, err = bootstrapToken("http://127.0.0.1:" + port)
+	server := &hostReadeckServer{
+		hostURL: "http://127.0.0.1:" + port,
+		vmURL:   fmt.Sprintf("http://%s:%s", qemuHostGatewayIP, port),
+	}
+	server.token, err = bootstrapToken(server.hostURL)
 	if err != nil {
 		t.Fatalf("bootstrap Readeck API token: %v", err)
 	}
-	return fmt.Sprintf("http://%s:%s/api/bookmarks", qemuHostGatewayIP, port), token
+	return server
 }
 
 // bootstrapToken uses Readeck's web session because current Readeck versions
@@ -177,6 +193,74 @@ func bootstrapToken(baseURL string) (string, error) {
 		return "", fmt.Errorf("token not found in Readeck profile page")
 	}
 	return string(matches[1]), nil
+}
+
+func (server *hostReadeckServer) apiRequest(
+	t *testing.T,
+	method, path string,
+	body io.Reader,
+) *http.Response {
+	t.Helper()
+	request, err := http.NewRequestWithContext(t.Context(), method, server.hostURL+path, body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Authorization", "Bearer "+server.token)
+	if body != nil {
+		request.Header.Set("Content-Type", "application/json")
+	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatalf("Readeck %s %s: %v", method, path, err)
+	}
+	return response
+}
+
+type testBookmarkState struct {
+	Loaded     bool `json:"loaded"`
+	IsArchived bool `json:"is_archived"`
+	IsMarked   bool `json:"is_marked"`
+}
+
+func (server *hostReadeckServer) bookmarkState(t *testing.T, id string) testBookmarkState {
+	t.Helper()
+	response := server.apiRequest(t, http.MethodGet, "/api/bookmarks/"+id, nil)
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("get Readeck bookmark %s: HTTP %s", id, response.Status)
+	}
+	var state testBookmarkState
+	if err := json.NewDecoder(response.Body).Decode(&state); err != nil {
+		t.Fatalf("decode Readeck bookmark %s: %v", id, err)
+	}
+	return state
+}
+
+func (server *hostReadeckServer) createLoadedBookmark(t *testing.T, articleURL string) string {
+	t.Helper()
+	body, err := json.Marshal(map[string]string{"url": articleURL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := server.apiRequest(t, http.MethodPost, "/api/bookmarks", bytes.NewReader(body))
+	response.Body.Close()
+	if response.StatusCode != http.StatusAccepted {
+		t.Fatalf("create Readeck bookmark: HTTP %s", response.Status)
+	}
+	id := response.Header.Get("Bookmark-Id")
+	if id == "" {
+		t.Fatal("create Readeck bookmark: missing Bookmark-Id header")
+	}
+
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		if server.bookmarkState(t, id).Loaded {
+			return id
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	t.Fatalf("Readeck bookmark %s did not load within 30 seconds", id)
+	return ""
 }
 
 func requireCommand(t *testing.T, name string) {
@@ -233,19 +317,60 @@ func ensureNetbootArtifacts(t *testing.T) (kernelPath, initramfsPath string) {
 		filepath.Join(artifactCacheDir, "initramfs-lts")
 }
 
+func buildReleaseTarball(t *testing.T) string {
+	t.Helper()
+	command := exec.CommandContext(t.Context(), "make", "tarball")
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build release tarball: %v\n%s", err, output)
+	}
+	path, err := filepath.Abs(filepath.Join("build", "KoboRoot.tgz"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func createOnboardDisk(t *testing.T) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "onboard.fat")
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := file.Truncate(testOnboardImageSize); err != nil {
+		file.Close()
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+	output, err := exec.CommandContext(t.Context(), "mkfs.vfat", path).CombinedOutput()
+	if err != nil {
+		t.Fatalf("format FAT32 onboard disk: %v\n%s", err, output)
+	}
+	return path
+}
+
 // buildVMInitramfs appends a gzip-compressed "newc" cpio archive to Alpine's
 // initramfs. Linux supports a sequence of compressed cpio members, so the
-// official archive remains byte-for-byte unchanged and our overlay adds only:
-//
-//   - /init_vm.sh
-//   - /etc/kobodeck-smoke/url
-//   - /etc/kobodeck-smoke/token
-func buildVMInitramfs(t *testing.T, basePath, apiURL, token string) string {
+// official archive remains byte-for-byte unchanged. The overlay carries the
+// VM controller, the real release tarball, its test configuration, and the
+// Alpine repository used to install eudev and sqlite in the guest.
+func buildVMInitramfs(
+	t *testing.T,
+	basePath, releasePath string,
+	server *hostReadeckServer,
+) string {
 	t.Helper()
 	workDir := t.TempDir()
 	overlayDir := filepath.Join(workDir, "overlay")
-	configDir := filepath.Join(overlayDir, "etc", "kobodeck-smoke")
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
+	testDir := filepath.Join(overlayDir, "test")
+	apkDir := filepath.Join(overlayDir, "etc", "apk")
+	if err := os.MkdirAll(testDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(apkDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -256,14 +381,48 @@ func buildVMInitramfs(t *testing.T, basePath, apiURL, token string) string {
 	if err := os.WriteFile(filepath.Join(overlayDir, "init_vm.sh"), initScript, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(configDir, "url"), []byte(apiURL+"\n"), 0o600); err != nil {
+	release, err := os.ReadFile(releasePath)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(configDir, "token"), []byte(token+"\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(testDir, "KoboRoot.tgz"), release, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	config := fmt.Sprintf(`[Server]
+URL = %q
+Token = %q
+Timeout = 30
+
+[Fetch]
+Workers = 1
+Limit = 0
+Labels = ""
+Status = ""
+
+[Sync]
+Archive = true
+FavouriteCollection = %q
+
+[Log]
+Verbose = false
+Size = 1
+
+[Output]
+Path = "/mnt/onboard/kobodeck"
+Delete = false
+`, server.vmURL, server.token, testFavouriteShelf)
+	if err := os.WriteFile(filepath.Join(testDir, "kobodeck.toml"), []byte(config), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(
+		filepath.Join(apkDir, "repositories"),
+		[]byte(alpineRepositoryURL+"\n"),
+		0o644,
+	); err != nil {
 		t.Fatal(err)
 	}
 
-	combinedPath := filepath.Join(workDir, "initramfs-smoke")
+	combinedPath := filepath.Join(workDir, "initramfs-test")
 	base, err := os.ReadFile(basePath)
 	if err != nil {
 		t.Fatal(err)
@@ -282,9 +441,11 @@ func buildVMInitramfs(t *testing.T, basePath, apiURL, token string) string {
 	cpio.Stdin = strings.NewReader(strings.Join([]string{
 		"init_vm.sh",
 		"etc",
-		"etc/kobodeck-smoke",
-		"etc/kobodeck-smoke/url",
-		"etc/kobodeck-smoke/token",
+		"etc/apk",
+		"etc/apk/repositories",
+		"test",
+		"test/KoboRoot.tgz",
+		"test/kobodeck.toml",
 	}, "\n") + "\n")
 	cpio.Stdout = gzipWriter
 	var cpioStderr bytes.Buffer
@@ -320,7 +481,7 @@ type koboVM struct {
 	closed     bool
 }
 
-func startKoboVM(t *testing.T, kernelPath, initramfsPath string) *koboVM {
+func startKoboVM(t *testing.T, kernelPath, initramfsPath, onboardPath string) *koboVM {
 	t.Helper()
 	args := []string{
 		"-machine", "virt",
@@ -336,8 +497,10 @@ func startKoboVM(t *testing.T, kernelPath, initramfsPath string) *koboVM {
 		"-append", "console=ttyAMA0 rdinit=/init_vm.sh",
 		"-netdev", "user,id=net0",
 		"-device", "virtio-net-device,netdev=net0",
+		"-drive", "file=" + onboardPath + ",format=raw,if=none,id=onboard",
+		"-device", "virtio-blk-device,drive=onboard",
 	}
-	ctx, cancel := context.WithTimeout(t.Context(), vmSmokeTimeout)
+	ctx, cancel := context.WithTimeout(t.Context(), vmTestTimeout)
 	command := exec.CommandContext(ctx, "qemu-system-arm", args...)
 	stdin, err := command.StdinPipe()
 	if err != nil {
@@ -434,35 +597,146 @@ func (vm *koboVM) shutdown() {
 	vm.transcript.Write(remaining)
 	err := vm.command.Wait()
 	vm.cancel()
-	if err != nil && vm.ctx.Err() != context.DeadlineExceeded {
+	if err != nil && !vm.t.Failed() && vm.ctx.Err() != context.DeadlineExceeded {
 		vm.t.Errorf("QEMU failed: %v\n%s\n%s", err, vm.transcript.String(), vm.stderr.String())
 	}
 }
 
-func TestKoboVMReadeckAPISmoke(t *testing.T) {
-	for _, command := range []string{"cpio", "docker", "qemu-system-arm"} {
+const guestLogPath = "/mnt/onboard/.adds/kobodeck/kobodeck.log"
+
+func runKobodeckSync(vm *koboVM, reconnect bool) string {
+	vm.t.Helper()
+	remove := ""
+	if reconnect {
+		remove = "udevadm trigger --action=remove /sys/class/net/wlan0; sleep 1; "
+	}
+	vm.run(remove +
+		"log=" + guestLogPath + "; " +
+		"before=0; [ ! -f \"$log\" ] || before=$(grep -c ' completed in ' \"$log\"); " +
+		"udevadm trigger --action=add /sys/class/net/wlan0; " +
+		"waited=0; while :; do " +
+		"current=0; [ ! -f \"$log\" ] || current=$(grep -c ' completed in ' \"$log\"); " +
+		"[ \"$current\" -gt \"$before\" ] && break; " +
+		"waited=$((waited + 1)); [ \"$waited\" -lt 60 ] || exit 1; sleep 1; " +
+		"done",
+	)
+	return vm.run("cat " + guestLogPath)
+}
+
+func logSince(t *testing.T, previous, current string) string {
+	t.Helper()
+	if !strings.HasPrefix(current, previous) {
+		t.Fatal("Kobodeck log was unexpectedly replaced or truncated")
+	}
+	return current[len(previous):]
+}
+
+func requireLogContains(t *testing.T, logText string, fragments ...string) {
+	t.Helper()
+	for _, fragment := range fragments {
+		if !strings.Contains(logText, fragment) {
+			t.Fatalf("Kobodeck log does not contain %q:\n%s", fragment, logText)
+		}
+	}
+}
+
+func requireCleanLog(t *testing.T, logText string) {
+	t.Helper()
+	lower := strings.ToLower(logText)
+	for _, fragment := range []string{"error", "failed", "panic"} {
+		if strings.Contains(lower, fragment) {
+			t.Fatalf("Kobodeck log contains %q:\n%s", fragment, logText)
+		}
+	}
+}
+
+func TestKoboVMEndToEnd(t *testing.T) {
+	for _, command := range []string{"cpio", "docker", "make", "mkfs.vfat", "qemu-system-arm"} {
 		requireCommand(t, command)
 	}
 
-	// The VM test owns Readeck and waits for both its healthcheck and the loaded
-	// API token before constructing or starting the guest.
-	apiURL, token := startHostReadeckServer(t)
-
+	server := startHostReadeckServer(t)
+	bookmarkID := server.createLoadedBookmark(t, testArticleURL)
+	releasePath := buildReleaseTarball(t)
 	kernelPath, baseInitramfsPath := ensureNetbootArtifacts(t)
-	initramfsPath := buildVMInitramfs(t, baseInitramfsPath, apiURL, token)
-	vm := startKoboVM(t, kernelPath, initramfsPath)
-	responseJSON := vm.run(
-		`api_url=$(cat /etc/kobodeck-smoke/url); ` +
-			`token=$(cat /etc/kobodeck-smoke/token); ` +
-			`wget -qO- --header="Authorization: Bearer $token" "$api_url"`,
+	initramfsPath := buildVMInitramfs(t, baseInitramfsPath, releasePath, server)
+	onboardPath := createOnboardDisk(t)
+	vm := startKoboVM(t, kernelPath, initramfsPath, onboardPath)
+
+	vm.run(
+		"modprobe -a virtio_blk fat vfat nls_cp437 nls_iso8859_1; " +
+			"mdev -s; mkdir -p /mnt/onboard; mount -t vfat /dev/vda /mnt/onboard; " +
+			"mount | grep -q ' on /mnt/onboard type vfat '",
+	)
+	vm.run("apk add --initdb eudev sqlite")
+	vm.run(
+		"tar -xzf /test/KoboRoot.tgz -C /; " +
+			"mkdir -p /mnt/onboard/.adds/kobodeck /mnt/onboard/.kobo; " +
+			"cp /test/kobodeck.toml /mnt/onboard/.adds/kobodeck/kobodeck.toml; " +
+			"sqlite3 /mnt/onboard/.kobo/KoboReader.sqlite " +
+			"\"CREATE TABLE content (ContentID TEXT, ContentType INTEGER, ReadStatus INTEGER); " +
+			"CREATE TABLE Shelf (InternalName TEXT, Name TEXT, _IsDeleted TEXT); " +
+			"CREATE TABLE ShelfContent (ShelfName TEXT, ContentId TEXT, _IsDeleted TEXT);\"; " +
+			"touch /tmp/nickel-hardware-status",
+	)
+	vm.run(
+		"ip link set eth0 down; ip link set eth0 name wlan0; ip link set wlan0 up; " +
+			"mkdir -p /run/udev; udevd --daemon; udevadm control --reload-rules",
 	)
 
-	var bookmarks []json.RawMessage
-	if err := json.Unmarshal([]byte(responseJSON), &bookmarks); err != nil {
-		t.Fatalf("decode Readeck API response from VM: %v\n%s", err, responseJSON)
+	firstLog := runKobodeckSync(vm, false)
+	requireCleanLog(t, firstLog)
+	requireLogContains(t, firstLog, "downloading ", "converted to ", "triggering Nickel rescan")
+	downloadPath := fmt.Sprintf("/mnt/onboard/kobodeck/%s.kepub.epub", bookmarkID)
+	vm.run("[ -s " + downloadPath + " ]")
+	nickelEvents := vm.run("cat /tmp/nickel-hardware-status")
+	requireLogContains(t, nickelEvents, "usb plug add", "usb plug remove")
+
+	contentID := "file://" + downloadPath
+	vm.run(fmt.Sprintf(
+		"sqlite3 /mnt/onboard/.kobo/KoboReader.sqlite "+
+			"\"INSERT INTO content VALUES ('%s', 6, 2); "+
+			"INSERT INTO Shelf VALUES ('vm-favourites', '%s', 'false'); "+
+			"INSERT INTO ShelfContent VALUES ('vm-favourites', '%s', 'false');\"",
+		contentID,
+		testFavouriteShelf,
+		contentID,
+	))
+
+	secondLog := runKobodeckSync(vm, true)
+	secondRun := logSince(t, firstLog, secondLog)
+	requireCleanLog(t, secondRun)
+	requireLogContains(
+		t,
+		secondRun,
+		"marking entry "+bookmarkID+" as archived",
+		"marking entry "+bookmarkID+" as favourite",
+	)
+	if strings.Contains(secondRun, "downloading ") {
+		t.Fatalf("second connection downloaded the article again:\n%s", secondRun)
 	}
-	if bookmarks == nil {
-		t.Fatal("Readeck bookmark API returned null instead of a JSON array")
+	state := server.bookmarkState(t, bookmarkID)
+	if !state.IsArchived || !state.IsMarked {
+		t.Fatalf("unexpected Readeck state after second connection: %+v", state)
+	}
+
+	thirdLog := runKobodeckSync(vm, true)
+	thirdRun := logSince(t, secondLog, thirdLog)
+	requireCleanLog(t, thirdRun)
+	for _, unwanted := range []string{"downloading ", "marking entry "} {
+		if strings.Contains(thirdRun, unwanted) {
+			t.Fatalf("third connection unexpectedly contains %q:\n%s", unwanted, thirdRun)
+		}
+	}
+	if strings.Count(thirdLog, "downloading ") != 1 ||
+		strings.Count(thirdLog, " as archived") != 1 ||
+		strings.Count(thirdLog, " as favourite") != 1 {
+		t.Fatalf("unexpected operation counts after three connections:\n%s", thirdLog)
+	}
+	vm.run("[ -s " + downloadPath + " ]")
+	state = server.bookmarkState(t, bookmarkID)
+	if !state.IsArchived || !state.IsMarked {
+		t.Fatalf("unexpected final Readeck state: %+v", state)
 	}
 	vm.shutdown()
 }

@@ -17,6 +17,7 @@ fail() {
 mount -t devtmpfs devtmpfs /dev || fail "mount devtmpfs"
 mount -t proc proc /proc || fail "mount proc"
 mount -t sysfs sysfs /sys || fail "mount sysfs"
+mkdir -p /tmp
 
 modprobe -a virtio_mmio virtio_net af_packet || fail "load network modules"
 mdev -s

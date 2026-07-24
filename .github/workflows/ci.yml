@@ -28,14 +28,14 @@ jobs:
           go-version-file: go.mod
           cache: true
       - name: Install system-emulation tools
-        run: sudo apt-get update && sudo apt-get install -y qemu-system-arm cpio
+        run: sudo apt-get update && sudo apt-get install -y qemu-system-arm cpio dosfstools
       - uses: actions/cache@v4
         with:
           path: .cache/kobodeck-testvm
           key: kobodeck-testvm-${{ runner.os }}-${{ hashFiles('vm_test.go', 'init_vm.sh') }}
           restore-keys: |
             kobodeck-testvm-${{ runner.os }}-
-      - name: Smoke-test ARM VM against host-side Readeck
+      - name: Run ARM VM end-to-end release test
         run: make test-vm
 
   build:
