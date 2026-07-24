@@ -156,6 +156,7 @@ func main() {
 	}
 
 	valid := make(map[string]bool)
+	bookmarks := make(map[string]readeckBookmark)
 	tags := make(map[string]bool)
 	if len(config.Fetch.Labels) > 0 {
 		for _, tag := range strings.Split(strings.ToLower(config.Fetch.Labels), ",") {
@@ -167,6 +168,7 @@ func main() {
 	g.SetLimit(config.Fetch.Workers)
 
 	for _, entry := range entries {
+		bookmarks[entry.ID] = entry
 		if len(tags) > 0 && !matchesLabelFilter(tags, entry.Labels) {
 			debugf("skipping %s (not in tags)", entry.ID)
 			continue
@@ -188,7 +190,7 @@ done:
 		log.Println("download error:", err)
 	}
 
-	reconcileLocalFiles(client, config, valid)
+	reconcileLocalFiles(client, config, valid, bookmarks)
 
 	if config.Log.Verbose {
 		fds := listOpenFds()
@@ -384,12 +386,17 @@ func runCheck(w io.Writer) error {
 	return nil
 }
 
-// reconcileLocalFiles checks each local EPUB against the Nickel DB and the valid
-// set. Books marked as read in Nickel are archived in Readeck. Books in the
-// configured FavouriteCollection shelf are marked as favourite. Books no longer
-// in the fetched feed are deleted if cfg.Output.Delete is set, unless currently
-// being read.
-func reconcileLocalFiles(client *http.Client, cfg appConfig, valid map[string]bool) {
+// reconcileLocalFiles checks each local EPUB against the Nickel DB and Readeck.
+// Books marked as read in Nickel are archived. When FavouriteCollection is
+// configured, Readeck favourite state mirrors Kobo shelf membership, including
+// for archived bookmarks. Books no longer in the fetched feed are deleted if
+// cfg.Output.Delete is set, unless currently being read.
+func reconcileLocalFiles(
+	client *http.Client,
+	cfg appConfig,
+	valid map[string]bool,
+	bookmarks map[string]readeckBookmark,
+) {
 	outputDir := strings.TrimSuffix(cfg.Output.Path, "/")
 	files, _ := filepath.Glob(outputDir + "/*.epub")
 	debugf("local files to inspect: %v", files)
@@ -412,10 +419,13 @@ func reconcileLocalFiles(client *http.Client, cfg appConfig, valid map[string]bo
 		}
 		status, statusErr := nickelReadStatus(db, uid, outputDir)
 		var inCollection bool
+		collectionKnown := cfg.Sync.FavouriteCollection == ""
 		if cfg.Sync.FavouriteCollection != "" {
 			inCollection, err = nickelIsInCollection(db, uid, outputDir, cfg.Sync.FavouriteCollection)
 			if err != nil {
 				log.Println("failed to check collection:", err)
+			} else {
+				collectionKnown = true
 			}
 		}
 		db.Close()
@@ -432,10 +442,24 @@ func reconcileLocalFiles(client *http.Client, cfg appConfig, valid map[string]bo
 				valid[uid] = false
 			}
 		}
-		if inCollection && wasValid {
-			log.Printf("marking entry %s as favourite", uid)
-			if err = patchBookmark(client, uid, map[string]bool{"is_marked": true}); err != nil {
-				log.Println("failed to mark as favourite:", err)
+		bookmark, bookmarkKnown := bookmarks[uid]
+		if collectionKnown && cfg.Sync.FavouriteCollection != "" && !bookmarkKnown {
+			bookmark, err = getBookmark(client, uid)
+			if err != nil {
+				log.Printf("cannot read Readeck favourite state for %s: %v", uid, err)
+			} else {
+				bookmarkKnown = true
+			}
+		}
+		if collectionKnown && bookmarkKnown && cfg.Sync.FavouriteCollection != "" &&
+			inCollection != bookmark.IsMarked {
+			action := "marking"
+			if !inCollection {
+				action = "unmarking"
+			}
+			log.Printf("%s entry %s as favourite", action, uid)
+			if err = patchBookmark(client, uid, map[string]bool{"is_marked": inCollection}); err != nil {
+				log.Printf("failed to set favourite state to %t: %v", inCollection, err)
 			}
 		}
 		if cfg.Output.Delete && !valid[uid] {
