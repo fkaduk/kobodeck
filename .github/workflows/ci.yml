@@ -32,7 +32,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: .cache/kobodeck-testvm
-          key: kobodeck-testvm-${{ runner.os }}-${{ hashFiles('vm_test.go', 'testvm/**') }}
+          key: kobodeck-testvm-${{ runner.os }}-${{ hashFiles('vm_test.go', 'init_vm.sh') }}
           restore-keys: |
             kobodeck-testvm-${{ runner.os }}-
       - name: Smoke-test ARM VM against host-side Readeck
