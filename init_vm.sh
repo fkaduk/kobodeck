@@ -2,7 +2,6 @@
 set -u
 
 busybox=/bin/busybox
-
 "$busybox" --install -s
 export PATH=/usr/bin:/bin:/usr/sbin:/sbin
 
@@ -21,18 +20,14 @@ mkdir -p /tmp
 
 modprobe -a virtio_mmio virtio_net af_packet || fail "load network modules"
 mdev -s
-
 ip link set lo up || fail "enable loopback"
 ip link set eth0 up || fail "enable eth0"
 udhcpc -q -n -t 10 -i eth0 -s /usr/share/udhcpc/default.script ||
 	fail "obtain DHCP lease"
 
-# Go controls every test through this serial shell. Turning terminal echo off
-# keeps commands (and any credentials they reference) out of the captured log.
 stty -echo || fail "disable serial echo"
 echo "KOBODECK_VM_READY"
 /bin/sh -c 'while IFS= read -r command; do eval "$command"; done'
 
-# The Go test ends the command shell with "exit" after its assertions finish.
 poweroff -f
 fail "power off"
