@@ -399,6 +399,12 @@ func reconcileLocalFiles(client *http.Client, cfg appConfig, valid map[string]bo
 			log.Println("skipping file with empty name:", file)
 			continue
 		}
+		// Keep the feed membership from the beginning of this reconciliation.
+		// Archiving below removes the entry from valid, but it must still be
+		// favourited during this same run. On the next run an archived entry is
+		// absent from the feed, so this also avoids sending the same favourite
+		// PATCH on every Wi-Fi connection.
+		wasValid := valid[uid]
 		db, err := openNickelDB()
 		if err != nil {
 			log.Println("cannot open Nickel DB:", err)
@@ -418,7 +424,7 @@ func reconcileLocalFiles(client *http.Client, cfg appConfig, valid map[string]bo
 			log.Println(statusErr)
 			continue
 		}
-		if cfg.Sync.Archive && status == bookRead && valid[uid] {
+		if cfg.Sync.Archive && status == bookRead && wasValid {
 			log.Printf("marking entry %s as archived", uid)
 			if err = patchBookmark(client, uid, map[string]bool{"is_archived": true}); err != nil {
 				log.Println("failed to mark as read:", err)
@@ -426,7 +432,7 @@ func reconcileLocalFiles(client *http.Client, cfg appConfig, valid map[string]bo
 				valid[uid] = false
 			}
 		}
-		if inCollection {
+		if inCollection && wasValid {
 			log.Printf("marking entry %s as favourite", uid)
 			if err = patchBookmark(client, uid, map[string]bool{"is_marked": true}); err != nil {
 				log.Println("failed to mark as favourite:", err)
