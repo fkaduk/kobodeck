@@ -109,8 +109,6 @@ func startHostReadeckServer(t *testing.T) *hostReadeckServer {
 
 	deadline := time.Now().Add(60 * time.Second)
 	for {
-		// Readeck's own command checks more than an open TCP socket. Waiting on it
-		// is preferable to sleeping for an arbitrary startup duration.
 		if _, err = docker(ctx, "exec", containerID, "readeck", "healthcheck"); err == nil {
 			break
 		}
@@ -133,8 +131,6 @@ func startHostReadeckServer(t *testing.T) *hostReadeckServer {
 		t.Fatalf("create Readeck admin user: %v", err)
 	}
 
-	// Ask Docker for the random host port rather than inspecting internal
-	// container networking, which is intentionally irrelevant to the guest.
 	mapping, err := docker(ctx, "port", containerID, "8000/tcp")
 	if err != nil {
 		t.Fatalf("get Readeck mapped port: %v", err)
@@ -157,8 +153,7 @@ func startHostReadeckServer(t *testing.T) *hostReadeckServer {
 
 // bootstrapToken uses Readeck's web session because Readeck 0.22.3 has no
 // token-creation CLI command. The cookie jar reproduces the two browser steps:
-// login, then submit the API-token form. Parsing HTML is less attractive than a
-// public API, which is why the image is pinned and failure is explicit.
+// login, then submit the API-token form.
 func bootstrapToken(baseURL string) (string, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
@@ -192,14 +187,15 @@ func bootstrapToken(baseURL string) (string, error) {
 	return string(matches[1]), nil
 }
 
+// apiRequest sends an authenticated host-side request to Readeck.
+// It is used only to arrange fixtures and verify final server state; requests
+// whose origin matters to the end-to-end behavior are issued by the ARM guest.
 func (server *hostReadeckServer) apiRequest(
 	t *testing.T,
 	method, path string,
 	body io.Reader,
 ) *http.Response {
 	t.Helper()
-	// Host-side API calls arrange test state and verify results. The behavior
-	// under test still originates in the ARM guest through server.vmURL.
 	request, err := http.NewRequestWithContext(t.Context(), method, server.hostURL+path, body)
 	if err != nil {
 		t.Fatal(err)
@@ -215,14 +211,13 @@ func (server *hostReadeckServer) apiRequest(
 	return response
 }
 
-// Only fields asserted by this test are decoded. Depending on Readeck's full
-// response schema would make harmless upstream additions irrelevant noise.
 type testBookmarkState struct {
 	Loaded     bool `json:"loaded"`
 	IsArchived bool `json:"is_archived"`
 	IsMarked   bool `json:"is_marked"`
 }
 
+// bookmarkState retrieves the Readeck fields asserted by the test for id.
 func (server *hostReadeckServer) bookmarkState(t *testing.T, id string) testBookmarkState {
 	t.Helper()
 	response := server.apiRequest(t, http.MethodGet, "/api/bookmarks/"+id, nil)
@@ -237,6 +232,8 @@ func (server *hostReadeckServer) bookmarkState(t *testing.T, id string) testBook
 	return state
 }
 
+// createLoadedBookmark creates a Readeck bookmark and waits until its article
+// has been fetched and converted, returning the bookmark ID.
 func (server *hostReadeckServer) createLoadedBookmark(t *testing.T, articleURL string) string {
 	t.Helper()
 	body, err := json.Marshal(map[string]string{"url": articleURL})
@@ -253,9 +250,6 @@ func (server *hostReadeckServer) createLoadedBookmark(t *testing.T, articleURL s
 		t.Fatal("create Readeck bookmark: missing Bookmark-Id header")
 	}
 
-	// Bookmark creation is asynchronous: HTTP 202 means queued, not ready for an
-	// EPUB download. Poll the resource's Loaded flag before booting the VM.
-	// Waiting here keeps later guest failures attributable to Kobodeck itself.
 	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
 		if server.bookmarkState(t, id).Loaded {
@@ -267,18 +261,16 @@ func (server *hostReadeckServer) createLoadedBookmark(t *testing.T, articleURL s
 	return ""
 }
 
+// requireCommand fails immediately when a required host executable is absent.
 func requireCommand(t *testing.T, name string) {
 	t.Helper()
-	// Fail at the start with a useful prerequisite message instead of much later
-	// with exec.ErrNotFound after Readeck and temporary artifacts already exist.
 	if _, err := exec.LookPath(name); err != nil {
 		t.Fatalf("required command %q was not found: %v", name, err)
 	}
 }
 
+// fileHasSHA256 reports whether path exists and has the expected SHA-256 hash.
 func fileHasSHA256(path, wantHash string) bool {
-	// The two netboot files total only a few megabytes, so reading them into
-	// memory is simpler than maintaining streaming hash and temporary-file code.
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return false
@@ -287,12 +279,6 @@ func fileHasSHA256(path, wantHash string) bool {
 }
 
 // ensureNetbootArtifacts downloads each pinned Alpine artifact at most once.
-// The files are small enough to verify in memory. If a download is interrupted,
-// its hash fails and the next run simply downloads it again.
-//
-// Downloading official netboot artifacts avoids maintaining a custom VM image.
-// Hash pinning retains reproducibility and prevents a mirror-side replacement
-// from silently changing the kernel/userspace being tested.
 func ensureNetbootArtifacts(t *testing.T) (kernelPath, initramfsPath string) {
 	t.Helper()
 	if err := os.MkdirAll(artifactCacheDir, 0o755); err != nil {
@@ -332,10 +318,7 @@ func ensureNetbootArtifacts(t *testing.T) (kernelPath, initramfsPath string) {
 }
 
 // buildReleaseTarball intentionally invokes the public release target instead
-// of compiling an ARM binary directly in the test. This covers the packaging
-// paths, permissions, udev rule, cross-compilation flags, and exact archive that
-// users install. Reimplementing tarball creation here would test a parallel
-// artifact rather than the release.
+// of compiling an ARM binary directly in the test.
 func buildReleaseTarball(t *testing.T) string {
 	t.Helper()
 	command := exec.CommandContext(t.Context(), "make", "tarball")
@@ -351,10 +334,6 @@ func buildReleaseTarball(t *testing.T) string {
 }
 
 // createOnboardDisk creates the storage Nickel exposes as /mnt/onboard.
-//
-// A host directory shared with 9p/virtiofs would be easier to inspect, but it
-// would use Linux filesystem semantics. FAT32 catches the actual filename,
-// permission, and rename behavior seen by Kobodeck on a physical device.
 func createOnboardDisk(t *testing.T) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "onboard.fat")
@@ -532,6 +511,8 @@ type koboVM struct {
 	closed     bool
 }
 
+// startKoboVM starts QEMU, connects its serial pipes, and waits until the guest
+// has configured networking and is ready to accept commands.
 func startKoboVM(t *testing.T, kernelPath, initramfsPath, onboardPath string) *koboVM {
 	t.Helper()
 	// "virt" is QEMU's generic ARM platform rather than a specific Kobo board.
@@ -738,6 +719,7 @@ func logSince(t *testing.T, previous, current string) string {
 	return current[len(previous):]
 }
 
+// requireLogContains fails unless logText contains every requested fragment.
 func requireLogContains(t *testing.T, logText string, fragments ...string) {
 	t.Helper()
 	for _, fragment := range fragments {
@@ -760,6 +742,8 @@ func requireCleanLog(t *testing.T, logText string) {
 	}
 }
 
+// TestKoboVMEndToEnd automates the README release checklist against the real
+// ARMv7 release artifact, a host-side Readeck, and Kobo-like FAT32 storage.
 func TestKoboVMEndToEnd(t *testing.T) {
 	// Check every host prerequisite before starting Docker or downloading/building
 	// anything. sqlite runs inside the guest and is installed through apk.
