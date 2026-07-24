@@ -52,11 +52,8 @@ the files are already downloaded either way.
 To add an article as favorite on readeck,
 add it to the Kobo collection you set in the configuration
 and wait or retrigger kobodeck by switching device wifi off and on again.
+The same works for removing favourites.
 
-To remove a favourit article:
-
-1. remove the article from your favorite collection on the kobo
-2. unmark article as favorite on readeck
 
 ## prerequisites
 
@@ -129,8 +126,6 @@ tests that exact artifact in the VM.
 - Already downloaded articles are never re-downloaded, even if the local file
   is corrupted or unreadable. To force a re-download, delete the file from
   `.adds/kobodeck/` manually.
-- Removing an article from the favourite collection on device does not un-favourite
-  it in Readeck — favouriting is one-way (kobodeck never sends `is_marked: false`).
 - Un-archiving an article in Readeck does not restore it to the device, because
   the local file already exists and re-downloads are never triggered.
 
