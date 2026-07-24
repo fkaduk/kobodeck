@@ -112,38 +112,22 @@ Check the Makefile for common operations.
 
 ### testing
 
-There are currently no unit or integration tests.
+Due to kobodeck's simplicity and high integration -
+it only works with readeck and on kobo devices - 
+the focus is on e2e testing.
 
-Instead, an e2e test simulates a Kobo device in a VM (ARMv7 QEMU system)
-and asserts the main functionality of kobodeck works.
+A Kobo device is simulated in a VM (ARMv7 QEMU)
+and the main functionality is tested.
 
 To run it, install the necessary dependencies
-(QEMU, docker)
+(QEMU, Docker, `cpio`, and `dosfstools`)
 and execute the usual `go test`.
 
-### manual testing before release
-
-- add a new article to Readeck
-- build `KoboRoot.tgz`
-  - no errors
-- install on device, connect wifi
-  - article downloaded
-- mark article as read, add to favorite collection, reconnect
-  - article archived in Readeck
-  - article favourited
-- reconnect again
-- check the logs
-  - first connect: article downloaded, no errors
-  - second connect: article archived, article favourited, no errors
-  - third connect: no downloads, no syncs
-
-### known issues
+### known issues and limitations
 
 - Already downloaded articles are never re-downloaded, even if the local file
   is corrupted or unreadable. To force a re-download, delete the file from
   `.adds/kobodeck/` manually.
-- Articles in a favourite collection are re-marked as favourite on every sync,
-  even if already marked in Readeck (redundant API calls).
 - Removing an article from the favourite collection on device does not un-favourite
   it in Readeck — favouriting is one-way (kobodeck never sends `is_marked: false`).
 - Un-archiving an article in Readeck does not restore it to the device, because
