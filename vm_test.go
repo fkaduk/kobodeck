@@ -1,15 +1,11 @@
 // This file contains the host-side controller for the ARM system-VM release
-// test.
+// test. The idea is to attempt to recreate a physical installation:
 //
-// Readeck still runs outside the guest in a host-side container owned directly
-// by TestKoboVMEndToEnd. The test uses the Docker CLI because managing one
-// disposable container does not justify a container SDK and its dependency
-// tree. The simulated Kobo uses Alpine's official, pinned ARMv7 netboot kernel
-// and initramfs, the real release tarball, and a FAT32 onboard disk.
-//
-// There is intentionally no guest root disk, Docker-built ARM image, or SSH
-// server. The writable initramfs installs eudev at runtime, while Go controls
-// setup and assertions through the serial console.
+//	Go test ── Docker CLI ── Readeck container
+//	   │
+//	   └── QEMU ARMv7 guest ── FAT32 /mnt/onboard
+//	              │
+//	              └── QEMU user networking ── 10.0.2.2 ── Readeck
 package main
 
 import (
@@ -36,12 +32,10 @@ import (
 
 const (
 	alpineNetbootBaseURL = "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/armv7/netboot-3.24.1"
-	// APK verifies the repository signatures. HTTP avoids depending on the
-	// intentionally tiny netboot initramfs having a current TLS trust store.
-	alpineRepositoryURL = "http://dl-cdn.alpinelinux.org/alpine/v3.24/main"
-	artifactCacheDir    = ".cache/kobodeck-testvm"
-	qemuHostGatewayIP   = "10.0.2.2"
-	vmTestTimeout       = 2 * time.Minute
+	alpineRepositoryURL  = "http://dl-cdn.alpinelinux.org/alpine/v3.24/main"
+	artifactCacheDir     = ".cache/kobodeck-testvm"
+	qemuHostGatewayIP    = "10.0.2.2"
+	vmTestTimeout        = 2 * time.Minute
 
 	vmReadyMarker       = "KOBODECK_VM_READY"
 	commandResultMarker = "KOBODECK_VM_COMMAND_DONE"
@@ -51,15 +45,14 @@ const (
 	testAdminPass  = "testpass123"
 	testAdminEmail = "testadmin@test.invalid"
 
-	testArticleURL       = "https://example.com"
-	testFavouriteShelf   = "VM Favourites"
-	testOnboardImageSize = 128 << 20
+	testArticleURL     = "https://example.com"
+	testFavouriteShelf = "VM Favourites"
+
+	testOnboardImageSize = 128 << 20 // 128 MiB
 )
 
 var bearerRegexp = regexp.MustCompile(`value="Authorization: Bearer ([^"]+)"`)
 
-// These hashes pin the exact upstream boot artifacts. A changed or corrupted
-// download fails before QEMU starts.
 var alpineNetbootArtifacts = []struct {
 	name   string
 	sha256 string
@@ -81,8 +74,6 @@ type hostReadeckServer struct {
 }
 
 // docker runs the Docker CLI while keeping stdout separate from progress output
-// written to stderr. This matters on the first run: pulling an absent image
-// must not be mistaken for part of the container ID or port mapping.
 func docker(ctx context.Context, args ...string) (string, error) {
 	command := exec.CommandContext(ctx, "docker", args...)
 	var stderr bytes.Buffer
@@ -94,9 +85,7 @@ func docker(ctx context.Context, args ...string) (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
-// startHostReadeckServer owns the complete external-service lifecycle. The
-// health loop completes before user/token setup and before QEMU can start, so
-// the guest can never race an unready Readeck process.
+// startHostReadeckServer owns the complete external-service lifecycle.
 func startHostReadeckServer(t *testing.T) *hostReadeckServer {
 	t.Helper()
 	ctx := t.Context()
@@ -120,6 +109,8 @@ func startHostReadeckServer(t *testing.T) *hostReadeckServer {
 
 	deadline := time.Now().Add(60 * time.Second)
 	for {
+		// Readeck's own command checks more than an open TCP socket. Waiting on it
+		// is preferable to sleeping for an arbitrary startup duration.
 		if _, err = docker(ctx, "exec", containerID, "readeck", "healthcheck"); err == nil {
 			break
 		}
@@ -130,6 +121,8 @@ func startHostReadeckServer(t *testing.T) *hostReadeckServer {
 		time.Sleep(250 * time.Millisecond)
 	}
 
+	// The CLI can create a user but cannot create an API token. User creation
+	// therefore happens here; bootstrapToken completes the web-only second half.
 	if _, err := docker(
 		ctx, "exec", containerID,
 		"readeck", "user",
@@ -140,6 +133,8 @@ func startHostReadeckServer(t *testing.T) *hostReadeckServer {
 		t.Fatalf("create Readeck admin user: %v", err)
 	}
 
+	// Ask Docker for the random host port rather than inspecting internal
+	// container networking, which is intentionally irrelevant to the guest.
 	mapping, err := docker(ctx, "port", containerID, "8000/tcp")
 	if err != nil {
 		t.Fatalf("get Readeck mapped port: %v", err)
@@ -160,8 +155,10 @@ func startHostReadeckServer(t *testing.T) *hostReadeckServer {
 	return server
 }
 
-// bootstrapToken uses Readeck's web session because current Readeck versions
-// do not provide an equivalent token-creation CLI command.
+// bootstrapToken uses Readeck's web session because Readeck 0.22.3 has no
+// token-creation CLI command. The cookie jar reproduces the two browser steps:
+// login, then submit the API-token form. Parsing HTML is less attractive than a
+// public API, which is why the image is pinned and failure is explicit.
 func bootstrapToken(baseURL string) (string, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
@@ -201,6 +198,8 @@ func (server *hostReadeckServer) apiRequest(
 	body io.Reader,
 ) *http.Response {
 	t.Helper()
+	// Host-side API calls arrange test state and verify results. The behavior
+	// under test still originates in the ARM guest through server.vmURL.
 	request, err := http.NewRequestWithContext(t.Context(), method, server.hostURL+path, body)
 	if err != nil {
 		t.Fatal(err)
@@ -216,6 +215,8 @@ func (server *hostReadeckServer) apiRequest(
 	return response
 }
 
+// Only fields asserted by this test are decoded. Depending on Readeck's full
+// response schema would make harmless upstream additions irrelevant noise.
 type testBookmarkState struct {
 	Loaded     bool `json:"loaded"`
 	IsArchived bool `json:"is_archived"`
@@ -252,6 +253,9 @@ func (server *hostReadeckServer) createLoadedBookmark(t *testing.T, articleURL s
 		t.Fatal("create Readeck bookmark: missing Bookmark-Id header")
 	}
 
+	// Bookmark creation is asynchronous: HTTP 202 means queued, not ready for an
+	// EPUB download. Poll the resource's Loaded flag before booting the VM.
+	// Waiting here keeps later guest failures attributable to Kobodeck itself.
 	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
 		if server.bookmarkState(t, id).Loaded {
@@ -265,12 +269,16 @@ func (server *hostReadeckServer) createLoadedBookmark(t *testing.T, articleURL s
 
 func requireCommand(t *testing.T, name string) {
 	t.Helper()
+	// Fail at the start with a useful prerequisite message instead of much later
+	// with exec.ErrNotFound after Readeck and temporary artifacts already exist.
 	if _, err := exec.LookPath(name); err != nil {
 		t.Fatalf("required command %q was not found: %v", name, err)
 	}
 }
 
 func fileHasSHA256(path, wantHash string) bool {
+	// The two netboot files total only a few megabytes, so reading them into
+	// memory is simpler than maintaining streaming hash and temporary-file code.
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return false
@@ -281,6 +289,10 @@ func fileHasSHA256(path, wantHash string) bool {
 // ensureNetbootArtifacts downloads each pinned Alpine artifact at most once.
 // The files are small enough to verify in memory. If a download is interrupted,
 // its hash fails and the next run simply downloads it again.
+//
+// Downloading official netboot artifacts avoids maintaining a custom VM image.
+// Hash pinning retains reproducibility and prevents a mirror-side replacement
+// from silently changing the kernel/userspace being tested.
 func ensureNetbootArtifacts(t *testing.T) (kernelPath, initramfsPath string) {
 	t.Helper()
 	if err := os.MkdirAll(artifactCacheDir, 0o755); err != nil {
@@ -290,6 +302,8 @@ func ensureNetbootArtifacts(t *testing.T) (kernelPath, initramfsPath string) {
 	client := &http.Client{Timeout: 2 * time.Minute}
 	for _, artifact := range alpineNetbootArtifacts {
 		path := filepath.Join(artifactCacheDir, artifact.name)
+		// A missing, partial, or stale cache entry follows the same download path.
+		// There is no separate cache-cleanup operation for developers to remember.
 		if !fileHasSHA256(path, artifact.sha256) {
 			requestURL := alpineNetbootBaseURL + "/" + artifact.name
 			resp, err := client.Get(requestURL)
@@ -317,6 +331,11 @@ func ensureNetbootArtifacts(t *testing.T) (kernelPath, initramfsPath string) {
 		filepath.Join(artifactCacheDir, "initramfs-lts")
 }
 
+// buildReleaseTarball intentionally invokes the public release target instead
+// of compiling an ARM binary directly in the test. This covers the packaging
+// paths, permissions, udev rule, cross-compilation flags, and exact archive that
+// users install. Reimplementing tarball creation here would test a parallel
+// artifact rather than the release.
 func buildReleaseTarball(t *testing.T) string {
 	t.Helper()
 	command := exec.CommandContext(t.Context(), "make", "tarball")
@@ -331,6 +350,11 @@ func buildReleaseTarball(t *testing.T) string {
 	return path
 }
 
+// createOnboardDisk creates the storage Nickel exposes as /mnt/onboard.
+//
+// A host directory shared with 9p/virtiofs would be easier to inspect, but it
+// would use Linux filesystem semantics. FAT32 catches the actual filename,
+// permission, and rename behavior seen by Kobodeck on a physical device.
 func createOnboardDisk(t *testing.T) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "onboard.fat")
@@ -338,6 +362,8 @@ func createOnboardDisk(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Truncate normally creates a sparse file, so the nominal 128 MiB capacity
+	// does not consume 128 MiB of host storage up front.
 	if err := file.Truncate(testOnboardImageSize); err != nil {
 		file.Close()
 		t.Fatal(err)
@@ -357,6 +383,11 @@ func createOnboardDisk(t *testing.T) string {
 // official archive remains byte-for-byte unchanged. The overlay carries the
 // VM controller, the real release tarball, its test configuration, and the
 // Alpine repository used to install eudev and sqlite in the guest.
+//
+// Appending an overlay is substantially smaller than constructing a root disk:
+// the kernel unpacks both cpio members into one writable root. Credentials and
+// release artifacts are per-test data, so checking a prepared initramfs into
+// the repository would be both stale and unsafe.
 func buildVMInitramfs(
 	t *testing.T,
 	basePath, releasePath string,
@@ -374,6 +405,9 @@ func buildVMInitramfs(
 		t.Fatal(err)
 	}
 
+	// Keep the script as a normal repository file so shellcheck/readers can
+	// inspect it directly; embedding its source as a Go string would obscure the
+	// guest side of the protocol.
 	initScript, err := os.ReadFile("init_vm.sh")
 	if err != nil {
 		t.Fatal(err)
@@ -388,6 +422,9 @@ func buildVMInitramfs(
 	if err := os.WriteFile(filepath.Join(testDir, "KoboRoot.tgz"), release, 0o600); err != nil {
 		t.Fatal(err)
 	}
+	// This is the same on-device configuration path and format used by a real
+	// installation. One worker keeps log ordering deterministic; Delete=false
+	// ensures archiving does not remove the file whose persistence is asserted.
 	config := fmt.Sprintf(`[Server]
 URL = %q
 Token = %q
@@ -414,6 +451,9 @@ Delete = false
 	if err := os.WriteFile(filepath.Join(testDir, "kobodeck.toml"), []byte(config), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	// The netboot initramfs includes apk and signing keys, but not repository
+	// configuration. eudev is installed at runtime because bundling it and all
+	// shared-library dependencies manually would recreate an image builder.
 	if err := os.WriteFile(
 		filepath.Join(apkDir, "repositories"),
 		[]byte(alpineRepositoryURL+"\n"),
@@ -423,6 +463,8 @@ Delete = false
 	}
 
 	combinedPath := filepath.Join(workDir, "initramfs-test")
+	// Copy the upstream initramfs exactly, then append our compressed member.
+	// Linux supports concatenated initramfs archives and processes them in order.
 	base, err := os.ReadFile(basePath)
 	if err != nil {
 		t.Fatal(err)
@@ -436,6 +478,9 @@ Delete = false
 	}
 
 	gzipWriter := gzip.NewWriter(combined)
+	// "newc" is the portable initramfs cpio format understood by Linux. Listing
+	// files explicitly makes it impossible for an unrelated temporary file to
+	// leak into the guest; using `find | cpio` would be shorter but less precise.
 	cpio := exec.Command("cpio", "--create", "--format=newc", "--quiet")
 	cpio.Dir = overlayDir
 	cpio.Stdin = strings.NewReader(strings.Join([]string{
@@ -465,8 +510,14 @@ Delete = false
 	return combinedPath
 }
 
-// koboVM is a running QEMU process controlled through its serial console. The
-// guest init does no test-specific work; run sends that work from the Go test.
+// koboVM is a running QEMU process controlled through its serial console.
+//
+// The guest init does no test-specific work; run sends all installation,
+// mutation, and assertion commands from Go. SSH would provide a richer control
+// protocol, but would require a daemon, host keys, authentication, another
+// guest package, port forwarding, and a second readiness check. The serial
+// console already exists for kernel diagnostics, so a tiny marker protocol is
+// sufficient and has fewer failure modes.
 type koboVM struct {
 	t          *testing.T
 	ctx        context.Context
@@ -483,25 +534,43 @@ type koboVM struct {
 
 func startKoboVM(t *testing.T, kernelPath, initramfsPath, onboardPath string) *koboVM {
 	t.Helper()
+	// "virt" is QEMU's generic ARM platform rather than a specific Kobo board.
+	// cortex-a15 guarantees ARMv7 execution, which is the important release
+	// property. One CPU and 256 MiB keep emulation inexpensive while leaving room
+	// for the in-memory root, APK installation, and the static Kobodeck binary.
 	args := []string{
 		"-machine", "virt",
 		"-cpu", "cortex-a15",
 		"-smp", "1",
 		"-m", "256",
+		// Give stdio exclusively to the PL011 serial port. -nographic also
+		// multiplexes QEMU's monitor onto stdio, making programmatic commands and
+		// Ctrl-A escape handling unnecessarily fragile.
 		"-display", "none",
 		"-monitor", "none",
 		"-serial", "stdio",
 		"-no-reboot",
 		"-kernel", kernelPath,
 		"-initrd", initramfsPath,
+		// rdinit selects our small test PID 1 instead of Alpine's installer init.
 		"-append", "console=ttyAMA0 rdinit=/init_vm.sh",
+
+		// User networking requires no root privileges. The explicit MMIO virtio
+		// device is used because QEMU's compact -nic form does not accept
+		// virtio-net-device on this ARM machine.
 		"-netdev", "user,id=net0",
 		"-device", "virtio-net-device,netdev=net0",
+
+		// Expose the raw FAT image as a native ARM virtio block device. Mounting
+		// happens later from Go so reaching READY does not depend on test-specific
+		// storage setup.
 		"-drive", "file=" + onboardPath + ",format=raw,if=none,id=onboard",
 		"-device", "virtio-blk-device,drive=onboard",
 	}
 	ctx, cancel := context.WithTimeout(t.Context(), vmTestTimeout)
 	command := exec.CommandContext(ctx, "qemu-system-arm", args...)
+	// Separate pipes allow Go to issue commands while continuously consuming the
+	// same serial output that carries boot logs and result markers.
 	stdin, err := command.StdinPipe()
 	if err != nil {
 		cancel()
@@ -525,8 +594,12 @@ func startKoboVM(t *testing.T, kernelPath, initramfsPath, onboardPath string) *k
 		cancel()
 		t.Fatalf("start QEMU: %v\n%s", err, vm.stderr.String())
 	}
+	// Register cleanup before waiting for READY. If the guest fails during boot,
+	// testing.T still kills QEMU and releases the FAT image/container lifecycle.
 	t.Cleanup(vm.shutdown)
 
+	// READY is printed only after init_vm.sh has DHCP connectivity and has
+	// entered its command loop. No arbitrary boot sleep is necessary.
 	vm.readUntil(vmReadyMarker)
 	vm.ready = true
 	return vm
@@ -534,6 +607,10 @@ func startKoboVM(t *testing.T, kernelPath, initramfsPath, onboardPath string) *k
 
 // readUntil consumes serial output through marker and returns everything before
 // it plus the remainder of the marker's line.
+//
+// Reading line-by-line avoids bufio.Scanner's 64 KiB token limit: a Readeck
+// response or verbose guest command may legitimately emit a long line. The
+// complete transcript is retained so an early EOF includes all kernel context.
 func (vm *koboVM) readUntil(marker string) (string, string) {
 	vm.t.Helper()
 	var output strings.Builder
@@ -554,6 +631,12 @@ func (vm *koboVM) readUntil(marker string) (string, string) {
 
 // run executes one shell command in the guest and returns its output. A unique
 // marker carries the exit status back over the same serial stream.
+//
+// Commands are wrapped in one compound shell line. Sending the status marker in
+// a later line would lose `$?` when the command loop performs its next read.
+// Incrementing the marker prevents output from an earlier command from
+// satisfying a later wait. init_vm.sh disables tty echo, so the marker embedded
+// in the input itself is not mistaken for the emitted completion marker.
 func (vm *koboVM) run(command string) string {
 	vm.t.Helper()
 	vm.nextMarker++
@@ -580,6 +663,10 @@ func (vm *koboVM) run(command string) string {
 // shutdown asks the command shell to exit. init_vm.sh then powers off the guest,
 // which lets QEMU terminate normally. If boot never reached the ready marker,
 // cleanup kills QEMU instead because no command shell is available.
+//
+// A normal guest poweroff is preferable to Process.Kill: it proves PID 1 owns a
+// complete lifecycle and lets QEMU flush the FAT-backed block device. Process
+// kill remains the only safe fallback before the command loop exists.
 func (vm *koboVM) shutdown() {
 	vm.t.Helper()
 	if vm.closed {
@@ -593,6 +680,8 @@ func (vm *koboVM) shutdown() {
 		_ = vm.command.Process.Kill()
 	}
 	_ = vm.stdin.Close()
+	// Drain shutdown messages before Wait. Otherwise QEMU could block writing a
+	// full pipe while Go waits for QEMU to exit.
 	remaining, _ := io.ReadAll(vm.stdout)
 	vm.transcript.Write(remaining)
 	err := vm.command.Wait()
@@ -604,25 +693,43 @@ func (vm *koboVM) shutdown() {
 
 const guestLogPath = "/mnt/onboard/.adds/kobodeck/kobodeck.log"
 
+// runKobodeckSync simulates a Wi-Fi connection by sending an actual udev event.
+// It intentionally does not invoke /usr/local/bin/kobodeck directly: launching
+// through the rule installed by KoboRoot.tgz tests both packaging and the
+// production activation path.
+//
+// The udev rule backgrounds Kobodeck, so udevadm returning does not mean a sync
+// has completed. Count the binary's final "completed in" log records before the
+// event and poll until exactly a newer process has finished. This is a
+// condition-based wait rather than a fixed sleep, keeping fast runs fast while
+// still tolerating the first run's EPUB conversion and Nickel-rescan delay.
 func runKobodeckSync(vm *koboVM, reconnect bool) string {
 	vm.t.Helper()
 	remove := ""
 	if reconnect {
+		// ACTION=remove must not match the installed ACTION=="add" rule. Waiting
+		// one second leaves enough time for an accidental remove-triggered launch
+		// to alter the baseline count and make the test fail deterministically.
 		remove = "udevadm trigger --action=remove /sys/class/net/wlan0; sleep 1; "
 	}
-	vm.run(remove +
-		"log=" + guestLogPath + "; " +
-		"before=0; [ ! -f \"$log\" ] || before=$(grep -c ' completed in ' \"$log\"); " +
-		"udevadm trigger --action=add /sys/class/net/wlan0; " +
-		"waited=0; while :; do " +
-		"current=0; [ ! -f \"$log\" ] || current=$(grep -c ' completed in ' \"$log\"); " +
-		"[ \"$current\" -gt \"$before\" ] && break; " +
-		"waited=$((waited + 1)); [ \"$waited\" -lt 60 ] || exit 1; sleep 1; " +
-		"done",
+	vm.run(
+		remove +
+			"log=" + guestLogPath + "; " +
+			"before=0; [ ! -f \"$log\" ] || before=$(grep -c ' completed in ' \"$log\"); " +
+			"udevadm trigger --action=add /sys/class/net/wlan0; " +
+			"waited=0; while :; do " +
+			"current=0; [ ! -f \"$log\" ] || current=$(grep -c ' completed in ' \"$log\"); " +
+			"[ \"$current\" -gt \"$before\" ] && break; " +
+			"waited=$((waited + 1)); [ \"$waited\" -lt 60 ] || exit 1; sleep 1; " +
+			"done",
 	)
 	return vm.run("cat " + guestLogPath)
 }
 
+// logSince isolates one connection's append-only log segment. Kobodeck uses a
+// rotating logger, but this three-run test is far below the configured 1 MiB
+// threshold. A missing prefix therefore indicates unexpected truncation rather
+// than legitimate rotation.
 func logSince(t *testing.T, previous, current string) string {
 	t.Helper()
 	if !strings.HasPrefix(current, previous) {
@@ -640,6 +747,9 @@ func requireLogContains(t *testing.T, logText string, fragments ...string) {
 	}
 }
 
+// requireCleanLog implements the README's "no errors" requirement. Checking a
+// few strong failure terms is less brittle than asserting the entire log text,
+// which contains timestamps, durations, IDs, and upstream response details.
 func requireCleanLog(t *testing.T, logText string) {
 	t.Helper()
 	lower := strings.ToLower(logText)
@@ -651,10 +761,15 @@ func requireCleanLog(t *testing.T, logText string) {
 }
 
 func TestKoboVMEndToEnd(t *testing.T) {
+	// Check every host prerequisite before starting Docker or downloading/building
+	// anything. sqlite runs inside the guest and is installed through apk.
 	for _, command := range []string{"cpio", "docker", "make", "mkfs.vfat", "qemu-system-arm"} {
 		requireCommand(t, command)
 	}
 
+	// Arrange all external and immutable inputs before boot. Readeck must finish
+	// extracting the article before Kobodeck can request article.epub. Building
+	// the real tarball here also makes a packaging failure fail the release test.
 	server := startHostReadeckServer(t)
 	bookmarkID := server.createLoadedBookmark(t, testArticleURL)
 	releasePath := buildReleaseTarball(t)
@@ -663,12 +778,26 @@ func TestKoboVMEndToEnd(t *testing.T) {
 	onboardPath := createOnboardDisk(t)
 	vm := startKoboVM(t, kernelPath, initramfsPath, onboardPath)
 
+	// The netboot initramfs carries the matching block/filesystem modules, but
+	// init_vm.sh loads only networking because storage is test-specific. Mounting
+	// /dev/vda as vfat proves subsequent assertions run against Kobo-like storage
+	// rather than the Linux initramfs.
 	vm.run(
 		"modprobe -a virtio_blk fat vfat nls_cp437 nls_iso8859_1; " +
 			"mdev -s; mkdir -p /mnt/onboard; mount -t vfat /dev/vda /mnt/onboard; " +
 			"mount | grep -q ' on /mnt/onboard type vfat '",
 	)
+
+	// eudev is required to execute the real installed rule; sqlite provides the
+	// smallest practical way to model Nickel state from serial commands. Installing
+	// them at runtime avoids a maintained root image or checked-in ARM binaries.
 	vm.run("apk add --initdb eudev sqlite")
+
+	// Extract the exact release archive at filesystem root, as Kobo's updater
+	// does. Only three Nickel tables are needed by Kobodeck's read-only queries;
+	// reproducing the full proprietary database would add unrelated schema churn.
+	// A regular status file is enough to observe the USB messages Kobodeck sends
+	// to Nickel without running Nickel itself.
 	vm.run(
 		"tar -xzf /test/KoboRoot.tgz -C /; " +
 			"mkdir -p /mnt/onboard/.adds/kobodeck /mnt/onboard/.kobo; " +
@@ -679,11 +808,17 @@ func TestKoboVMEndToEnd(t *testing.T) {
 			"CREATE TABLE ShelfContent (ShelfName TEXT, ContentId TEXT, _IsDeleted TEXT);\"; " +
 			"touch /tmp/nickel-hardware-status",
 	)
+
+	// QEMU names its NIC eth0, while a physical Wi-Fi connection matches wlan*.
+	// Rename it before starting eudev, then synthesize add/remove uevents through
+	// sysfs. The interface retains its DHCP address and route across the rename.
 	vm.run(
 		"ip link set eth0 down; ip link set eth0 name wlan0; ip link set wlan0 up; " +
 			"mkdir -p /run/udev; udevd --daemon; udevadm control --reload-rules",
 	)
 
+	// First connection: the installed udev rule must launch the ARM binary,
+	// download and convert the article onto FAT32, and request a Nickel rescan.
 	firstLog := runKobodeckSync(vm, false)
 	requireCleanLog(t, firstLog)
 	requireLogContains(t, firstLog, "downloading ", "converted to ", "triggering Nickel rescan")
@@ -692,6 +827,10 @@ func TestKoboVMEndToEnd(t *testing.T) {
 	nickelEvents := vm.run("cat /tmp/nickel-hardware-status")
 	requireLogContains(t, nickelEvents, "usb plug add", "usb plug remove")
 
+	// Model the two manual actions performed in Nickel between connections:
+	// finishing the book sets ReadStatus=2, and adding it to a shelf inserts the
+	// Shelf/ShelfContent relationship. ContentID exactly matches the file:// URI
+	// format queried by nickeldb.go.
 	contentID := "file://" + downloadPath
 	vm.run(fmt.Sprintf(
 		"sqlite3 /mnt/onboard/.kobo/KoboReader.sqlite "+
@@ -703,6 +842,9 @@ func TestKoboVMEndToEnd(t *testing.T) {
 		contentID,
 	))
 
+	// Second connection: no download should occur because the KEPUB already
+	// exists. Kobodeck should instead PATCH Readeck once for archive and once for
+	// favourite state, based on the Nickel rows inserted above.
 	secondLog := runKobodeckSync(vm, true)
 	secondRun := logSince(t, firstLog, secondLog)
 	requireCleanLog(t, secondRun)
@@ -720,6 +862,9 @@ func TestKoboVMEndToEnd(t *testing.T) {
 		t.Fatalf("unexpected Readeck state after second connection: %+v", state)
 	}
 
+	// Third connection: Readeck omits the archived bookmark from the unread feed.
+	// This cycle verifies idempotency—not merely final state—by checking both the
+	// new log segment and total operation counts across all three runs.
 	thirdLog := runKobodeckSync(vm, true)
 	thirdRun := logSince(t, secondLog, thirdLog)
 	requireCleanLog(t, thirdRun)
@@ -738,5 +883,9 @@ func TestKoboVMEndToEnd(t *testing.T) {
 	if !state.IsArchived || !state.IsMarked {
 		t.Fatalf("unexpected final Readeck state: %+v", state)
 	}
+
+	// Explicit shutdown gives failures here a clear boundary and proves the guest
+	// responds to the normal control protocol. The registered cleanup remains as
+	// a fallback for every earlier t.Fatal path.
 	vm.shutdown()
 }
