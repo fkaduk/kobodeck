@@ -733,8 +733,7 @@ func TestKoboVMEndToEnd(t *testing.T) {
 	}
 
 	// Third connection: Readeck omits the archived bookmark from the unread feed.
-	// This cycle verifies idempotency—not merely final state—by checking both the
-	// new log segment and total operation counts across all three runs.
+	// This cycle verifies idempotency
 	thirdLog := runKobodeckSync(vm, true)
 	thirdRun := logSince(t, secondLog, thirdLog)
 	requireCleanLog(t, thirdRun)
