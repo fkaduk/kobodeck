@@ -340,7 +340,8 @@ func createOnboardDisk(t *testing.T) string {
 }
 
 // buildVMInitramfs appends a gzip-compressed "newc" cpio archive to Alpine's
-// initramfs.
+// initramfs. The overlay includes the release, its configuration, and the
+// Nickel schema fixture needed by the VM test.
 func buildVMInitramfs(
 	t *testing.T,
 	basePath, releasePath string,
@@ -398,6 +399,17 @@ Delete = false
 	if err := os.WriteFile(filepath.Join(testDir, "kobodeck.toml"), []byte(config), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	nickelSchema, err := os.ReadFile(filepath.Join("testdata", "nickel-schema-176.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(
+		filepath.Join(testDir, "nickel-schema.sql"),
+		nickelSchema,
+		0o600,
+	); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(
 		filepath.Join(apkDir, "repositories"),
 		[]byte(alpineRepositoryURL+"\n"),
@@ -430,6 +442,7 @@ Delete = false
 		"test",
 		"test/KoboRoot.tgz",
 		"test/kobodeck.toml",
+		"test/nickel-schema.sql",
 	}, "\n") + "\n")
 	cpio.Stdout = gzipWriter
 	var cpioStderr bytes.Buffer
@@ -662,10 +675,7 @@ func TestKoboVMEndToEnd(t *testing.T) {
 		"tar -xzf /test/KoboRoot.tgz -C /; " +
 			"mkdir -p /mnt/onboard/.adds/kobodeck /mnt/onboard/.kobo; " +
 			"cp /test/kobodeck.toml /mnt/onboard/.adds/kobodeck/kobodeck.toml; " +
-			"sqlite3 /mnt/onboard/.kobo/KoboReader.sqlite " +
-			"\"CREATE TABLE content (ContentID TEXT, ContentType INTEGER, ReadStatus INTEGER); " +
-			"CREATE TABLE Shelf (InternalName TEXT, Name TEXT, _IsDeleted TEXT); " +
-			"CREATE TABLE ShelfContent (ShelfName TEXT, ContentId TEXT, _IsDeleted TEXT);\"; " +
+			"sqlite3 /mnt/onboard/.kobo/KoboReader.sqlite < /test/nickel-schema.sql; " +
 			"touch /tmp/nickel-hardware-status",
 	)
 	vm.run(
@@ -690,9 +700,13 @@ func TestKoboVMEndToEnd(t *testing.T) {
 	contentID := "file://" + downloadPath
 	vm.run(fmt.Sprintf(
 		"sqlite3 /mnt/onboard/.kobo/KoboReader.sqlite "+
-			"\"INSERT INTO content VALUES ('%s', 6, 2); "+
-			"INSERT INTO Shelf VALUES ('vm-favourites', '%s', 'false'); "+
-			"INSERT INTO ShelfContent VALUES ('vm-favourites', '%s', 'false');\"",
+			"\"INSERT INTO content "+
+			"(ContentID, ContentType, MimeType, ReadStatus, ___UserID) "+
+			"VALUES ('%s', 6, 'application/epub+zip', 2, 'vm-user'); "+
+			"INSERT INTO Shelf (Id, InternalName, Name, _IsDeleted) "+
+			"VALUES ('vm-favourites', 'vm-favourites', '%s', 'false'); "+
+			"INSERT INTO ShelfContent (ShelfName, ContentId, _IsDeleted) "+
+			"VALUES ('vm-favourites', '%s', 'false');\"",
 		contentID,
 		testFavouriteShelf,
 		contentID,
