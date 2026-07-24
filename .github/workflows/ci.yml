@@ -16,7 +16,7 @@ jobs:
           go-version-file: go.mod
           cache: true
       - run: npm install -g markdownlint-cli
-      - run: make test
+      - run: make check
 
   vm-test:
     runs-on: ubuntu-latest
@@ -36,7 +36,7 @@ jobs:
           restore-keys: |
             kobodeck-testvm-${{ runner.os }}-
       - name: Run ARM VM end-to-end release test
-        run: make test-vm
+        run: make test
 
   build:
     needs: [check, vm-test]
