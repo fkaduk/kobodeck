@@ -110,30 +110,21 @@ The last path is the default output directory
 
 Check the Makefile for common operations on the project.
 
-### testing VM connectivity to Readeck
+### testing
 
-`make test-vm` boots a minimal headless ARMv7 QEMU system VM directly from
-Alpine's official netboot kernel and initramfs. The upstream artifacts are
-pinned by URL and SHA-256 and cached under `.cache/kobodeck-testvm` by default.
-The Go test appends a tiny initramfs overlay containing the smoke-test init
-script and temporary credentials; it does not construct or boot a root disk.
+There are currently no unit or integration tests.
 
-The test starts an isolated Readeck container on the host, creates a test user,
-API token, and bookmark, and exposes the mapped HTTP port through QEMU's host
-gateway. BusyBox in the ARM guest obtains a DHCP lease, makes an authenticated
-Readeck API request, and returns the response over the serial console.
+Instead, an e2e test simulates a Kobo device in a VM (ARMv7 QEMU system)
+and asserts the main functionality of kobodeck works.
 
-The host needs Docker for the Readeck container, QEMU ARM system emulation,
-`cpio`, and Go. On Debian or Ubuntu, the additional system packages are:
+
+To run it, install the necessary dependencies
 
 ```sh
 sudo apt-get install qemu-system-arm cpio
 ```
 
-The VM is exclusively the simulated Kobo device; Readeck lifecycle management
-stays in the host-side Go test. This smoke test covers VM boot and authenticated
-guest-to-host Readeck connectivity. It does not yet install or run Kobodeck or
-test FAT32 storage or the udev Wi-Fi trigger.
+and execute the usual `go test`.
 
 ### manual testing before release
 
