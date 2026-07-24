@@ -108,7 +108,7 @@ The last path is the default output directory
 
 ## development
 
-Check the Makefile for common operations on the project.
+Check the Makefile for common operations.
 
 ### testing
 
@@ -117,13 +117,8 @@ There are currently no unit or integration tests.
 Instead, an e2e test simulates a Kobo device in a VM (ARMv7 QEMU system)
 and asserts the main functionality of kobodeck works.
 
-
 To run it, install the necessary dependencies
-
-```sh
-sudo apt-get install qemu-system-arm cpio
-```
-
+(QEMU, docker)
 and execute the usual `go test`.
 
 ### manual testing before release
