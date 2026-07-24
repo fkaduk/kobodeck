@@ -37,8 +37,6 @@ jobs:
             kobodeck-testvm-${{ runner.os }}-
       - name: Smoke-test ARM VM against host-side Readeck
         run: make test-vm
-        env:
-          KOBODECK_VM_CACHE_DIR: .cache/kobodeck-testvm
 
   build:
     needs: [check, vm-test]

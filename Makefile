@@ -40,4 +40,4 @@ test:
 	markdownlint **/*.md
 
 test-vm:
-	CGO_ENABLED=0 go test -tags=vmtest -run '^TestKoboVMReadeckAPISmoke$$' -timeout 10m $(VMTESTFLAGS) .
+	CGO_ENABLED=0 go test -timeout 10m $(VMTESTFLAGS) .
