@@ -26,18 +26,12 @@ ip link set eth0 up || fail "enable eth0"
 udhcpc -q -n -t 10 -i eth0 -s /usr/share/udhcpc/default.script ||
 	fail "obtain DHCP lease"
 
-api_url=$(cat /etc/kobodeck-smoke/url) || fail "read API URL"
-token=$(cat /etc/kobodeck-smoke/token) || fail "read API token"
+# Go controls every test through this serial shell. Turning terminal echo off
+# keeps commands (and any credentials they reference) out of the captured log.
+stty -echo || fail "disable serial echo"
+echo "KOBODECK_VM_READY"
+/bin/sh -c 'while IFS= read -r command; do eval "$command"; done'
 
-echo "KOBODECK_API_RESPONSE_BEGIN"
-if ! wget -qO- --header="Authorization: Bearer $token" "$api_url"; then
-	fail "Readeck API request"
-fi
-echo
-echo "KOBODECK_API_RESPONSE_END"
-
-# QEMU exits when PID 1 asks the kernel to power off. This lets the host run
-# QEMU synchronously instead of polling a serial log and managing a background
-# process.
+# The Go test ends the command shell with "exit" after its assertions finish.
 poweroff -f
 fail "power off"

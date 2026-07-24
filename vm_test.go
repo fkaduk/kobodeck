@@ -6,7 +6,7 @@
 // one disposable container does not justify a container SDK and its dependency
 // tree. The simulated Kobo is built entirely from Alpine's official, pinned
 // ARMv7 netboot kernel and initramfs. A tiny second initramfs archive supplies
-// testvm/smoke-init and the per-test Readeck URL/token.
+// init_vm.sh and the per-test Readeck URL/token.
 //
 // There is intentionally no guest root disk, Docker-built ARM image, FAT
 // volume, eudev, or SSH server in this smoke test. Those belong in later tests
@@ -14,6 +14,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -28,6 +29,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -39,8 +41,8 @@ const (
 	qemuHostGatewayIP    = "10.0.2.2"
 	vmSmokeTimeout       = 60 * time.Second
 
-	smokeResponseBegin = "KOBODECK_API_RESPONSE_BEGIN"
-	smokeResponseEnd   = "KOBODECK_API_RESPONSE_END"
+	vmReadyMarker       = "KOBODECK_VM_READY"
+	commandResultMarker = "KOBODECK_VM_COMMAND_DONE"
 
 	readeckImage   = "codeberg.org/readeck/readeck:0.22.3"
 	testAdminUser  = "testadmin"
@@ -231,14 +233,14 @@ func ensureNetbootArtifacts(t *testing.T) (kernelPath, initramfsPath string) {
 		filepath.Join(artifactCacheDir, "initramfs-lts")
 }
 
-// buildSmokeInitramfs appends a gzip-compressed "newc" cpio archive to Alpine's
+// buildVMInitramfs appends a gzip-compressed "newc" cpio archive to Alpine's
 // initramfs. Linux supports a sequence of compressed cpio members, so the
 // official archive remains byte-for-byte unchanged and our overlay adds only:
 //
-//   - /smoke-init
+//   - /init_vm.sh
 //   - /etc/kobodeck-smoke/url
 //   - /etc/kobodeck-smoke/token
-func buildSmokeInitramfs(t *testing.T, basePath, apiURL, token string) string {
+func buildVMInitramfs(t *testing.T, basePath, apiURL, token string) string {
 	t.Helper()
 	workDir := t.TempDir()
 	overlayDir := filepath.Join(workDir, "overlay")
@@ -247,11 +249,11 @@ func buildSmokeInitramfs(t *testing.T, basePath, apiURL, token string) string {
 		t.Fatal(err)
 	}
 
-	initScript, err := os.ReadFile("testvm/smoke-init")
+	initScript, err := os.ReadFile("init_vm.sh")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(overlayDir, "smoke-init"), initScript, 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(overlayDir, "init_vm.sh"), initScript, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(configDir, "url"), []byte(apiURL+"\n"), 0o600); err != nil {
@@ -278,7 +280,7 @@ func buildSmokeInitramfs(t *testing.T, basePath, apiURL, token string) string {
 	cpio := exec.Command("cpio", "--create", "--format=newc", "--quiet")
 	cpio.Dir = overlayDir
 	cpio.Stdin = strings.NewReader(strings.Join([]string{
-		"smoke-init",
+		"init_vm.sh",
 		"etc",
 		"etc/kobodeck-smoke",
 		"etc/kobodeck-smoke/url",
@@ -302,47 +304,139 @@ func buildSmokeInitramfs(t *testing.T, basePath, apiURL, token string) string {
 	return combinedPath
 }
 
-// runKoboVM blocks until smoke-init prints the API response and powers off the
-// guest. CommandContext handles the only necessary failure cleanup: killing a
-// VM that does not complete within vmSmokeTimeout.
-func runKoboVM(t *testing.T, kernelPath, initramfsPath string) string {
+// koboVM is a running QEMU process controlled through its serial console. The
+// guest init does no test-specific work; run sends that work from the Go test.
+type koboVM struct {
+	t          *testing.T
+	ctx        context.Context
+	cancel     context.CancelFunc
+	command    *exec.Cmd
+	stdin      io.WriteCloser
+	stdout     *bufio.Reader
+	stderr     bytes.Buffer
+	transcript strings.Builder
+	nextMarker int
+	ready      bool
+	closed     bool
+}
+
+func startKoboVM(t *testing.T, kernelPath, initramfsPath string) *koboVM {
 	t.Helper()
 	args := []string{
 		"-machine", "virt",
 		"-cpu", "cortex-a15",
 		"-smp", "1",
 		"-m", "256",
-		"-nographic",
+		"-display", "none",
+		"-monitor", "none",
+		"-serial", "stdio",
 		"-no-reboot",
 		"-kernel", kernelPath,
 		"-initrd", initramfsPath,
-		"-append", "console=ttyAMA0 rdinit=/smoke-init",
+		"-append", "console=ttyAMA0 rdinit=/init_vm.sh",
 		"-netdev", "user,id=net0",
 		"-device", "virtio-net-device,netdev=net0",
 	}
 	ctx, cancel := context.WithTimeout(t.Context(), vmSmokeTimeout)
-	defer cancel()
-	output, err := exec.CommandContext(ctx, "qemu-system-arm", args...).CombinedOutput()
-	if ctx.Err() == context.DeadlineExceeded {
-		t.Fatalf("VM did not finish within %s\n%s", vmSmokeTimeout, output)
-	}
+	command := exec.CommandContext(ctx, "qemu-system-arm", args...)
+	stdin, err := command.StdinPipe()
 	if err != nil {
-		t.Fatalf("QEMU failed: %v\n%s", err, output)
+		cancel()
+		t.Fatal(err)
 	}
-	return string(output)
+	stdout, err := command.StdoutPipe()
+	if err != nil {
+		cancel()
+		t.Fatal(err)
+	}
+	vm := &koboVM{
+		t:       t,
+		ctx:     ctx,
+		cancel:  cancel,
+		command: command,
+		stdin:   stdin,
+		stdout:  bufio.NewReader(stdout),
+	}
+	command.Stderr = &vm.stderr
+	if err := command.Start(); err != nil {
+		cancel()
+		t.Fatalf("start QEMU: %v\n%s", err, vm.stderr.String())
+	}
+	t.Cleanup(vm.shutdown)
+
+	vm.readUntil(vmReadyMarker)
+	vm.ready = true
+	return vm
 }
 
-func serialPayload(t *testing.T, output string) string {
-	t.Helper()
-	_, after, found := strings.Cut(output, smokeResponseBegin)
-	if !found {
-		t.Fatalf("serial output does not contain %q", smokeResponseBegin)
+// readUntil consumes serial output through marker and returns everything before
+// it plus the remainder of the marker's line.
+func (vm *koboVM) readUntil(marker string) (string, string) {
+	vm.t.Helper()
+	var output strings.Builder
+	for {
+		line, err := vm.stdout.ReadString('\n')
+		vm.transcript.WriteString(line)
+		if index := strings.Index(line, marker); index >= 0 {
+			output.WriteString(line[:index])
+			return output.String(), strings.TrimSpace(line[index+len(marker):])
+		}
+		output.WriteString(line)
+		if err != nil {
+			vm.t.Fatalf("read VM serial output before %q: %v\n%s\n%s",
+				marker, err, vm.transcript.String(), vm.stderr.String())
+		}
 	}
-	payload, _, found := strings.Cut(after, smokeResponseEnd)
-	if !found {
-		t.Fatalf("serial output does not contain %q after %q", smokeResponseEnd, smokeResponseBegin)
+}
+
+// run executes one shell command in the guest and returns its output. A unique
+// marker carries the exit status back over the same serial stream.
+func (vm *koboVM) run(command string) string {
+	vm.t.Helper()
+	vm.nextMarker++
+	marker := fmt.Sprintf("%s_%d", commandResultMarker, vm.nextMarker)
+	wireCommand := fmt.Sprintf(
+		"{ %s; }; status=$?; printf '\\n%s:%%s\\n' \"$status\"\n",
+		command,
+		marker,
+	)
+	if _, err := io.WriteString(vm.stdin, wireCommand); err != nil {
+		vm.t.Fatalf("send VM command: %v", err)
 	}
-	return strings.TrimSpace(payload)
+	output, statusText := vm.readUntil(marker + ":")
+	status, err := strconv.Atoi(statusText)
+	if err != nil {
+		vm.t.Fatalf("parse VM command status %q: %v", statusText, err)
+	}
+	if status != 0 {
+		vm.t.Fatalf("VM command exited with status %d: %s\n%s", status, command, output)
+	}
+	return strings.TrimSpace(output)
+}
+
+// shutdown asks the command shell to exit. init_vm.sh then powers off the guest,
+// which lets QEMU terminate normally. If boot never reached the ready marker,
+// cleanup kills QEMU instead because no command shell is available.
+func (vm *koboVM) shutdown() {
+	vm.t.Helper()
+	if vm.closed {
+		return
+	}
+	vm.closed = true
+
+	if vm.ready {
+		_, _ = io.WriteString(vm.stdin, "exit\n")
+	} else if vm.command.Process != nil {
+		_ = vm.command.Process.Kill()
+	}
+	_ = vm.stdin.Close()
+	remaining, _ := io.ReadAll(vm.stdout)
+	vm.transcript.Write(remaining)
+	err := vm.command.Wait()
+	vm.cancel()
+	if err != nil && vm.ctx.Err() != context.DeadlineExceeded {
+		vm.t.Errorf("QEMU failed: %v\n%s\n%s", err, vm.transcript.String(), vm.stderr.String())
+	}
 }
 
 func TestKoboVMReadeckAPISmoke(t *testing.T) {
@@ -355,9 +449,13 @@ func TestKoboVMReadeckAPISmoke(t *testing.T) {
 	apiURL, token := startHostReadeckServer(t)
 
 	kernelPath, baseInitramfsPath := ensureNetbootArtifacts(t)
-	smokeInitramfsPath := buildSmokeInitramfs(t, baseInitramfsPath, apiURL, token)
-	serialOutput := runKoboVM(t, kernelPath, smokeInitramfsPath)
-	responseJSON := serialPayload(t, serialOutput)
+	initramfsPath := buildVMInitramfs(t, baseInitramfsPath, apiURL, token)
+	vm := startKoboVM(t, kernelPath, initramfsPath)
+	responseJSON := vm.run(
+		`api_url=$(cat /etc/kobodeck-smoke/url); ` +
+			`token=$(cat /etc/kobodeck-smoke/token); ` +
+			`wget -qO- --header="Authorization: Bearer $token" "$api_url"`,
+	)
 
 	var bookmarks []json.RawMessage
 	if err := json.Unmarshal([]byte(responseJSON), &bookmarks); err != nil {
@@ -366,4 +464,5 @@ func TestKoboVMReadeckAPISmoke(t *testing.T) {
 	if bookmarks == nil {
 		t.Fatal("Readeck bookmark API returned null instead of a JSON array")
 	}
+	vm.shutdown()
 }
