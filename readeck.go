@@ -24,6 +24,7 @@ type readeckBookmark struct {
 	URL        string    `json:"url"`
 	Updated    time.Time `json:"updated"`
 	IsArchived bool      `json:"is_archived"`
+	IsMarked   bool      `json:"is_marked"` // "marked" is what Readeck calls a favorite.
 	Labels     []string  `json:"labels"`
 	Loaded     bool      `json:"loaded"`
 }
@@ -189,6 +190,20 @@ func patchBookmark(client *http.Client, id string, fields map[string]bool) error
 	body, _ := json.Marshal(fields)
 	_, err := callAPI(client, "PATCH", config.Server.URL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
 	return err
+}
+
+// getBookmark retrieves one bookmark, including state omitted when an archived
+// bookmark is no longer present in the unread feed.
+func getBookmark(client *http.Client, id string) (readeckBookmark, error) {
+	data, err := callAPI(client, "GET", config.Server.URL+"/api/bookmarks/"+id, nil)
+	if err != nil {
+		return readeckBookmark{}, err
+	}
+	var bookmark readeckBookmark
+	if err := json.Unmarshal(data, &bookmark); err != nil {
+		return readeckBookmark{}, err
+	}
+	return bookmark, nil
 }
 
 // callAPI sends an authenticated API request and returns the response body.
