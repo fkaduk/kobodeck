@@ -121,7 +121,8 @@ and the main functionality is tested.
 
 To run it, install the necessary dependencies
 (QEMU, Docker, `cpio`, and `dosfstools`)
-and execute the usual `go test`.
+and execute `make test`. This first builds the ARMv7 release tarball and then
+tests that exact artifact in the VM.
 
 ### known issues and limitations
 
