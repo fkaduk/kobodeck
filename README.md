@@ -113,7 +113,7 @@ Check the Makefile for common operations.
 ### testing
 
 Due to kobodeck's simplicity and high integration -
-it only works with readeck and on kobo devices - 
+it only works with readeck and on kobo devices -
 the focus is on e2e testing.
 
 A Kobo device is simulated in a VM (ARMv7 QEMU)
