@@ -54,7 +54,6 @@ add it to the Kobo collection you set in the configuration
 and wait or retrigger kobodeck by switching device wifi off and on again.
 The same works for removing favourites.
 
-
 ## prerequisites
 
 - a running [hosted](https://readeck.com) or

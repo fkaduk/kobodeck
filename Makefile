@@ -11,11 +11,12 @@ all: check tarball
 
 tarball:
 	@echo building Kobo tarball
-	$(MAKE) build BINARY=build/kobodeck.arm $(CROSS_COMPILE_FLAGS)
+	$(MAKE) -B build BINARY=build/kobodeck.arm $(CROSS_COMPILE_FLAGS)
 	mkdir -p root/usr/local/bin
 	cp build/kobodeck.arm root/usr/local/bin/kobodeck
 	touch root/usr
-	tar -C root/ -c -z -f build/KoboRoot.tgz etc usr
+	tar --owner=0 --group=0 --mode='u+rwX,go+rX,go-w' \
+		-C root/ -c -z -f build/KoboRoot.tgz etc usr
 	rm root/usr/local/bin/kobodeck
 
 build: $(BINARY)
