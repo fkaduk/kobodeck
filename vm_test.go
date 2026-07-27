@@ -5,7 +5,7 @@
 //	   │
 //	   └── QEMU ARMv7 guest ── FAT32 /mnt/onboard
 //	              │
-//	              └── QEMU user networking ── 10.0.2.2 ── Readeck
+//	              └── QEMU user networking ── Connect to Readeck
 package main
 
 import (
@@ -413,7 +413,8 @@ func buildVMInitramfs(
 	if err := os.WriteFile(filepath.Join(testDir, "KoboRoot.tgz"), release, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	config := fmt.Sprintf(`[Server]
+	config := fmt.Sprintf(
+		`[Server]
 URL = %q
 Token = %q
 Timeout = 30
