@@ -54,6 +54,10 @@ add it to the Kobo collection you set in the configuration
 and wait or retrigger kobodeck by switching device wifi off and on again.
 The same works for removing favourites.
 
+**Note:** For downloading large sets of articles,
+increase time to sleep in
+`Settings > Energy savings and privacy > Automatically go to sleep after`
+
 ## prerequisites
 
 - a running [hosted](https://readeck.com) or
@@ -117,8 +121,7 @@ and the main functionality is tested.
 
 To run it, install the necessary dependencies
 (QEMU, Docker, `cpio`, and `dosfstools`)
-and execute `make test`. This first builds the ARMv7 release tarball and then
-tests that exact artifact in the VM.
+and execute `make test`.
 
 ### known issues and limitations
 
@@ -132,11 +135,5 @@ tests that exact artifact in the VM.
 
 - Sync highlights and annotations from the Kobo (`Bookmark` table in
   `KoboReader.sqlite`) to Readeck's annotations API
-- Add sync of reading progress (current position) from the Kobo to Readeck -
-  note that progress may differ between EPUB and KEPUB formats
-- Add functionality to also fetch archived articles
+- Add functionality to enable fetching archived articles
 - Add functionality to fetch favourites only
-- Syncing is currently only one way, as we avoid writing to Kobo's NickelDB - reverse
-  sync may still be worth exploring
-- Kobodeck does not inhibit device sleep - if the Kobo sleeps during a
-  long sync, downloads may be interrupted
