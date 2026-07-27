@@ -832,7 +832,9 @@ func TestKoboVMWaitsForWiFi(t *testing.T) {
 	fixture.triggerRemove()
 	logText := fixture.triggerAdd()
 	requireCleanLog(t, logText)
-	requireLogContains(t, logText, "connecting to ", "completed in ")
+	requireLogContains(t, logText, "pid=", `action="add"`, `interface="wlan0"`,
+		"connecting to ", "completed in ",
+	)
 	fixture.requireNoNickelRescan()
 }
 
@@ -843,10 +845,23 @@ func TestKoboVMDownloadsBookmark(t *testing.T) {
 
 	logText := fixture.triggerAdd()
 	requireCleanLog(t, logText)
-	requireLogContains(t, logText, "downloading ", "converted to ", "triggering Nickel rescan")
+	requireLogContains(t, logText, "downloading ", "converted to ",
+		"triggering Nickel rescan", "completed in ")
 	fixture.vm.run("[ -s " + fixture.downloadPath + " ]")
 	events := fixture.vm.run("cat /tmp/nickel-hardware-status")
 	requireLogContains(t, events, "usb plug add", "usb plug remove")
+}
+
+// TestKoboVMReportsNickelRescanFailure verifies a failed USB event is logged.
+func TestKoboVMReportsNickelRescanFailure(t *testing.T) {
+	fixture := newVMTestFixture(t, defaultVMTestOptions())
+	fixture.vm.run("rm /tmp/nickel-hardware-status; mkdir /tmp/nickel-hardware-status")
+
+	logText := fixture.triggerAdd()
+	requireLogContains(t, logText,
+		"triggering Nickel rescan",
+		"Nickel rescan failed: add event: open /tmp/nickel-hardware-status:",
+		"completed in ")
 }
 
 // TestKoboVMSkipsExistingBookmark verifies that an existing non-empty KEPUB is
