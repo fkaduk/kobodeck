@@ -5,26 +5,24 @@
 [![Latest release](https://img.shields.io/github/v/tag/fkaduk/kobodeck?sort=semver&label=release)](https://github.com/fkaduk/kobodeck/releases/latest)
 [![License](https://img.shields.io/github/license/fkaduk/kobodeck)](LICENSE)
 
-A minimalist Readeck article downloader for Kobo e-readers.
-It can
+A minimalist Readeck article downloader for Kobo e-readers that
 
-- fetch content from a **Readeck instance**
-- sync some properties (read/archived/favourite) from the **Kobo device** to Readeck
+- fetches content from a **Readeck instance**
+- marks completed articles as read on Readeck, optionally archives them
+- synchronizes favorites from the **Kobo device** to Readeck
 
 ```mermaid
 flowchart LR
     K[Kobo Device]
     R[Readeck Instance]
-
-    R -->|unread articles| K
-    K -->|archive completed articles| R
-    K -->|mark favourites| R
+    R -->|unread and in-progress articles| K
+    K -->|update article status <br> read/archived/favorite| R
 ```
 
 The project is forked from
 [wallabako](https://gitlab.com/anarcat/wallabako).
 
-Kobodeck reads from, but never writes to, the Kobo SQLite database.
+Kobodeck does not write to the Kobo devices SQLite database.
 
 ## Who is this for?
 
@@ -39,34 +37,30 @@ This plugin could be useful for you if you
 
 ## How to use it
 
-When Wi-Fi is turned on, Kobodeck connects to your Readeck instance in the
-background, downloads new unread articles as KEPUBs with cover images, and
-syncs read status back to Readeck.
+When Wi-Fi is enabled,
+Kobodeck downloads unread and in-progress Readeck
+articles matching the configured filters as KEPUBs.
 
-If any files changed, it triggers a Nickel library rescan via a simulated USB event.
+It then triggers a Nickel library rescan via a simulated USB event.
 Press **Connect** to rescan immediately, or **Cancel** -
 the files are already downloaded either way.
 
 ![screenshot of the connect dialog on a Kobo Glo HD reader](assets/connect-dialog.png)
 
-To add an article as favourite on Readeck,
-add it to the Kobo collection you set in the configuration
-and wait or retrigger Kobodeck by switching device Wi-Fi off and on again.
-The same works for removing favourites.
-
-**Note:** For downloading large sets of articles,
-increase time to sleep in
-`Settings > Energy savings and privacy > Automatically go to sleep after`
+If you have a large number of articles,
+increase the automatic sleep timeout under
+**Settings → Energy savings and privacy → Automatically go to sleep after**
+to prevent Kobodeck from being suspended.
 
 ## Prerequisites
 
 - a running [hosted](https://readeck.com) or
   [self-hosted](https://readeck.org/en/) Readeck instance
-- a Readeck API token (generate one in Readeck under Settings → API tokens)
+- a Readeck API token (generate in Readeck under Settings → API tokens)
 - a Kobo device from the Glo generation or newer running the stock Nickel firmware
   (tested on Kobo Libra Color; very old models may not work)
 
-## Installation or upgrade
+## Install or upgrade
 
 To install or upgrade
 
@@ -84,11 +78,13 @@ To install or upgrade
 
 Logs are written to `.adds/kobodeck/kobodeck.log` on the device.
 
-## Uninstalling
+## Uninstall
 
 Empty the file `.adds/kobodeck/kobodeck.toml`
 (delete its contents, but keep the file) and connect to Wi-Fi.
-Kobodeck will detect the empty config, remove its installed files, and exit.
+Kobodeck will remove the installed files,
+without deleting downloaded articles,
+and exit.
 If uninstall succeeded, `.adds/kobodeck/` will no longer exist.
 
 ### Manual uninstall
@@ -103,7 +99,7 @@ The following need to be deleted:
 /mnt/onboard/kobodeck/
 ```
 
-The last path is the default output directory
+The last path is the default article output directory
 (`Output.Path` in the config) - adjust if you changed it.
 
 ## Development
@@ -114,10 +110,8 @@ Check the Makefile for common operations.
 
 Due to Kobodeck's simplicity and high integration -
 it only works with Readeck and on Kobo devices -
-the focus is on end-to-end testing.
-
-A Kobo device is simulated in a VM (ARMv7 QEMU)
-and the main functionality is tested.
+the focus is on end-to-end testing via
+simulating a Kobo device in an ARMv7 QEMU VM.
 
 To run it, install the necessary dependencies
 (QEMU, Docker, `cpio`, and `dosfstools`)
@@ -127,13 +121,16 @@ and execute `make test`.
 
 - Already downloaded articles are never re-downloaded, even if the local file
   is corrupted or unreadable. To force a re-download, delete the file from
-  `.adds/kobodeck/` manually.
+  `Output.Path` (default: `/mnt/onboard/kobodeck/`).
 - Un-archiving an article in Readeck does not restore it to the device, because
   the local file already exists and re-downloads are never triggered.
+- If you enable `Sync.FavouriteCollection` in Kobodeck, the respective
+  collection will serve as ground truth and will override changes
+  made to your favorites e.g. via the Readeck web interface.
 
 ### Future work
 
 - Sync highlights and annotations from the Kobo (`Bookmark` table in
   `KoboReader.sqlite`) to Readeck's annotations API
 - Add functionality to enable fetching archived articles
-- Add functionality to fetch favourites only
+- Add functionality to fetch favorites only
