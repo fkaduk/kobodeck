@@ -194,10 +194,6 @@ done:
 
 	reconcileLocalFiles(client, config, valid, bookmarks)
 
-	if config.Log.Verbose {
-		fds := listOpenFds()
-		log.Printf("%d open file descriptors: %s", len(fds), fds)
-	}
 	if filesChanged.Load() {
 		if err := nickelRescan(); err != nil {
 			log.Printf("Nickel rescan failed: %v", err)
@@ -488,17 +484,4 @@ func reconcileLocalFiles(
 			}
 		}
 	}
-}
-
-// listOpenFds returns the resolved paths of all open file descriptors.
-// Used for verbose leak diagnostics only.
-func listOpenFds() []string {
-	fds, _ := filepath.Glob("/proc/self/fd/*")
-	var result []string
-	for _, fd := range fds {
-		if link, err := os.Readlink(fd); err == nil {
-			result = append(result, link)
-		}
-	}
-	return result
 }

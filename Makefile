@@ -1,10 +1,13 @@
 GNUARCH ?= $(shell arch)
 BINARY  ?= build/kobodeck.$(GNUARCH)
+SOURCES  = $(wildcard *.go) go.mod go.sum kobodeck.toml Makefile
 
-GFLAGS += -ldflags="-X main.version=$(shell git describe --always --dirty --tags)"
+GFLAGS += -ldflags="-s -w -X main.version=$(shell git describe --always --dirty --tags)"
 CROSS_COMPILE_FLAGS = GOARCH=arm GOOS=linux CGO_ENABLED=0
 
-all: check build tarball
+.PHONY: all tarball build tag clean check test
+
+all: check tarball
 
 tarball:
 	@echo building Kobo tarball
@@ -17,10 +20,9 @@ tarball:
 
 build: $(BINARY)
 
-$(BINARY): *.go
+$(BINARY): $(SOURCES)
 	mkdir -p $$(dirname $(BINARY))
 	CGO_ENABLED=0 go build $(GFLAGS) -o $@
-	strip $@ || true
 
 tag:
 	@test -z "$$(git status --porcelain)" || (echo "error: working tree is dirty"; exit 1)
@@ -35,8 +37,7 @@ clean:
 check:
 	go vet ./...
 	@out=$$(gofmt -s -l .); if [ -n "$$out" ]; then echo "gofmt: these files need formatting:"; echo "$$out"; exit 1; fi
-	go mod tidy
-	@out=$$(git diff --name-only go.mod go.sum); if [ -n "$$out" ]; then echo "go.mod/go.sum out of sync, run go mod tidy"; git checkout go.mod go.sum; exit 1; fi
+	go mod tidy -diff
 	markdownlint **/*.md
 
 test: tarball
