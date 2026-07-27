@@ -99,6 +99,7 @@ func main() {
 	os.MkdirAll(filepath.Dir(confPath), 0755)
 	configFile, configErr := findConfig()
 	setupLogging(config)
+	log.SetPrefix(fmt.Sprintf("pid=%d ", os.Getpid()))
 	debug.SetPanicOnFault(true)
 
 	if errors.Is(configErr, errConfigCreated) {
@@ -116,7 +117,8 @@ func main() {
 	if err := config.validate(); err != nil {
 		log.Fatal("invalid configuration: ", err)
 	}
-	log.Println("kobodeck version", version, "loaded configuration from", configFile)
+	log.Printf("kobodeck version %s loaded configuration from %s action=%q interface=%q",
+		version, configFile, os.Getenv("ACTION"), os.Getenv("INTERFACE"))
 
 	if *checkFlag {
 		if err := runCheck(os.Stdout); err != nil {
@@ -197,7 +199,9 @@ done:
 		log.Printf("%d open file descriptors: %s", len(fds), fds)
 	}
 	if filesChanged.Load() {
-		nickelRescan()
+		if err := nickelRescan(); err != nil {
+			log.Printf("Nickel rescan failed: %v", err)
+		}
 	}
 }
 
@@ -308,18 +312,29 @@ func doUninstall(binaryPath string, files []string) {
 // nickelRescan triggers a Nickel library rescan by simulating a USB plug/unplug
 // via /tmp/nickel-hardware-status. The user will see a Connect/Cancel dialog;
 // pressing Connect rescans immediately, Cancel still picks up changes on reboot.
-func nickelRescan() {
+func nickelRescan() error {
 	const nickelStatus = "/tmp/nickel-hardware-status"
 	log.Println("triggering Nickel rescan")
-	if f, err := os.OpenFile(nickelStatus, os.O_APPEND|os.O_WRONLY, 0); err == nil {
-		f.WriteString("usb plug add\n")
-		f.Close()
-		time.Sleep(10 * time.Second)
-		if f, err = os.OpenFile(nickelStatus, os.O_APPEND|os.O_WRONLY, 0); err == nil {
-			f.WriteString("usb plug remove\n")
-			f.Close()
-		}
+	if err := appendNickelEvent(nickelStatus, "add"); err != nil {
+		return err
 	}
+	time.Sleep(10 * time.Second)
+	return appendNickelEvent(nickelStatus, "remove")
+}
+
+func appendNickelEvent(path, event string) error {
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0)
+	if err != nil {
+		return fmt.Errorf("%s event: open %s: %w", event, path, err)
+	}
+	if _, err := f.WriteString("usb plug " + event + "\n"); err != nil {
+		f.Close()
+		return fmt.Errorf("%s event: write %s: %w", event, path, err)
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("%s event: close %s: %w", event, path, err)
+	}
+	return nil
 }
 
 // acquireLock acquires an exclusive non-blocking flock on /tmp/kobodeck.lock.

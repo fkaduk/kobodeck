@@ -9,7 +9,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/http/httputil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -134,7 +133,6 @@ func download(client *http.Client, entry readeckBookmark) error {
 		os.Remove(output)
 		return fmt.Errorf("write %s: %w", output, err)
 	}
-	filesChanged.Store(true)
 	log.Printf("wrote %s (%d bytes)", output, n)
 
 	if err := fixCover(output); err != nil {
@@ -151,6 +149,7 @@ func download(client *http.Client, entry readeckBookmark) error {
 	if err := os.Chtimes(kepubPath, entry.Updated, entry.Updated); err != nil {
 		log.Printf("warning: set mtime %s: %v", filepath.Base(kepubPath), err)
 	}
+	filesChanged.Store(true)
 	log.Printf("converted to %s (timestamp %s)", kepubPath, entry.Updated.Format(time.RFC3339))
 	return nil
 }
@@ -215,22 +214,19 @@ func callAPI(client *http.Client, method, apiURL string, body io.Reader) ([]byte
 	}
 	req.Header.Set("Authorization", "Bearer "+config.Server.Token)
 	req.Header.Set("Content-Type", "application/json")
-	if config.Log.Verbose {
-		redacted := req.Clone(req.Context())
-		redacted.Header.Set("Authorization", "Bearer [redacted]")
-		dump, _ := httputil.DumpRequestOut(redacted, true)
-		debugf("request: %q", dump)
-	}
+
+	start := time.Now()
 	resp, err := client.Do(req)
 	if err != nil {
+		debugf("http method=%s path=%s outcome=transport_failure duration=%s",
+			method, req.URL.Path, time.Since(start).Truncate(time.Millisecond))
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if config.Log.Verbose {
-		dump, _ := httputil.DumpResponse(resp, true)
-		debugf("response: %q", dump)
-	}
+
 	data, err := io.ReadAll(resp.Body)
+	debugf("http method=%s path=%s status=%d bytes=%d duration=%s",
+		method, req.URL.Path, resp.StatusCode, len(data), time.Since(start).Truncate(time.Millisecond))
 	if err != nil {
 		return nil, err
 	}
