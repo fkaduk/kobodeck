@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"context"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -9,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/pgaskin/kepubify/v4/kepub"
 )
 
 // fixCover patches the OPF inside the EPUB at path to declare an existing image
@@ -174,4 +177,34 @@ func copyCoverZipEntry(w *zip.Writer, src *zip.File) error {
 	defer rc.Close()
 	_, err = io.Copy(ew, rc)
 	return err
+}
+
+// toKepub converts the EPUB at path to a .kepub.epub file, removes the
+// original, and returns the new path.
+func toKepub(epubPath string) (string, error) {
+	r, err := zip.OpenReader(epubPath)
+	if err != nil {
+		return "", err
+	}
+	defer r.Close()
+
+	kepubPath := strings.TrimSuffix(epubPath, ".epub") + ".kepub.epub"
+	f, err := os.Create(kepubPath)
+	if err != nil {
+		return "", err
+	}
+
+	c := kepub.NewConverterWithOptions(kepub.ConverterOptionDummyTitlepage(false))
+	convertErr := c.Convert(context.Background(), f, &r.Reader)
+	closeErr := f.Close()
+	if convertErr != nil || closeErr != nil {
+		os.Remove(kepubPath)
+		os.Remove(epubPath)
+		if convertErr != nil {
+			return "", convertErr
+		}
+		return "", closeErr
+	}
+	os.Remove(epubPath)
+	return kepubPath, nil
 }

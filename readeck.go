@@ -1,9 +1,7 @@
 package main
 
 import (
-	"archive/zip"
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,8 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/pgaskin/kepubify/v4/kepub"
 )
 
 type readeckBookmark struct {
@@ -126,12 +122,15 @@ func download(client *http.Client, entry readeckBookmark) error {
 	if err != nil {
 		return fmt.Errorf("create %s: %w", output, err)
 	}
-	defer out.Close()
 
-	n, err := io.Copy(out, resp.Body)
-	if err != nil {
+	n, writeErr := io.Copy(out, resp.Body)
+	closeErr := out.Close()
+	if writeErr != nil || closeErr != nil {
 		os.Remove(output)
-		return fmt.Errorf("write %s: %w", output, err)
+		if writeErr != nil {
+			return fmt.Errorf("write %s: %w", output, writeErr)
+		}
+		return fmt.Errorf("close %s: %w", output, closeErr)
 	}
 	log.Printf("wrote %s (%d bytes)", output, n)
 
@@ -152,36 +151,6 @@ func download(client *http.Client, entry readeckBookmark) error {
 	filesChanged.Store(true)
 	log.Printf("converted to %s (timestamp %s)", kepubPath, entry.Updated.Format(time.RFC3339))
 	return nil
-}
-
-// toKepub converts the EPUB at path to a .kepub.epub file, removes the
-// original, and returns the new path.
-func toKepub(epubPath string) (string, error) {
-	r, err := zip.OpenReader(epubPath)
-	if err != nil {
-		return "", err
-	}
-	defer r.Close()
-
-	kepubPath := strings.TrimSuffix(epubPath, ".epub") + ".kepub.epub"
-	f, err := os.Create(kepubPath)
-	if err != nil {
-		return "", err
-	}
-
-	c := kepub.NewConverterWithOptions(kepub.ConverterOptionDummyTitlepage(false))
-	convertErr := c.Convert(context.Background(), f, &r.Reader)
-	closeErr := f.Close()
-	if convertErr != nil || closeErr != nil {
-		os.Remove(kepubPath)
-		os.Remove(epubPath)
-		if convertErr != nil {
-			return "", convertErr
-		}
-		return "", closeErr
-	}
-	os.Remove(epubPath)
-	return kepubPath, nil
 }
 
 // patchBookmark sends a partial update to a bookmark in Readeck.
