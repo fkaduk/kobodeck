@@ -34,5 +34,5 @@ Size = 1
 # Directory to store downloaded (K)EPUB files
 # If it does not exist, it will be created
 Path = "/mnt/onboard/kobodeck"
-# Delete local EPUBs that are no longer in the unread feed
+# Delete local EPUBs that are no longer in the unread feed or over the Fetch.Limit
 Delete = false
