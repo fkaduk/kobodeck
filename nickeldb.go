@@ -18,6 +18,7 @@ const (
 
 const nickelContentTypeBook = 6
 
+// openNickelDB opens Kobo's Nickel database in read-only mode.
 func openNickelDB() (*sql.DB, error) {
 	return sql.Open("sqlite", "file:"+nickelDBPath+"?mode=ro")
 }
@@ -38,6 +39,7 @@ func nickelIsInCollection(db *sql.DB, ID, outputDir, collection string) (bool, e
 	return count > 0, nil
 }
 
+// nickelReadStatus returns the current Nickel reading status for a book.
 func nickelReadStatus(db *sql.DB, ID string, outputDir string) (bookStatus, error) {
 	// Nickel stores books as file:// URIs matching the on-device path.
 	path := fmt.Sprintf("file://%s/%s.kepub.epub", outputDir, ID)
