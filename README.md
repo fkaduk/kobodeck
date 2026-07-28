@@ -119,11 +119,9 @@ and execute `make test`.
 
 ### Known issues and limitations
 
-- Already downloaded articles are never re-downloaded, even if the local file
-  is corrupted or unreadable. To force a re-download, delete the file from
-  `Output.Path` (default: `/mnt/onboard/kobodeck/`).
-- Un-archiving an article in Readeck does not restore it to the device, because
-  the local file already exists and re-downloads are never triggered.
+- Already downloaded articles are never refreshed when their Readeck content
+  changes or the local file is corrupted. To force a re-download, delete the
+  file from `Output.Path` (default: `/mnt/onboard/kobodeck/`).
 - If you enable `Sync.FavouriteCollection` in Kobodeck, the respective
   collection will serve as ground truth and will override changes
   made to your favorites e.g. via the Readeck web interface.
