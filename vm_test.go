@@ -228,9 +228,10 @@ func (server *hostReadeckServer) apiRequest(
 }
 
 type testBookmarkState struct {
-	Loaded     bool `json:"loaded"`
-	IsArchived bool `json:"is_archived"`
-	IsMarked   bool `json:"is_marked"`
+	Loaded       bool `json:"loaded"`
+	ReadProgress int  `json:"read_progress"`
+	IsArchived   bool `json:"is_archived"`
+	IsMarked     bool `json:"is_marked"`
 }
 
 // bookmarkState retrieves the Readeck fields asserted by the test for id.
@@ -423,7 +424,7 @@ Timeout = 30
 Workers = 1
 Limit = 0
 Labels = ""
-Status = ""
+Status = "unread,reading"
 
 [Sync]
 Archive = %t
@@ -881,8 +882,8 @@ func TestKoboVMSkipsExistingBookmark(t *testing.T) {
 	fixture.requireNoNickelRescan()
 }
 
-// TestKoboVMSyncsFinishedFavouriteBookmark verifies both state updates can
-// occur in one reconciliation even though archiving removes the unread entry.
+// TestKoboVMSyncsFinishedFavouriteBookmark verifies read, archive, and favorite
+// updates can occur together even though archiving removes the unread entry.
 func TestKoboVMSyncsFinishedFavouriteBookmark(t *testing.T) {
 	fixture := newVMTestFixture(t, defaultVMTestOptions())
 	fixture.seedLocalArticle(bookRead, true)
@@ -892,11 +893,29 @@ func TestKoboVMSyncsFinishedFavouriteBookmark(t *testing.T) {
 	requireLogContains(
 		t,
 		logText,
-		"marking entry "+fixture.bookmarkID+" as archived",
+		"marking entry "+fixture.bookmarkID+" as read and archived",
 		"marking entry "+fixture.bookmarkID+" as favourite",
 	)
 	state := fixture.server.bookmarkState(t, fixture.bookmarkID)
-	if !state.IsArchived || !state.IsMarked {
+	if state.ReadProgress != 100 || !state.IsArchived || !state.IsMarked {
+		t.Fatalf("unexpected Readeck state: %+v", state)
+	}
+	fixture.requireNoNickelRescan()
+}
+
+// TestKoboVMMarksFinishedBookmarkReadWithoutArchiving verifies read status is
+// synchronized independently of the archive setting.
+func TestKoboVMMarksFinishedBookmarkReadWithoutArchiving(t *testing.T) {
+	options := defaultVMTestOptions()
+	options.archive = false
+	fixture := newVMTestFixture(t, options)
+	fixture.seedLocalArticle(bookRead, false)
+
+	logText := fixture.triggerAdd()
+	requireCleanLog(t, logText)
+	requireLogContains(t, logText, "marking entry "+fixture.bookmarkID+" as read")
+	state := fixture.server.bookmarkState(t, fixture.bookmarkID)
+	if state.ReadProgress != 100 || state.IsArchived {
 		t.Fatalf("unexpected Readeck state: %+v", state)
 	}
 	fixture.requireNoNickelRescan()

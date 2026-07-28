@@ -13,11 +13,11 @@ Limit = 0
 # Only fetch articles based on readeck bookmarks with these labels (comma-separated, empty: all)
 Labels = ""
 # Only fetch articles with these read statuses (comma-separated: unread, reading, read; empty: all non-archived)
-Status = ""
+Status = "unread,reading"
 
 [Sync]
-# if an article is completed on your kobo
-# it will be marked as archived on Readeck
+# Articles completed on the Kobo are marked as read on Readeck.
+# Also archive completed articles when enabled.
 Archive = true
 # Articles in the following collection
 # will be set as favourite in Readeck

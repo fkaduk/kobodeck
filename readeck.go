@@ -14,14 +14,15 @@ import (
 )
 
 type readeckBookmark struct {
-	ID         string    `json:"id"`
-	Title      string    `json:"title"`
-	URL        string    `json:"url"`
-	Updated    time.Time `json:"updated"`
-	IsArchived bool      `json:"is_archived"`
-	IsMarked   bool      `json:"is_marked"` // "marked" is what Readeck calls a favorite.
-	Labels     []string  `json:"labels"`
-	Loaded     bool      `json:"loaded"`
+	ID           string    `json:"id"`
+	Title        string    `json:"title"`
+	URL          string    `json:"url"`
+	Updated      time.Time `json:"updated"`
+	ReadProgress int       `json:"read_progress"`
+	IsArchived   bool      `json:"is_archived"`
+	IsMarked     bool      `json:"is_marked"` // "marked" is what Readeck calls a favorite.
+	Labels       []string  `json:"labels"`
+	Loaded       bool      `json:"loaded"`
 }
 
 // listBookmarks fetches bookmarks from Readeck, paging through results
@@ -154,7 +155,7 @@ func download(client *http.Client, entry readeckBookmark) error {
 }
 
 // patchBookmark sends a partial update to a bookmark in Readeck.
-func patchBookmark(client *http.Client, id string, fields map[string]bool) error {
+func patchBookmark(client *http.Client, id string, fields map[string]any) error {
 	body, _ := json.Marshal(fields)
 	_, err := callAPI(client, "PATCH", config.Server.URL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
 	return err

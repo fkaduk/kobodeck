@@ -398,10 +398,11 @@ func runCheck(w io.Writer) error {
 }
 
 // reconcileLocalFiles checks each local EPUB against the Nickel DB and Readeck.
-// Books marked as read in Nickel are archived. When FavouriteCollection is
-// configured, Readeck favourite state mirrors Kobo shelf membership, including
-// for archived bookmarks. Books no longer in the fetched feed are deleted if
-// cfg.Output.Delete is set, unless currently being read.
+// Books marked as read in Nickel are marked as read in Readeck and optionally
+// archived. When FavouriteCollection is configured, Readeck favourite state
+// mirrors Kobo shelf membership, including for archived bookmarks. Books no
+// longer in the fetched feed are deleted if cfg.Output.Delete is set, unless
+// currently being read.
 func reconcileLocalFiles(
 	client *http.Client,
 	cfg appConfig,
@@ -445,15 +446,26 @@ func reconcileLocalFiles(
 			log.Println(statusErr)
 			continue
 		}
-		if cfg.Sync.Archive && status == bookRead && wasValid {
-			log.Printf("marking entry %s as archived", uid)
-			if err = patchBookmark(client, uid, map[string]bool{"is_archived": true}); err != nil {
-				log.Println("failed to mark as read:", err)
-			} else {
-				valid[uid] = false
+		bookmark, bookmarkKnown := bookmarks[uid]
+		if status == bookRead && wasValid {
+			fields := make(map[string]any)
+			action := "read"
+			if bookmark.ReadProgress != 100 {
+				fields["read_progress"] = 100
+			}
+			if cfg.Sync.Archive {
+				fields["is_archived"] = true
+				action += " and archived"
+			}
+			if len(fields) > 0 {
+				log.Printf("marking entry %s as %s", uid, action)
+				if err = patchBookmark(client, uid, fields); err != nil {
+					log.Printf("failed to mark entry %s as %s: %v", uid, action, err)
+				} else if cfg.Sync.Archive {
+					valid[uid] = false
+				}
 			}
 		}
-		bookmark, bookmarkKnown := bookmarks[uid]
 		if collectionKnown && cfg.Sync.FavouriteCollection != "" && !bookmarkKnown {
 			bookmark, err = getBookmark(client, uid)
 			if err != nil {
@@ -469,7 +481,7 @@ func reconcileLocalFiles(
 				action = "unmarking"
 			}
 			log.Printf("%s entry %s as favourite", action, uid)
-			if err = patchBookmark(client, uid, map[string]bool{"is_marked": inCollection}); err != nil {
+			if err = patchBookmark(client, uid, map[string]any{"is_marked": inCollection}); err != nil {
 				log.Printf("failed to set favourite state to %t: %v", inCollection, err)
 			}
 		}

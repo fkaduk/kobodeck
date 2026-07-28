@@ -130,5 +130,5 @@ and execute `make test`.
 
 - Sync highlights and annotations from the Kobo (`Bookmark` table in
   `KoboReader.sqlite`) to Readeck's annotations API
-- Add functionality to enable fetching archived articles
-- Add functionality to fetch favorites only
+- Add option to fetch archived articles
+- Add option to fetch favorites only
