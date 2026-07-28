@@ -17,6 +17,7 @@ import (
 // fixCover patches the OPF inside the EPUB at path to declare an existing image
 // as the cover via EPUB3 properties="cover-image" and EPUB2 <meta name="cover">.
 // Prefers the first res-* JPEG/PNG content image, falls back to icon-* favicon.
+// This will show that image as article cover on the Kobo.
 func fixCover(path string) error {
 	r, err := zip.OpenReader(path)
 	if err != nil {
@@ -41,7 +42,8 @@ func fixCover(path string) error {
 		source = findIconItem(items)
 	}
 	if source == nil {
-		return nil // no image available, leave unchanged
+		log.Printf("warning: no image available, leaving unchaged")
+		return nil
 	}
 
 	patchedOPF := addCoverToOPF(opfData, source.ID)
