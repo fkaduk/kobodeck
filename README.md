@@ -128,6 +128,16 @@ and execute `make test`.
 
 ### Future work
 
+- Generate a dedicated cover XHTML document with suitable 3:4 artwork instead
+  of only marking the first article image as the cover. Until then, let
+  kepubify add its dummy title page so Nickel does not apply cover-page layout
+  to the article itself.
+- Adjust Readeck's stylesheet during conversion: its global `div` and `span`
+  rules also affect kepubify's injected reading-position wrappers, and its
+  background colors conflict with Kobo's night and sepia themes.
+- Normalize Readeck's EPUB 2/HTML5 hybrid markup, preserve the article's
+  package language and right-to-left metadata, and validate the converted
+  book with EPUBCheck.
 - Sync highlights and annotations from the Kobo (`Bookmark` table in
   `KoboReader.sqlite`) to Readeck's annotations API
 - Add option to fetch archived articles
