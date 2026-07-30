@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	_ "embed"
 	"errors"
 	"flag"
@@ -96,7 +97,7 @@ var (
 
 func main() {
 	flag.Parse()
-	os.MkdirAll(filepath.Dir(confPath), 0755)
+	os.MkdirAll(filepath.Dir(confPath), 0o755)
 	configFile, configErr := findConfig()
 	setupLogging(config)
 	log.SetPrefix(fmt.Sprintf("pid=%d ", os.Getpid()))
@@ -266,7 +267,7 @@ func findConfig() (string, error) {
 		return *configFileFlag, nil
 	}
 	if _, err := os.Stat(confPath); errors.Is(err, os.ErrNotExist) {
-		if err := os.WriteFile(confPath, configTemplate, 0600); err != nil {
+		if err := os.WriteFile(confPath, configTemplate, 0o600); err != nil {
 			return "", fmt.Errorf("write config template: %w", err)
 		}
 		return confPath, errConfigCreated
@@ -336,7 +337,7 @@ func appendNickelEvent(path, event string) error {
 // acquireLock acquires an exclusive non-blocking flock on /tmp/kobodeck.lock.
 // Returns an error if another instance is already running.
 func acquireLock() (*os.File, error) {
-	f, err := os.OpenFile("/tmp/kobodeck.lock", os.O_CREATE|os.O_WRONLY, 0600)
+	f, err := os.OpenFile("/tmp/kobodeck.lock", os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return nil, fmt.Errorf("open lock file: %w", err)
 	}
@@ -424,7 +425,8 @@ func reconcileLocalFiles(
 		// absent from the feed, so this also avoids sending the same favourite
 		// PATCH on every Wi-Fi connection.
 		wasValid := valid[uid]
-		db, err := openNickelDB()
+
+		db, err := sql.Open("sqlite", "file:"+nickelDBPath+"?mode=ro")
 		if err != nil {
 			log.Println("cannot open Nickel DB:", err)
 			continue
