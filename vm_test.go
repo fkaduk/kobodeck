@@ -53,40 +53,10 @@ const (
 
 var bearerRegexp = regexp.MustCompile(`value="Authorization: Bearer ([^"]+)"`)
 
-var alpineNetbootArtifacts = []struct {
-	name   string
-	sha256 string
-}{
-	{
-		name:   "vmlinuz-lts",
-		sha256: "f36e6732b8165eb43780b86a87a3eb2e17fbabc9984bab9796a9a72c4d56debc",
-	},
-	{
-		name:   "initramfs-lts",
-		sha256: "32807f8009a39c86bc70d601e9175293d416a7d204275f807e490cd92653cd68",
-	},
-}
-
 type hostReadeckServer struct {
 	hostURL string
 	vmURL   string
 	token   string
-}
-
-type vmTestOptions struct {
-	createBookmark      bool
-	archive             bool
-	favouriteCollection string
-	deleteLocal         bool
-}
-
-// defaultVMTestOptions returns the configuration used by normal release tests.
-func defaultVMTestOptions() vmTestOptions {
-	return vmTestOptions{
-		createBookmark:      true,
-		archive:             true,
-		favouriteCollection: testFavouriteShelf,
-	}
 }
 
 // docker runs the Docker CLI while keeping stdout separate from progress output
@@ -278,29 +248,6 @@ func (server *hostReadeckServer) createLoadedBookmark(t *testing.T, articleURL s
 	return ""
 }
 
-// updateBookmark applies test fixture state to one Readeck bookmark.
-func (server *hostReadeckServer) updateBookmark(
-	t *testing.T,
-	id string,
-	fields map[string]bool,
-) {
-	t.Helper()
-	body, err := json.Marshal(fields)
-	if err != nil {
-		t.Fatal(err)
-	}
-	response := server.apiRequest(
-		t,
-		http.MethodPatch,
-		"/api/bookmarks/"+id,
-		bytes.NewReader(body),
-	)
-	defer response.Body.Close()
-	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		t.Fatalf("update Readeck bookmark %s: HTTP %s", id, response.Status)
-	}
-}
-
 // requireCommand fails immediately when a required host executable is absent.
 func requireCommand(t *testing.T, name string) {
 	t.Helper()
@@ -318,43 +265,58 @@ func fileHasSHA256(path, wantHash string) bool {
 	return fmt.Sprintf("%x", sha256.Sum256(data)) == wantHash
 }
 
-// ensureNetbootArtifacts downloads each pinned Alpine artifact at most once.
-func ensureNetbootArtifacts(t *testing.T) (kernelPath, initramfsPath string) {
+// ensureNetbootArtifact returns a validated cached Alpine boot artifact,
+// downloading it when the cache entry is absent, partial, or stale.
+func ensureNetbootArtifact(t *testing.T, client *http.Client, name, wantHash string) string {
 	t.Helper()
 	if err := os.MkdirAll(artifactCacheDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-
-	client := &http.Client{Timeout: 2 * time.Minute}
-	for _, artifact := range alpineNetbootArtifacts {
-		path := filepath.Join(artifactCacheDir, artifact.name)
-		// A missing, partial, or stale cache entry follows the same download path.
-		// There is no separate cache-cleanup operation for developers to remember.
-		if !fileHasSHA256(path, artifact.sha256) {
-			requestURL := alpineNetbootBaseURL + "/" + artifact.name
-			resp, err := client.Get(requestURL)
-			if err != nil {
-				t.Fatalf("download %s: %v", requestURL, err)
-			}
-			data, readErr := io.ReadAll(resp.Body)
-			resp.Body.Close()
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("download %s: got HTTP %s", requestURL, resp.Status)
-			}
-			if readErr != nil {
-				t.Fatalf("download %s: %v", requestURL, readErr)
-			}
-			if got := fmt.Sprintf("%x", sha256.Sum256(data)); got != artifact.sha256 {
-				t.Fatalf("verify %s: got sha256 %s, want %s", requestURL, got, artifact.sha256)
-			}
-			if err := os.WriteFile(path, data, 0o644); err != nil {
-				t.Fatal(err)
-			}
-		}
+	path := filepath.Join(artifactCacheDir, name)
+	if fileHasSHA256(path, wantHash) {
+		return path
 	}
 
-	return filepath.Join(artifactCacheDir, "vmlinuz-lts"),
-		filepath.Join(artifactCacheDir, "initramfs-lts")
+	requestURL := alpineNetbootBaseURL + "/" + name
+	resp, err := client.Get(requestURL)
+	if err != nil {
+		t.Fatalf("download %s: %v", requestURL, err)
+	}
+	data, readErr := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("download %s: got HTTP %s", requestURL, resp.Status)
+	}
+	if readErr != nil {
+		t.Fatalf("download %s: %v", requestURL, readErr)
+	}
+	if got := fmt.Sprintf("%x", sha256.Sum256(data)); got != wantHash {
+		t.Fatalf("verify %s: got sha256 %s, want %s", requestURL, got, wantHash)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// ensureNetbootArtifacts names both pinned external inputs explicitly so a
+// checksum update cannot accidentally change which file is used for each role.
+func ensureNetbootArtifacts(t *testing.T) (kernelPath, initramfsPath string) {
+	t.Helper()
+	client := &http.Client{Timeout: 2 * time.Minute}
+	kernelPath = ensureNetbootArtifact(
+		t,
+		client,
+		"vmlinuz-lts",
+		"f36e6732b8165eb43780b86a87a3eb2e17fbabc9984bab9796a9a72c4d56debc",
+	)
+	initramfsPath = ensureNetbootArtifact(
+		t,
+		client,
+		"initramfs-lts",
+		"32807f8009a39c86bc70d601e9175293d416a7d204275f807e490cd92653cd68",
+	)
+	return kernelPath, initramfsPath
 }
 
 // createOnboardDisk creates the storage Nickel exposes as /mnt/onboard.
@@ -386,7 +348,6 @@ func buildVMInitramfs(
 	t *testing.T,
 	basePath, releasePath string,
 	server *hostReadeckServer,
-	options vmTestOptions,
 ) string {
 	t.Helper()
 	workDir := t.TempDir()
@@ -440,9 +401,9 @@ Delete = %t
 `,
 		server.vmURL,
 		server.token,
-		options.archive,
-		options.favouriteCollection,
-		options.deleteLocal,
+		true,
+		testFavouriteShelf,
+		false,
 	)
 	if err := os.WriteFile(filepath.Join(testDir, "kobodeck.toml"), []byte(config), 0o600); err != nil {
 		t.Fatal(err)
@@ -694,16 +655,13 @@ type vmTestFixture struct {
 // newVMTestFixture creates an isolated Readeck service, FAT32 disk, and ARM
 // guest. It installs the release exactly as a Kobo would, but deliberately does
 // not emit a Wi-Fi event; individual tests control when Kobodeck starts.
-func newVMTestFixture(t *testing.T, options vmTestOptions) *vmTestFixture {
+func newVMTestFixture(t *testing.T) *vmTestFixture {
 	t.Helper()
 	for _, command := range []string{"cpio", "docker", "mkfs.vfat", "qemu-system-arm"} {
 		requireCommand(t, command)
 	}
 	server := startHostReadeckServer(t)
-	bookmarkID := ""
-	if options.createBookmark {
-		bookmarkID = server.createLoadedBookmark(t, testArticleURL)
-	}
+	bookmarkID := server.createLoadedBookmark(t, testArticleURL)
 	releasePath := filepath.Join("build", "KoboRoot.tgz")
 	kernelPath, baseInitramfsPath := ensureNetbootArtifacts(t)
 	initramfsPath := buildVMInitramfs(
@@ -711,7 +669,6 @@ func newVMTestFixture(t *testing.T, options vmTestOptions) *vmTestFixture {
 		baseInitramfsPath,
 		releasePath,
 		server,
-		options,
 	)
 	onboardPath := createOnboardDisk(t)
 	vm := startKoboVM(t, kernelPath, initramfsPath, onboardPath)
@@ -740,12 +697,10 @@ func newVMTestFixture(t *testing.T, options vmTestOptions) *vmTestFixture {
 		server:     server,
 		bookmarkID: bookmarkID,
 	}
-	if bookmarkID != "" {
-		fixture.downloadPath = fmt.Sprintf(
-			"/mnt/onboard/kobodeck/%s.kepub.epub",
-			bookmarkID,
-		)
-	}
+	fixture.downloadPath = fmt.Sprintf(
+		"/mnt/onboard/kobodeck/%s.kepub.epub",
+		bookmarkID,
+	)
 	return fixture
 }
 
@@ -786,245 +741,45 @@ func (fixture *vmTestFixture) triggerAdd() string {
 	return logSince(fixture.t, previous, fixture.guestLog())
 }
 
-// seedLocalArticle creates a non-empty KEPUB and the corresponding Nickel
-// content row. Optionally it also places the article in the configured shelf.
-func (fixture *vmTestFixture) seedLocalArticle(status bookStatus, inCollection bool) {
-	fixture.t.Helper()
-	contentID := "file://" + fixture.downloadPath
-	shelfSQL := ""
-	if inCollection {
-		shelfSQL = fmt.Sprintf(
-			"INSERT INTO Shelf (Id, InternalName, Name, _IsDeleted) "+
-				"VALUES ('vm-favourites', 'vm-favourites', '%s', 'false'); "+
-				"INSERT INTO ShelfContent (ShelfName, ContentId, _IsDeleted) "+
-				"VALUES ('vm-favourites', '%s', 'false');",
-			testFavouriteShelf,
-			contentID,
-		)
-	}
-	fixture.vm.run(fmt.Sprintf(
-		"mkdir -p /mnt/onboard/kobodeck; "+
-			"printf 'vm-fixture' > '%s'; "+
-			"sqlite3 /mnt/onboard/.kobo/KoboReader.sqlite "+
-			"\"INSERT INTO content "+
-			"(ContentID, ContentType, MimeType, ReadStatus, ___UserID) "+
-			"VALUES ('%s', 6, 'application/epub+zip', %d, 'vm-user'); %s\"",
-		fixture.downloadPath,
-		contentID,
-		status,
-		shelfSQL,
-	))
-}
-
-// requireNoNickelRescan fails when Kobodeck emitted USB rescan events.
-func (fixture *vmTestFixture) requireNoNickelRescan() {
-	fixture.t.Helper()
-	if events := fixture.vm.run("cat /tmp/nickel-hardware-status"); events != "" {
-		fixture.t.Fatalf("unexpected Nickel rescan events:\n%s", events)
-	}
-}
-
-// TestKoboVMWaitsForWiFi verifies the installed rule's event gating.
-func TestKoboVMWaitsForWiFi(t *testing.T) {
-	options := defaultVMTestOptions()
-	options.createBookmark = false
-	fixture := newVMTestFixture(t, options)
+// TestKoboVMReleaseSmoke exercises the complete installed ARM release once:
+// udev event gating, real Readeck EPUB download and conversion, FAT storage,
+// Nickel notification, and the release uninstall path.
+func TestKoboVMReleaseSmoke(t *testing.T) {
+	fixture := newVMTestFixture(t)
 
 	fixture.triggerRemove()
-	logText := fixture.triggerAdd()
-	requireCleanLog(t, logText)
-	requireLogContains(t, logText, "pid=", `action="add"`, `interface="wlan0"`,
-		"connecting to ", "completed in ",
-	)
-	fixture.requireNoNickelRescan()
-}
-
-// TestKoboVMDownloadsBookmark verifies download, KEPUB conversion, FAT32
-// storage, and Nickel rescan behavior using the real ARM release.
-func TestKoboVMDownloadsBookmark(t *testing.T) {
-	fixture := newVMTestFixture(t, defaultVMTestOptions())
-
-	logText := fixture.triggerAdd()
-	requireCleanLog(t, logText)
-	requireLogContains(t, logText, "downloading ", "converted to ",
-		"triggering Nickel rescan", "completed in ")
-	fixture.vm.run("[ -s " + fixture.downloadPath + " ]")
-	events := fixture.vm.run("cat /tmp/nickel-hardware-status")
-	requireLogContains(t, events, "usb plug add", "usb plug remove")
-}
-
-// TestKoboVMReportsNickelRescanFailure verifies a failed USB event is logged.
-func TestKoboVMReportsNickelRescanFailure(t *testing.T) {
-	fixture := newVMTestFixture(t, defaultVMTestOptions())
-	fixture.vm.run("rm /tmp/nickel-hardware-status; mkdir /tmp/nickel-hardware-status")
-
-	logText := fixture.triggerAdd()
-	requireLogContains(t, logText,
-		"triggering Nickel rescan",
-		"Nickel rescan failed: add event: open /tmp/nickel-hardware-status:",
-		"completed in ")
-}
-
-// TestKoboVMSkipsExistingBookmark verifies that an existing non-empty KEPUB is
-// neither replaced nor reported as a filesystem change.
-func TestKoboVMSkipsExistingBookmark(t *testing.T) {
-	fixture := newVMTestFixture(t, defaultVMTestOptions())
-	fixture.seedLocalArticle(bookUnread, false)
-
-	logText := fixture.triggerAdd()
-	requireCleanLog(t, logText)
-	for _, unwanted := range []string{"downloading ", "converted to ", "triggering Nickel rescan"} {
-		if strings.Contains(logText, unwanted) {
-			t.Fatalf("existing-book sync unexpectedly contains %q:\n%s", unwanted, logText)
-		}
-	}
-	fixture.vm.run("[ \"$(cat '" + fixture.downloadPath + "')\" = vm-fixture ]")
-	fixture.requireNoNickelRescan()
-}
-
-// TestKoboVMSyncsFinishedFavouriteBookmark verifies read, archive, and favorite
-// updates can occur together even though archiving removes the unread entry.
-func TestKoboVMSyncsFinishedFavouriteBookmark(t *testing.T) {
-	fixture := newVMTestFixture(t, defaultVMTestOptions())
-	fixture.seedLocalArticle(bookRead, true)
-
 	logText := fixture.triggerAdd()
 	requireCleanLog(t, logText)
 	requireLogContains(
 		t,
 		logText,
-		"marking entry "+fixture.bookmarkID+" as read and archived",
-		"marking entry "+fixture.bookmarkID+" as favourite",
+		"pid=",
+		`action="add"`,
+		`interface="wlan0"`,
+		"connecting to ",
+		"downloading ",
+		"converted to ",
+		"triggering Nickel rescan",
+		"completed in ",
 	)
-	state := fixture.server.bookmarkState(t, fixture.bookmarkID)
-	if state.ReadProgress != 100 || !state.IsArchived || !state.IsMarked {
-		t.Fatalf("unexpected Readeck state: %+v", state)
-	}
-	fixture.requireNoNickelRescan()
-}
-
-// TestKoboVMMarksFinishedBookmarkReadWithoutArchiving verifies read status is
-// synchronized independently of the archive setting.
-func TestKoboVMMarksFinishedBookmarkReadWithoutArchiving(t *testing.T) {
-	options := defaultVMTestOptions()
-	options.archive = false
-	fixture := newVMTestFixture(t, options)
-	fixture.seedLocalArticle(bookRead, false)
-
-	logText := fixture.triggerAdd()
-	requireCleanLog(t, logText)
-	requireLogContains(t, logText, "marking entry "+fixture.bookmarkID+" as read")
-	state := fixture.server.bookmarkState(t, fixture.bookmarkID)
-	if state.ReadProgress != 100 || state.IsArchived {
-		t.Fatalf("unexpected Readeck state: %+v", state)
-	}
-	fixture.requireNoNickelRescan()
-}
-
-// TestKoboVMUnfavouritesArchivedBookmark verifies that Kobo shelf membership
-// remains authoritative after Readeck omits an archived entry from its feed.
-func TestKoboVMUnfavouritesArchivedBookmark(t *testing.T) {
-	fixture := newVMTestFixture(t, defaultVMTestOptions())
-	fixture.server.updateBookmark(t, fixture.bookmarkID, map[string]bool{
-		"is_archived": true,
-		"is_marked":   true,
-	})
-	fixture.seedLocalArticle(bookUnread, false)
-
-	logText := fixture.triggerAdd()
-	requireCleanLog(t, logText)
-	requireLogContains(t, logText, "unmarking entry "+fixture.bookmarkID+" as favourite")
-	state := fixture.server.bookmarkState(t, fixture.bookmarkID)
-	if !state.IsArchived || state.IsMarked {
-		t.Fatalf("unexpected Readeck state: %+v", state)
-	}
-	fixture.requireNoNickelRescan()
-}
-
-// TestKoboVMDeletesStaleUnreadBookmark verifies optional cleanup and the
-// resulting Nickel rescan for an article absent from Readeck's unread feed.
-func TestKoboVMDeletesStaleUnreadBookmark(t *testing.T) {
-	options := defaultVMTestOptions()
-	options.deleteLocal = true
-	fixture := newVMTestFixture(t, options)
-	fixture.server.updateBookmark(t, fixture.bookmarkID, map[string]bool{"is_archived": true})
-	fixture.seedLocalArticle(bookUnread, false)
-
-	logText := fixture.triggerAdd()
-	requireCleanLog(t, logText)
-	requireLogContains(t, logText, "deleted "+fixture.downloadPath, "triggering Nickel rescan")
-	fixture.vm.run("[ ! -e " + fixture.downloadPath + " ]")
+	fixture.vm.run("[ -s " + fixture.downloadPath + " ]")
 	events := fixture.vm.run("cat /tmp/nickel-hardware-status")
 	requireLogContains(t, events, "usb plug add", "usb plug remove")
-}
-
-// TestKoboVMKeepsStaleReadingBookmark verifies deletion never removes a book
-// Nickel reports as currently being read.
-func TestKoboVMKeepsStaleReadingBookmark(t *testing.T) {
-	options := defaultVMTestOptions()
-	options.deleteLocal = true
-	fixture := newVMTestFixture(t, options)
-	fixture.server.updateBookmark(t, fixture.bookmarkID, map[string]bool{"is_archived": true})
-	fixture.seedLocalArticle(bookReading, false)
-
-	logText := fixture.triggerAdd()
-	requireCleanLog(t, logText)
-	requireLogContains(t, logText, "not deleting book currently being read: "+fixture.downloadPath)
-	fixture.vm.run("[ -s " + fixture.downloadPath + " ]")
-	fixture.requireNoNickelRescan()
-}
-
-// TestKoboVMRejectsDuplicateLaunch verifies the process lock by starting two
-// copies of the installed ARM binary concurrently. eudev serializes events for
-// one device, so direct concurrent execution makes the lock race deterministic.
-func TestKoboVMRejectsDuplicateLaunch(t *testing.T) {
-	fixture := newVMTestFixture(t, defaultVMTestOptions())
-	previous := fixture.guestLog()
-	fixture.vm.run(
-		"/usr/local/bin/kobodeck & first_pid=$!; " +
-			"waited=0; while [ ! -e /tmp/kobodeck.lock ]; do " +
-			"waited=$((waited + 1)); [ \"$waited\" -lt 20 ] || break; sleep 1; " +
-			"done; [ -e /tmp/kobodeck.lock ]; sleep 1; " +
-			"/usr/local/bin/kobodeck; duplicate_status=$?; " +
-			"wait \"$first_pid\"; first_status=$?; " +
-			"[ \"$first_status\" -eq 0 ] && [ \"$duplicate_status\" -ne 0 ]",
-	)
-	logText := logSince(t, previous, fixture.guestLog())
-	requireCleanLog(t, logText)
-	requireLogContains(t, logText, "already running", "downloading ", "completed in ")
-	if count := strings.Count(logText, "downloading "); count != 1 {
-		t.Fatalf("duplicate launch produced %d downloads:\n%s", count, logText)
+	state := fixture.server.bookmarkState(t, fixture.bookmarkID)
+	if !state.Loaded {
+		t.Fatalf("downloaded Readeck bookmark is not loaded: %+v", state)
 	}
-	if count := strings.Count(logText, " completed in "); count != 1 {
-		t.Fatalf("duplicate launch produced %d completed runs:\n%s", count, logText)
-	}
-}
-
-// TestKoboVMCheckCommand verifies the release binary's manual configuration
-// check reaches Readeck without changing files or Nickel state.
-func TestKoboVMCheckCommand(t *testing.T) {
-	fixture := newVMTestFixture(t, defaultVMTestOptions())
-
-	output := fixture.vm.run(
-		"/usr/local/bin/kobodeck " +
-			"--config /mnt/onboard/.adds/kobodeck/kobodeck.toml --check",
-	)
-	requireLogContains(t, output, "Configuration:", "Connecting to Readeck... OK")
-	requireLogContains(t, output, fixture.bookmarkID, "1 bookmarks to sync")
-	fixture.vm.run("[ ! -e " + fixture.downloadPath + " ]")
-	fixture.requireNoNickelRescan()
-}
-
-// TestKoboVMUninstallsFromEmptyConfig verifies the documented uninstall path
-// against files installed from the release tarball.
-func TestKoboVMUninstallsFromEmptyConfig(t *testing.T) {
-	fixture := newVMTestFixture(t, defaultVMTestOptions())
 
 	fixture.vm.run(
 		": > /mnt/onboard/.adds/kobodeck/kobodeck.toml; " +
-			"/usr/local/bin/kobodeck; " +
-			"[ ! -e /usr/local/bin/kobodeck ]; " +
+			"udevadm trigger --action=add /sys/class/net/wlan0; " +
+			"waited=0; while [ -e /usr/local/bin/kobodeck ] || " +
+			"[ -e /etc/udev/rules.d/90-kobodeck.rules ] || " +
+			"[ -e /mnt/onboard/.adds/kobodeck ]; do " +
+			"waited=$((waited + 1)); [ \"$waited\" -lt 30 ] || exit 1; sleep 1; " +
+			"done; " +
 			"[ ! -e /etc/udev/rules.d/90-kobodeck.rules ]; " +
-			"[ ! -e /mnt/onboard/.adds/kobodeck ]",
+			"[ ! -e /mnt/onboard/.adds/kobodeck ]; " +
+			"[ -s " + fixture.downloadPath + " ]",
 	)
 }

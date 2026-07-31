@@ -90,9 +90,11 @@ func (c *appConfig) validate() error {
 }
 
 var (
-	filesChanged atomic.Bool
-	version      = "dev"
-	nickelDBPath = "/mnt/onboard/.kobo/KoboReader.sqlite"
+	filesChanged     atomic.Bool
+	version          = "dev"
+	nickelDBPath     = "/mnt/onboard/.kobo/KoboReader.sqlite"
+	nickelStatusPath = "/tmp/nickel-hardware-status"
+	lockFilePath     = "/tmp/kobodeck.lock"
 )
 
 func main() {
@@ -310,13 +312,12 @@ func doUninstall(binaryPath string, files []string) {
 // via /tmp/nickel-hardware-status. The user will see a Connect/Cancel dialog;
 // pressing Connect rescans immediately, Cancel still picks up changes on reboot.
 func nickelRescan() error {
-	const nickelStatus = "/tmp/nickel-hardware-status"
 	log.Println("triggering Nickel rescan")
-	if err := appendNickelEvent(nickelStatus, "add"); err != nil {
+	if err := appendNickelEvent(nickelStatusPath, "add"); err != nil {
 		return err
 	}
 	time.Sleep(10 * time.Second)
-	return appendNickelEvent(nickelStatus, "remove")
+	return appendNickelEvent(nickelStatusPath, "remove")
 }
 
 func appendNickelEvent(path, event string) error {
@@ -337,7 +338,7 @@ func appendNickelEvent(path, event string) error {
 // acquireLock acquires an exclusive non-blocking flock on /tmp/kobodeck.lock.
 // Returns an error if another instance is already running.
 func acquireLock() (*os.File, error) {
-	f, err := os.OpenFile("/tmp/kobodeck.lock", os.O_CREATE|os.O_WRONLY, 0o600)
+	f, err := os.OpenFile(lockFilePath, os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return nil, fmt.Errorf("open lock file: %w", err)
 	}

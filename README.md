@@ -108,10 +108,9 @@ Check the Makefile for common operations.
 
 ### Testing
 
-Due to Kobodeck's simplicity and high integration -
-it only works with Readeck and on Kobo devices -
-the focus is on end-to-end testing via
-simulating a Kobo device in an ARMv7 QEMU VM.
+Most synchronization behavior is covered by native Go tests.
+One end-to-end smoke test simulates a Kobo device in an ARMv7 QEMU VM
+with FAT32 storage and executes Kobodeck against a real Readeck instance.
 
 To run it, install the necessary dependencies
 (QEMU, Docker, `cpio`, and `dosfstools`)
