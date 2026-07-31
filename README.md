@@ -131,10 +131,15 @@ at least 2 conversions, which by their nature are pretty messy:
 1. EPUB → KEPUB by
    [`kepubify`](https://github.com/pgaskin/kepubify)
 
-Readeck currently produces an EPUB 2.0 package whose content also uses some
-HTML5 and EPUB 3 constructs. Kobodeck does not normalize this hybrid markup.
-Before running `kepubify`, it only patches the package metadata to designate
-the first suitable article image—or the favicon—as the cover.
+Readeck currently produces an
+[EPUB 2.0 package](https://codeberg.org/readeck/readeck/src/commit/bc07420052df/pkg/epub/types.go#L107-L112)
+whose
+[XHTML content template](https://codeberg.org/readeck/readeck/src/commit/bc07420052df/internal/bookmarks/converter/x-epub.templ#L21-L24)
+also uses
+[HTML5 and EPUB 3 constructs](https://codeberg.org/readeck/readeck/src/commit/bc07420052df/internal/bookmarks/converter/x-epub.templ#L69-L89).
+Kobodeck does not normalize this hybrid markup. Before running `kepubify`, it
+only patches the package metadata to designate the first suitable article
+image—or the favicon—as the cover.
 
 Possible improvements:
 
@@ -159,4 +164,3 @@ Possible improvements:
 - Highlights, notes, annotations, in-progress percentage and reading positions
   are not synchronized from the Kobo device to Readeck.
 - There are no options to fetch archived articles or favorites only.
-
