@@ -138,13 +138,13 @@ also uses
 [HTML5 and EPUB 3 constructs](https://codeberg.org/readeck/readeck/src/commit/bc07420052df/internal/bookmarks/converter/x-epub.templ#L69-L89).
 Kobodeck does not normalize this hybrid markup. Before running `kepubify`, it
 only patches the package metadata to designate the first suitable article
-image—or the favicon—as the cover.
+image or the favicon as the cover.
 
 Possible improvements:
 
 - Normalize Readeck's EPUB 2/HTML5 hybrid output into a consistent EPUB 3 book
   and validate representative output with
-  [EPUBCheck](https://www.w3.org/publishing/epubcheck/) in CI.
+  [EPUBCheck](https://www.w3.org/publishing/epubcheck/) in CI. But this might be better fixed upstream.
 - Improve cover selection, for example by preferring the lead or largest image,
   and optionally generate a fallback cover.
 - Write downloads and converted books to temporary files and rename them
@@ -163,3 +163,8 @@ Possible improvements:
 - Highlights, notes, annotations, in-progress percentage and reading positions
   are not synchronized from the Kobo device to Readeck.
 - There are no options to fetch archived articles or favorites only.
+
+# TODO
+
+- use stable release of readeck in vm test
+
