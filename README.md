@@ -7,7 +7,7 @@
 
 A minimalist Readeck article downloader for Kobo e-readers that
 
-- fetches content from a **Readeck instance**
+- fetches articles as KEPUBs from a **Readeck instance**
 - marks completed articles as read on Readeck, optionally archives them
 - synchronizes favorites from the **Kobo device** to Readeck
 
@@ -37,11 +37,11 @@ This plugin could be useful for you if you
 
 ## How to use it
 
-When Wi-Fi is enabled,
-Kobodeck downloads unread and in-progress Readeck
-articles matching the configured filters as KEPUBs.
+When Wi-Fi is enabled, Kobodeck downloads Readeck articles
+matching the configured filters as KEPUBs.
 
 It then triggers a Nickel library rescan via a simulated USB event.
+
 Press **Connect** to rescan immediately, or **Cancel** -
 the files are already downloaded either way.
 
@@ -119,26 +119,30 @@ and execute `make test`.
 
 ### Known issues and limitations
 
+#### Conversion chain
+
+The reading experience of KEPUBs on Kobo devices is much better
+than for normal EPUBs (faster page turns, reading statistics).
+
+However, for a web article to arrive on a Kobo device requires
+at least 2 conversions, which by their nature are pretty messy:
+HTML > EPUB (Readeck EPUB Generator) and
+EPUB > KEPUB ([`kepubify`](https://github.com/pgaskin/kepubify)).
+
+The only (K)EPUB manipulation Kobodeck does so far is to add cover image.
+
+- ... TODO [EPUBCheck](https://www.w3.org/publishing/epubcheck/)
+- ...
+
+#### Synchronization
+
 - Already downloaded articles are never refreshed when their Readeck content
-  changes or the local file is corrupted. To force a re-download, delete the
-  file from `Output.Path` (default: `/mnt/onboard/kobodeck/`).
+  changes or the local file is corrupted.
+  To force a re-download, delete the file from `Output.Path`.
 - If you enable `Sync.FavouriteCollection` in Kobodeck, the respective
   collection will serve as ground truth and will override changes
   made to your favorites e.g. via the Readeck web interface.
-
-### Future work
-
-- Generate a dedicated cover XHTML document with suitable 3:4 artwork instead
-  of only marking the first article image as the cover. Until then, let
-  kepubify add its dummy title page so Nickel does not apply cover-page layout
-  to the article itself.
-- Adjust Readeck's stylesheet during conversion: its global `div` and `span`
-  rules also affect kepubify's injected reading-position wrappers, and its
-  background colors conflict with Kobo's night and sepia themes.
-- Normalize Readeck's EPUB 2/HTML5 hybrid markup, preserve the article's
-  package language and right-to-left metadata, and validate the converted
-  book with EPUBCheck.
-- Sync highlights and annotations from the Kobo (`Bookmark` table in
+- Highlights and annotations are not synced from the Kobo (`Bookmark` table in
   `KoboReader.sqlite`) to Readeck's annotations API
-- Add option to fetch archived articles
-- Add option to fetch favorites only
+- There are no options to fetch archived articles or favorites only.
+
