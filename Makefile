@@ -42,4 +42,5 @@ check:
 	markdownlint **/*.md
 
 test: tarball
-	CGO_ENABLED=0 go test -timeout 10m $(VMTESTFLAGS) .
+	CGO_ENABLED=0 go test .
+	./vm_test.sh
