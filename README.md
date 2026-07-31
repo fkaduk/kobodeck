@@ -126,13 +126,27 @@ than for normal EPUBs (faster page turns, reading statistics).
 
 However, for a web article to arrive on a Kobo device requires
 at least 2 conversions, which by their nature are pretty messy:
-HTML > EPUB (Readeck EPUB Generator) and
-EPUB > KEPUB ([`kepubify`](https://github.com/pgaskin/kepubify)).
 
-The only (K)EPUB manipulation Kobodeck does so far is to add cover image.
+1. HTML → EPUB by Readeck
+1. EPUB → KEPUB by
+   [`kepubify`](https://github.com/pgaskin/kepubify)
 
-- ... TODO [EPUBCheck](https://www.w3.org/publishing/epubcheck/)
-- ...
+Readeck currently produces an EPUB 2.0 package whose content also uses some
+HTML5 and EPUB 3 constructs. Kobodeck does not normalize this hybrid markup.
+Before running `kepubify`, it only patches the package metadata to designate
+the first suitable article image—or the favicon—as the cover.
+
+Possible improvements:
+
+- Normalize Readeck's EPUB 2/HTML5 hybrid output into a consistent EPUB 3 book
+  and validate representative output with
+  [EPUBCheck](https://www.w3.org/publishing/epubcheck/) in CI.
+- Improve cover selection, for example by preferring the lead or largest image,
+  and optionally generate a fallback cover.
+- Write downloads and converted books to temporary files and rename them
+  atomically. An interrupted conversion can currently leave a non-empty partial
+  KEPUB that future runs will treat as complete.
+- Option to preserve the downloaded EPUB when KEPUB conversion fails.
 
 #### Synchronization
 
@@ -142,7 +156,7 @@ The only (K)EPUB manipulation Kobodeck does so far is to add cover image.
 - If you enable `Sync.FavouriteCollection` in Kobodeck, the respective
   collection will serve as ground truth and will override changes
   made to your favorites e.g. via the Readeck web interface.
-- Highlights and annotations are not synced from the Kobo (`Bookmark` table in
-  `KoboReader.sqlite`) to Readeck's annotations API
+- Highlights, notes, annotations, in-progress percentage and reading positions
+  are not synchronized from the Kobo device to Readeck.
 - There are no options to fetch archived articles or favorites only.
 
