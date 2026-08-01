@@ -40,7 +40,7 @@ func listBookmarks(client *http.Client) ([]readeckBookmark, error) {
 				url += "&read_status=" + s
 			}
 		}
-		data, err := callAPI(client, "GET", url, nil)
+		data, err := doAPIRequest(client, "GET", url, nil)
 		if err != nil {
 			return nil, fmt.Errorf("list bookmarks: %w", err)
 		}
@@ -147,13 +147,13 @@ func download(client *http.Client, entry readeckBookmark) error {
 // patchBookmark sends a partial update to a bookmark in Readeck.
 func patchBookmark(client *http.Client, id string, fields map[string]any) error {
 	body, _ := json.Marshal(fields)
-	_, err := callAPI(client, "PATCH", config.Server.URL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
+	_, err := doAPIRequest(client, "PATCH", config.Server.URL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
 	return err
 }
 
 // getBookmark retrieves the metadata of a single bookmark
 func getBookmark(client *http.Client, id string) (readeckBookmark, error) {
-	data, err := callAPI(client, "GET", config.Server.URL+"/api/bookmarks/"+id, nil)
+	data, err := doAPIRequest(client, "GET", config.Server.URL+"/api/bookmarks/"+id, nil)
 	if err != nil {
 		return readeckBookmark{}, err
 	}
@@ -164,9 +164,9 @@ func getBookmark(client *http.Client, id string) (readeckBookmark, error) {
 	return bookmark, nil
 }
 
-// callAPI sends an authenticated API request and returns the response body.
+// doAPIRequest sends an authenticated API request and returns the response body.
 // Returns an error if the status code is outside the 2xx range.
-func callAPI(client *http.Client, method, apiURL string, body io.Reader) ([]byte, error) {
+func doAPIRequest(client *http.Client, method, apiURL string, body io.Reader) ([]byte, error) {
 	req, err := http.NewRequest(method, apiURL, body)
 	if err != nil {
 		return nil, err
