@@ -7,8 +7,10 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -30,17 +32,23 @@ type readeckBookmark struct {
 func listBookmarks(client *http.Client) ([]readeckBookmark, error) {
 	var all []readeckBookmark
 	const batchSize = 100
-	// TODO: is calling in batches here the best option ?
-	// TODO: cant i set the condition explicitly ? maybe set true?
 	for offset := 0; ; offset += batchSize {
-		url := fmt.Sprintf("%s/api/bookmarks?is_archived=false&limit=%d&offset=%d",
-			config.Server.URL, batchSize, offset)
+		u, err := url.Parse(config.Server.URL + "/api/bookmarks")
+		if err != nil {
+			return nil, fmt.Errorf("build bookmark list URL: %w", err)
+		}
+		query := u.Query()
+		query.Set("is_archived", "false")
+		query.Set("limit", strconv.Itoa(batchSize))
+		query.Set("offset", strconv.Itoa(offset))
 		for _, s := range strings.Split(config.Fetch.Status, ",") {
 			if s = strings.TrimSpace(s); s != "" {
-				url += "&read_status=" + s
+				query.Add("read_status", s)
 			}
 		}
-		data, err := doAPIRequest(client, "GET", url, nil)
+		u.RawQuery = query.Encode()
+
+		data, err := doAPIRequest(client, "GET", u.String(), nil)
 		if err != nil {
 			return nil, fmt.Errorf("list bookmarks: %w", err)
 		}
