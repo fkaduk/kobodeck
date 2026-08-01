@@ -161,7 +161,7 @@ func patchBookmark(client *http.Client, id string, fields map[string]any) error 
 	return err
 }
 
-// getBookmark retrieves the metadata of a single bookmark
+// getBookmark retrieves the metadata of a single bookmark.
 func getBookmark(client *http.Client, id string) (readeckBookmark, error) {
 	data, err := doAPIRequest(client, http.MethodGet, config.Server.URL+"/api/bookmarks/"+id, nil)
 	if err != nil {
@@ -182,7 +182,9 @@ func doAPIRequest(client *http.Client, method, apiURL string, body io.Reader) ([
 		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+config.Server.Token)
-	req.Header.Set("Content-Type", "application/json")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	req.Header.Set("Accept", "application/json")
 
 	start := time.Now()
