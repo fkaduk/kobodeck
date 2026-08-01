@@ -10,10 +10,13 @@ import (
 
 type bookStatus int
 
+// Derived from calibre's Kobo driver:
+// https://github.com/kovidgoyal/calibre/blob/master/src/calibre/devices/kobo/driver.py
 const (
 	bookUnread  bookStatus = 0
 	bookReading bookStatus = 1
 	bookRead    bookStatus = 2
+	bookClosed  bookStatus = 3
 )
 
 const nickelContentTypeBook = 6
@@ -47,7 +50,6 @@ func nickelReadStatus(db *sql.DB, ID string, outputDir string) (bookStatus, erro
 		return bookUnread, err
 	}
 	debugf("nickel book %s status: %d", ID, status)
-	// ReadStatus values: 0 = unread, 1 = in progress, 2 = finished.
 	switch bookStatus(status) {
 	case bookUnread:
 		return bookUnread, nil
@@ -55,6 +57,8 @@ func nickelReadStatus(db *sql.DB, ID string, outputDir string) (bookStatus, erro
 		return bookReading, nil
 	case bookRead:
 		return bookRead, nil
+	case bookClosed:
+		return bookClosed, nil
 	}
 	// Unknown state — assume still reading so we don't delete a book in use.
 	log.Printf("warning: unexpected Nickel book state: %d, assuming reading", status)

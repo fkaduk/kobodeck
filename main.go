@@ -489,7 +489,7 @@ func reconcileLocalFiles(
 			}
 		}
 		if cfg.Output.Delete && !valid[uid] {
-			if status == bookReading {
+			if status == bookReading || status == bookClosed {
 				log.Printf("not deleting book currently being read: %s", file)
 			} else if err = os.Remove(file); err != nil {
 				log.Printf("warning: failed to remove %s: %s", file, err)

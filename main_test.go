@@ -252,6 +252,13 @@ func TestReconcileLocalFiles(t *testing.T) {
 			initial:     readeckBookmark{ID: nativeTestBookmarkID},
 			wantFile:    true,
 		},
+		{
+			name:        "stale closed bookmark is retained",
+			status:      bookClosed,
+			deleteLocal: true,
+			initial:     readeckBookmark{ID: nativeTestBookmarkID},
+			wantFile:    true,
+		},
 	}
 
 	for _, test := range tests {
