@@ -40,26 +40,13 @@ func listBookmarks(client *http.Client) ([]readeckBookmark, error) {
 				url += "&read_status=" + s
 			}
 		}
-		req, err := http.NewRequest("GET", url, nil)
-		if err != nil {
-			return nil, fmt.Errorf("build list request: %w", err)
-		}
-		req.Header.Set("Authorization", "Bearer "+config.Server.Token)
-		req.Header.Set("Accept", "application/json")
-
-		resp, err := client.Do(req)
+		data, err := callAPI(client, "GET", url, nil)
 		if err != nil {
 			return nil, fmt.Errorf("list bookmarks: %w", err)
 		}
-		if resp.StatusCode != http.StatusOK {
-			resp.Body.Close()
-			return nil, fmt.Errorf("list bookmarks: unexpected status %s", resp.Status)
-		}
 
 		var pageItems []readeckBookmark
-		err = json.NewDecoder(resp.Body).Decode(&pageItems)
-		resp.Body.Close()
-		if err != nil {
+		if err := json.Unmarshal(data, &pageItems); err != nil {
 			return nil, fmt.Errorf("decode bookmarks: %w", err)
 		}
 		all = append(all, pageItems...)
@@ -186,6 +173,7 @@ func callAPI(client *http.Client, method, apiURL string, body io.Reader) ([]byte
 	}
 	req.Header.Set("Authorization", "Bearer "+config.Server.Token)
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
 
 	start := time.Now()
 	resp, err := client.Do(req)
