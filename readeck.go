@@ -30,6 +30,8 @@ type readeckBookmark struct {
 func listBookmarks(client *http.Client) ([]readeckBookmark, error) {
 	var all []readeckBookmark
 	const batchSize = 100
+	// TODO: is calling in batches here the best option ?
+	// TODO: cant i set the condition explicitly ? maybe set true?
 	for offset := 0; ; offset += batchSize {
 		url := fmt.Sprintf("%s/api/bookmarks?is_archived=false&limit=%d&offset=%d",
 			config.Server.URL, batchSize, offset)
@@ -87,6 +89,7 @@ func matchesLabelFilter(tags map[string]bool, labels []string) bool {
 // download fetches the EPUB for a bookmark and writes it to config.Output.Path.
 // Skips the download if the kepub file already exists and is non-empty.
 // Deletes the partial file if the write fails.
+// TODO: rename to downloadBookmarkFile
 func download(client *http.Client, entry readeckBookmark) error {
 	if err := os.MkdirAll(config.Output.Path, os.ModePerm); err != nil {
 		return fmt.Errorf("create output dir: %w", err)
@@ -161,8 +164,7 @@ func patchBookmark(client *http.Client, id string, fields map[string]any) error 
 	return err
 }
 
-// getBookmark retrieves one bookmark, including state omitted when an archived
-// bookmark is no longer present in the unread feed.
+// getBookmark retrieves the metadata of a single bookmark
 func getBookmark(client *http.Client, id string) (readeckBookmark, error) {
 	data, err := callAPI(client, "GET", config.Server.URL+"/api/bookmarks/"+id, nil)
 	if err != nil {
