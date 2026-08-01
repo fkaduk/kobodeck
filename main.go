@@ -187,7 +187,7 @@ func main() {
 		debugf("dispatching %s", entry.ID)
 		valid[entry.ID] = true
 		g.Go(func() error {
-			return download(client, entry)
+			return downloadBookmarkFile(client, entry)
 		})
 	}
 done:

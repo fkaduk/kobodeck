@@ -48,7 +48,7 @@ func listBookmarks(client *http.Client) ([]readeckBookmark, error) {
 		}
 		u.RawQuery = query.Encode()
 
-		data, err := doAPIRequest(client, "GET", u.String(), nil)
+		data, err := doAPIRequest(client, http.MethodGet, u.String(), nil)
 		if err != nil {
 			return nil, fmt.Errorf("list bookmarks: %w", err)
 		}
@@ -81,11 +81,10 @@ func matchesLabelFilter(tags map[string]bool, labels []string) bool {
 	return false
 }
 
-// download fetches the EPUB for a bookmark and writes it to config.Output.Path.
+// downloadBookmarkFile fetches the EPUB for a bookmark and writes it to config.Output.Path.
 // Skips the download if the kepub file already exists and is non-empty.
 // Deletes the partial file if the write fails.
-// TODO: rename to downloadBookmarkFile
-func download(client *http.Client, entry readeckBookmark) error {
+func downloadBookmarkFile(client *http.Client, entry readeckBookmark) error {
 	if err := os.MkdirAll(config.Output.Path, os.ModePerm); err != nil {
 		return fmt.Errorf("create output dir: %w", err)
 	}
@@ -102,7 +101,7 @@ func download(client *http.Client, entry readeckBookmark) error {
 	}
 
 	log.Printf("downloading %s to %s", epubURL, output)
-	req, err := http.NewRequest("GET", epubURL, nil)
+	req, err := http.NewRequest(http.MethodGet, epubURL, nil)
 	if err != nil {
 		return fmt.Errorf("build download request: %w", err)
 	}
@@ -154,14 +153,17 @@ func download(client *http.Client, entry readeckBookmark) error {
 
 // patchBookmark sends a partial update to a bookmark in Readeck.
 func patchBookmark(client *http.Client, id string, fields map[string]any) error {
-	body, _ := json.Marshal(fields)
-	_, err := doAPIRequest(client, "PATCH", config.Server.URL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
+	body, err := json.Marshal(fields)
+	if err != nil {
+		return fmt.Errorf("encode bookmark patch: %w", err)
+	}
+	_, err = doAPIRequest(client, http.MethodPatch, config.Server.URL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
 	return err
 }
 
 // getBookmark retrieves the metadata of a single bookmark
 func getBookmark(client *http.Client, id string) (readeckBookmark, error) {
-	data, err := doAPIRequest(client, "GET", config.Server.URL+"/api/bookmarks/"+id, nil)
+	data, err := doAPIRequest(client, http.MethodGet, config.Server.URL+"/api/bookmarks/"+id, nil)
 	if err != nil {
 		return readeckBookmark{}, err
 	}

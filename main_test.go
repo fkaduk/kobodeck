@@ -64,7 +64,7 @@ func TestDownloadSkipsExistingBookmark(t *testing.T) {
 		Output: outputConfig{Path: outputDir},
 	}
 
-	err := download(server.Client(), readeckBookmark{ID: nativeTestBookmarkID, Updated: time.Now()})
+	err := downloadBookmarkFile(server.Client(), readeckBookmark{ID: nativeTestBookmarkID, Updated: time.Now()})
 	if err != nil {
 		t.Fatalf("download existing bookmark: %v", err)
 	}
