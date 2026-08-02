@@ -51,7 +51,7 @@ func TestDownloadSkipsExistingBookmark(t *testing.T) {
 		requests.Add(1)
 		http.Error(w, "download should have been skipped", http.StatusInternalServerError)
 	}))
-	defer server.Close()
+	t.Cleanup(server.Close)
 
 	outputDir := t.TempDir()
 	path := filepath.Join(outputDir, nativeTestBookmarkID+".kepub.epub")
@@ -148,7 +148,7 @@ func createNickelFixture(t *testing.T, outputDir string, status bookStatus, inCo
 		db.Close()
 		t.Fatalf("create Nickel schema: %v", err)
 	}
-	contentID := "file://" + filepath.Join(outputDir, nativeTestBookmarkID+".kepub.epub")
+	contentID := nickelContentID(outputDir, nativeTestBookmarkID)
 	if _, err := db.Exec(
 		`INSERT INTO content (ContentID, ContentType, MimeType, ReadStatus, ___UserID)
 		 VALUES (?, ?, ?, ?, ?)`,
@@ -273,7 +273,7 @@ func TestReconcileLocalFiles(t *testing.T) {
 
 			api := &bookmarkAPIFixture{bookmark: test.initial}
 			server := httptest.NewServer(http.HandlerFunc(api.handler))
-			defer server.Close()
+			t.Cleanup(server.Close)
 			cfg := appConfig{
 				Server: serverConfig{URL: server.URL, Token: "test-token"},
 				Sync: syncConfig{
@@ -338,7 +338,9 @@ func TestAcquireLockRejectsSecondProcess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("first acquireLock: %v", err)
 	}
-	defer first.Close()
+	t.Cleanup(func() {
+		first.Close()
+	})
 	second, err := acquireLock()
 	if second != nil {
 		second.Close()
@@ -367,7 +369,7 @@ func TestRunCheckOutput(t *testing.T) {
 			{ID: "excluded", Title: "Excluded article", Labels: []string{"news"}},
 		})
 	}))
-	defer server.Close()
+	t.Cleanup(server.Close)
 	outputDir := t.TempDir()
 	config = appConfig{
 		Server: serverConfig{URL: server.URL, Token: "test-token", Timeout: 5},
