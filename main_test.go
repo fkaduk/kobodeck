@@ -32,6 +32,7 @@ func TestDownloadSkipsExistingBookmark(t *testing.T) {
 	resetConfig(t)
 
 	var requests atomic.Int32
+	// if the skip path works, this handler is never called.
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests.Add(1)
 		http.Error(w, "download should have been skipped", http.StatusInternalServerError)
@@ -69,6 +70,9 @@ func TestDownloadSkipsExistingBookmark(t *testing.T) {
 }
 
 // TODO: the above test is very complex. maybe accept some duplication instead of these abstraction layers.
+// bookmarkAPIFixture is a tiny in-memory Readeck replacement. It records the
+// number of GET and PATCH calls while mutating its bookmark state the same way
+// Readeck would after accepting a PATCH.
 type bookmarkAPIFixture struct {
 	mu       sync.Mutex
 	bookmark readeckBookmark
@@ -173,18 +177,29 @@ func TestReconcileLocalFiles(t *testing.T) {
 		status              bookStatus
 		inCollection        bool
 		favouriteCollection string
-		valid               bool
-		listedBookmark      bool
-		archive             bool
-		deleteLocal         bool
-		initial             readeckBookmark
-		wantReadProgress    int
-		wantArchived        bool
-		wantMarked          bool
-		wantFile            bool
-		wantFilesChanged    bool
-		wantPatches         int
-		wantGets            int
+		// valid means the bookmark appeared in the current Readeck fetch and is
+		// therefore still eligible to remain on disk.
+		valid bool
+		// listedBookmark controls whether reconcileLocalFiles can use the
+		// already-fetched bookmark data or must GET the bookmark from Readeck.
+		listedBookmark bool
+		// archive mirrors cfg.Sync.Archive: completed local reads should archive
+		// the remote bookmark only when this option is enabled.
+		archive bool
+		// deleteLocal mirrors cfg.Output.Delete and allows stale unread files to
+		// be removed from the device.
+		deleteLocal bool
+		// initial is the remote bookmark state before reconciliation.
+		initial readeckBookmark
+		// The remaining fields are the expected remote state, filesystem state,
+		// changed flag, and HTTP call counts after reconciliation.
+		wantReadProgress int
+		wantArchived     bool
+		wantMarked       bool
+		wantFile         bool
+		wantFilesChanged bool
+		wantPatches      int
+		wantGets         int
 	}{
 		{
 			name:                "finished bookmark is read archived and favourited",
@@ -249,6 +264,8 @@ func TestReconcileLocalFiles(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			// Build an isolated local world for each case: clean global config,
+			// one local kepub file, one Nickel database, and one Readeck server.
 			resetConfig(t)
 			outputDir := t.TempDir()
 			bookPath := filepath.Join(outputDir, nativeTestBookmarkID+".kepub.epub")
@@ -257,9 +274,13 @@ func TestReconcileLocalFiles(t *testing.T) {
 			}
 			nickelDBPath := createNickelFixture(t, outputDir, test.status, test.inCollection)
 
+			// The fixture starts with the remote bookmark state described by the
+			// table row and records every remote operation the reconciler makes.
 			api := &bookmarkAPIFixture{bookmark: test.initial}
 			server := httptest.NewServer(http.HandlerFunc(api.handler))
 			t.Cleanup(server.Close)
+			// Keep cfg both as an explicit function argument and as package-level
+			// config, matching the current production call graph.
 			cfg := appConfig{
 				Server: serverConfig{URL: server.URL, Token: "test-token"},
 				Sync: syncConfig{
@@ -269,6 +290,9 @@ func TestReconcileLocalFiles(t *testing.T) {
 				Output: outputConfig{Path: outputDir, Delete: test.deleteLocal},
 			}
 			config = cfg
+			// valid and bookmarks model the result of the earlier fetch phase:
+			// valid tracks which ids still pass filters, while bookmarks carries
+			// the bookmark records already available without another API GET.
 			valid := make(map[string]bool)
 			if test.valid {
 				valid[nativeTestBookmarkID] = true
@@ -278,17 +302,25 @@ func TestReconcileLocalFiles(t *testing.T) {
 				bookmarks[nativeTestBookmarkID] = test.initial
 			}
 
+			// This is the behavior under test: reconcile native device state with
+			// Readeck state and report whether the local library changed.
 			filesChanged := reconcileLocalFiles(server.Client(), cfg, valid, bookmarks, nickelDBPath)
 
+			// Assert the final remote state first because these are the user-
+			// visible sync effects: progress, archived status, and favourite mark.
 			state, patches, gets := api.snapshot()
 			if state.ReadProgress != test.wantReadProgress ||
 				state.IsArchived != test.wantArchived || state.IsMarked != test.wantMarked {
 				t.Fatalf("unexpected Readeck state: %+v", state)
 			}
+			// PATCH count protects against duplicate remote updates; GET count
+			// protects the path that refetches stale bookmarks only when needed.
 			if patches != test.wantPatches || gets != test.wantGets {
 				t.Fatalf("API calls: got %d PATCH and %d GET, want %d PATCH and %d GET",
 					patches, gets, test.wantPatches, test.wantGets)
 			}
+			// Finally verify local cleanup behavior and the boolean returned to
+			// the caller, which controls whether Nickel is asked to rescan.
 			_, statErr := os.Stat(bookPath)
 			if test.wantFile && statErr != nil {
 				t.Fatalf("local book was not retained: %v", statErr)
@@ -316,10 +348,15 @@ func TestNickelRescanReportsEventFailure(t *testing.T) {
 	}
 }
 
+// TODO: reorder the tests by order of execution. I think this should be the very first test?
 func TestAcquireLockRejectsSecondProcess(t *testing.T) {
+	// Use a temp lock file so flock behavior is tested without touching the
+	// device path used by production.
 	resetConfig(t)
 	lockFilePath := filepath.Join(t.TempDir(), "kobodeck.lock")
 
+	// The first lock represents the running process and must remain open for the
+	// second acquisition attempt to see the conflict.
 	first, err := acquireLock(lockFilePath)
 	if err != nil {
 		t.Fatalf("first acquireLock: %v", err)
@@ -327,6 +364,8 @@ func TestAcquireLockRejectsSecondProcess(t *testing.T) {
 	t.Cleanup(func() {
 		first.Close()
 	})
+	// A second non-blocking flock on the same path should fail with the exact
+	// sentinel error string main() logs for concurrent invocations.
 	second, err := acquireLock(lockFilePath)
 	if second != nil {
 		second.Close()
@@ -338,8 +377,13 @@ func TestAcquireLockRejectsSecondProcess(t *testing.T) {
 }
 
 func TestRunCheckOutput(t *testing.T) {
+	// --check should validate config, contact Readeck once, apply label filters,
+	// print a useful summary, and avoid creating output files.
 	resetConfig(t)
 
+	// This server exposes only the list endpoint used by runCheck. It also
+	// verifies the bearer token so the test catches regressions in auth header
+	// construction.
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet || r.URL.Path != "/api/bookmarks" {
 			http.NotFound(w, r)
@@ -350,6 +394,8 @@ func TestRunCheckOutput(t *testing.T) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
+		// Labels deliberately differ by case to verify that the configured
+		// lowercase filter still matches the included bookmark.
 		_ = json.NewEncoder(w).Encode([]readeckBookmark{
 			{ID: "included", Title: "Included article", Labels: []string{"TECH"}},
 			{ID: "excluded", Title: "Excluded article", Labels: []string{"news"}},
@@ -357,6 +403,8 @@ func TestRunCheckOutput(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 	outputDir := t.TempDir()
+	// Delete is enabled to prove --check remains read-only even when normal sync
+	// would be allowed to remove stale local files.
 	config = appConfig{
 		Server: serverConfig{URL: server.URL, Token: "test-token", Timeout: 5},
 		Fetch:  fetchConfig{Workers: 2, Limit: 10, Labels: "tech"},
@@ -368,6 +416,8 @@ func TestRunCheckOutput(t *testing.T) {
 		t.Fatalf("runCheck: %v", err)
 	}
 	text := output.String()
+	// Assert stable fragments instead of the whole output so harmless formatting
+	// around timestamps or ordering does not make this test brittle.
 	for _, fragment := range []string{
 		"Configuration:",
 		"URL:     " + server.URL,
@@ -380,9 +430,12 @@ func TestRunCheckOutput(t *testing.T) {
 			t.Fatalf("check output does not contain %q:\n%s", fragment, text)
 		}
 	}
+	// The filtered bookmark should not appear in the human-readable plan at all.
 	if strings.Contains(text, "excluded — Excluded article") {
 		t.Fatalf("check output contains label-filtered bookmark:\n%s", text)
 	}
+	// --check must not download, convert, or delete anything. The temp output
+	// directory starts empty, so any entry here is a side effect.
 	entries, err := os.ReadDir(outputDir)
 	if err != nil {
 		t.Fatal(err)
