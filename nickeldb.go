@@ -38,7 +38,7 @@ func nickelIsInCollection(db *sql.DB, id, outputDir, collection string) (bool, e
 }
 
 // nickelReadStatus returns the current Nickel reading status for a book.
-func nickelReadStatus(db *sql.DB, id, outputDir string) (bookStatus, error) {
+func nickelReadStatus(db *sql.DB, id, outputDir string, verbose bool) (bookStatus, error) {
 	// Nickel stores books as file:// URIs matching the on-device path.
 	path := nickelContentID(outputDir, id)
 	row := db.QueryRow("SELECT ReadStatus FROM content WHERE ContentID = $1 AND ContentType = $2 LIMIT 1", path, nickelContentTypeBook)
@@ -49,7 +49,7 @@ func nickelReadStatus(db *sql.DB, id, outputDir string) (bookStatus, error) {
 	} else if err != nil {
 		return bookUnread, err
 	}
-	debugf("nickel book %s status: %d", id, status)
+	debugf(verbose, "nickel book %s status: %d", id, status)
 	switch bookStatus(status) {
 	case bookUnread:
 		return bookUnread, nil

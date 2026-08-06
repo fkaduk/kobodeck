@@ -20,17 +20,8 @@ const (
 	nativeTestFavouriteShelf = "Native Favourites"
 )
 
-func resetConfig(t *testing.T) {
-	// TODO: is this really necessary? i dont see how this does anything ?
-	// cant i just reinstantiate a new instance every time?
-	t.Helper()
-	config = appConfig{}
-}
-
 // TODO: this test does not only check for obvious behavior (redownloading the file), it also checks for http connections. brittle?
 func TestDownloadSkipsExistingBookmark(t *testing.T) {
-	resetConfig(t)
-
 	var requests atomic.Int32
 	// if the skip path works, this handler is never called.
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -45,12 +36,13 @@ func TestDownloadSkipsExistingBookmark(t *testing.T) {
 	if err := os.WriteFile(path, []byte(original), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	config = appConfig{
+	cfg := appConfig{
 		Server: serverConfig{URL: server.URL, Token: "test-token"},
 		Output: outputConfig{Path: outputDir},
 	}
+	readeck := newReadeckClient(server.Client(), cfg.Server, cfg.Log.Verbose)
 
-	changed, err := downloadBookmarkFile(server.Client(), readeckBookmark{ID: nativeTestBookmarkID, Updated: time.Now()})
+	changed, err := readeck.downloadBookmarkFile(cfg.Output, readeckBookmark{ID: nativeTestBookmarkID, Updated: time.Now()})
 	if err != nil {
 		t.Fatalf("download existing bookmark: %v", err)
 	}
@@ -264,9 +256,8 @@ func TestReconcileLocalFiles(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			// Build an isolated local world for each case: clean global config,
-			// one local kepub file, one Nickel database, and one Readeck server.
-			resetConfig(t)
+			// Build an isolated local world for each case: one local kepub file,
+			// one Nickel database, and one Readeck server.
 			outputDir := t.TempDir()
 			bookPath := filepath.Join(outputDir, nativeTestBookmarkID+".kepub.epub")
 			if err := os.WriteFile(bookPath, []byte("native fixture"), 0o600); err != nil {
@@ -279,8 +270,6 @@ func TestReconcileLocalFiles(t *testing.T) {
 			api := &bookmarkAPIFixture{bookmark: test.initial}
 			server := httptest.NewServer(http.HandlerFunc(api.handler))
 			t.Cleanup(server.Close)
-			// Keep cfg both as an explicit function argument and as package-level
-			// config, matching the current production call graph.
 			cfg := appConfig{
 				Server: serverConfig{URL: server.URL, Token: "test-token"},
 				Sync: syncConfig{
@@ -289,7 +278,7 @@ func TestReconcileLocalFiles(t *testing.T) {
 				},
 				Output: outputConfig{Path: outputDir, Delete: test.deleteLocal},
 			}
-			config = cfg
+			readeck := newReadeckClient(server.Client(), cfg.Server, cfg.Log.Verbose)
 			// valid and bookmarks model the result of the earlier fetch phase:
 			// valid tracks which ids still pass filters, while bookmarks carries
 			// the bookmark records already available without another API GET.
@@ -304,7 +293,7 @@ func TestReconcileLocalFiles(t *testing.T) {
 
 			// This is the behavior under test: reconcile native device state with
 			// Readeck state and report whether the local library changed.
-			filesChanged := reconcileLocalFiles(server.Client(), cfg, valid, bookmarks, nickelDBPath)
+			filesChanged := reconcileLocalFiles(readeck, cfg, valid, bookmarks, nickelDBPath)
 
 			// Assert the final remote state first because these are the user-
 			// visible sync effects: progress, archived status, and favourite mark.
@@ -336,7 +325,6 @@ func TestReconcileLocalFiles(t *testing.T) {
 }
 
 func TestNickelRescanReportsEventFailure(t *testing.T) {
-	resetConfig(t)
 	nickelStatusPath := filepath.Join(t.TempDir(), "nickel-status")
 	if err := os.Mkdir(nickelStatusPath, 0o700); err != nil {
 		t.Fatal(err)
@@ -352,7 +340,6 @@ func TestNickelRescanReportsEventFailure(t *testing.T) {
 func TestAcquireLockRejectsSecondProcess(t *testing.T) {
 	// Use a temp lock file so flock behavior is tested without touching the
 	// device path used by production.
-	resetConfig(t)
 	lockFilePath := filepath.Join(t.TempDir(), "kobodeck.lock")
 
 	// The first lock represents the running process and must remain open for the
@@ -379,8 +366,6 @@ func TestAcquireLockRejectsSecondProcess(t *testing.T) {
 func TestRunCheckOutput(t *testing.T) {
 	// --check should validate config, contact Readeck once, apply label filters,
 	// print a useful summary, and avoid creating output files.
-	resetConfig(t)
-
 	// This server exposes only the list endpoint used by runCheck. It also
 	// verifies the bearer token so the test catches regressions in auth header
 	// construction.
@@ -405,14 +390,14 @@ func TestRunCheckOutput(t *testing.T) {
 	outputDir := t.TempDir()
 	// Delete is enabled to prove --check remains read-only even when normal sync
 	// would be allowed to remove stale local files.
-	config = appConfig{
+	cfg := appConfig{
 		Server: serverConfig{URL: server.URL, Token: "test-token", Timeout: 5},
 		Fetch:  fetchConfig{Workers: 2, Limit: 10, Labels: "tech"},
 		Output: outputConfig{Path: outputDir, Delete: true},
 	}
 
 	var output bytes.Buffer
-	if err := runCheck(&output); err != nil {
+	if err := runCheck(&output, cfg); err != nil {
 		t.Fatalf("runCheck: %v", err)
 	}
 	text := output.String()
