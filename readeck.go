@@ -84,9 +84,9 @@ func matchesLabelFilter(tags map[string]bool, labels []string) bool {
 // downloadBookmarkFile fetches the EPUB for a bookmark and writes it to config.Output.Path.
 // Skips the download if the kepub file already exists and is non-empty.
 // Deletes the partial file if the write fails.
-func downloadBookmarkFile(client *http.Client, entry readeckBookmark) error {
+func downloadBookmarkFile(client *http.Client, entry readeckBookmark) (bool, error) {
 	if err := os.MkdirAll(config.Output.Path, os.ModePerm); err != nil {
-		return fmt.Errorf("create output dir: %w", err)
+		return false, fmt.Errorf("create output dir: %w", err)
 	}
 	epubURL := config.Server.URL + "/api/bookmarks/" + entry.ID + "/article.epub"
 	output := filepath.Join(config.Output.Path, entry.ID+".epub")
@@ -95,30 +95,30 @@ func downloadBookmarkFile(client *http.Client, entry readeckBookmark) error {
 	info, err := os.Stat(checkPath)
 	if err == nil && info.Size() > 0 {
 		debugf("skipping %s: already downloaded", checkPath)
-		return nil
+		return false, nil
 	} else if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("stat %s: %w", checkPath, err)
+		return false, fmt.Errorf("stat %s: %w", checkPath, err)
 	}
 
 	log.Printf("downloading %s to %s", epubURL, output)
 	req, err := http.NewRequest(http.MethodGet, epubURL, nil)
 	if err != nil {
-		return fmt.Errorf("build download request: %w", err)
+		return false, fmt.Errorf("build download request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+config.Server.Token)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("download %s: %w", epubURL, err)
+		return false, fmt.Errorf("download %s: %w", epubURL, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download %s: %s", epubURL, resp.Status)
+		return false, fmt.Errorf("download %s: %s", epubURL, resp.Status)
 	}
 
 	out, err := os.Create(output)
 	if err != nil {
-		return fmt.Errorf("create %s: %w", output, err)
+		return false, fmt.Errorf("create %s: %w", output, err)
 	}
 
 	n, writeErr := io.Copy(out, resp.Body)
@@ -126,9 +126,9 @@ func downloadBookmarkFile(client *http.Client, entry readeckBookmark) error {
 	if writeErr != nil || closeErr != nil {
 		os.Remove(output)
 		if writeErr != nil {
-			return fmt.Errorf("write %s: %w", output, writeErr)
+			return false, fmt.Errorf("write %s: %w", output, writeErr)
 		}
-		return fmt.Errorf("close %s: %w", output, closeErr)
+		return false, fmt.Errorf("close %s: %w", output, closeErr)
 	}
 	log.Printf("wrote %s (%d bytes)", output, n)
 
@@ -138,7 +138,7 @@ func downloadBookmarkFile(client *http.Client, entry readeckBookmark) error {
 
 	kepubPath, err := toKepub(output)
 	if err != nil {
-		return fmt.Errorf("kepub convert %s: %w", output, err)
+		return false, fmt.Errorf("kepub convert %s: %w", output, err)
 	}
 	// Set mtime to the article's update time so Nickel sorts by article date,
 	// not download time. Both fixCover and toKepub create new files, so this
@@ -146,9 +146,8 @@ func downloadBookmarkFile(client *http.Client, entry readeckBookmark) error {
 	if err := os.Chtimes(kepubPath, entry.Updated, entry.Updated); err != nil {
 		log.Printf("warning: set mtime %s: %v", filepath.Base(kepubPath), err)
 	}
-	filesChanged.Store(true)
 	log.Printf("converted to %s (timestamp %s)", kepubPath, entry.Updated.Format(time.RFC3339))
-	return nil
+	return true, nil
 }
 
 // patchBookmark sends a partial update to a bookmark in Readeck.

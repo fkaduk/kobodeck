@@ -20,31 +20,16 @@ const (
 	nativeTestFavouriteShelf = "Native Favourites"
 )
 
-func resetPackageGlobals(t *testing.T) {
+func resetConfig(t *testing.T) {
+	// TODO: is this really necessary? i dont see how this does anything ?
+	// cant i just reinstantiate a new instance every time?
 	t.Helper()
-	previousConfig := config
-	previousNickelDBPath := nickelDBPath
-	previousNickelStatusPath := nickelStatusPath
-	previousLockFilePath := lockFilePath
-	previousFilesChanged := filesChanged.Load()
-
 	config = appConfig{}
-	nickelDBPath = "/mnt/onboard/.kobo/KoboReader.sqlite"
-	nickelStatusPath = "/tmp/nickel-hardware-status"
-	lockFilePath = "/tmp/kobodeck.lock"
-	filesChanged.Store(false)
-
-	t.Cleanup(func() {
-		config = previousConfig
-		nickelDBPath = previousNickelDBPath
-		nickelStatusPath = previousNickelStatusPath
-		lockFilePath = previousLockFilePath
-		filesChanged.Store(previousFilesChanged)
-	})
 }
 
+// TODO: this test does not only check for obvious behavior (redownloading the file), it also checks for http connections. brittle?
 func TestDownloadSkipsExistingBookmark(t *testing.T) {
-	resetPackageGlobals(t)
+	resetConfig(t)
 
 	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -64,9 +49,12 @@ func TestDownloadSkipsExistingBookmark(t *testing.T) {
 		Output: outputConfig{Path: outputDir},
 	}
 
-	err := downloadBookmarkFile(server.Client(), readeckBookmark{ID: nativeTestBookmarkID, Updated: time.Now()})
+	changed, err := downloadBookmarkFile(server.Client(), readeckBookmark{ID: nativeTestBookmarkID, Updated: time.Now()})
 	if err != nil {
 		t.Fatalf("download existing bookmark: %v", err)
+	}
+	if changed {
+		t.Fatal("existing bookmark was reported as a filesystem change")
 	}
 	if got := requests.Load(); got != 0 {
 		t.Fatalf("existing bookmark made %d HTTP requests", got)
@@ -78,11 +66,9 @@ func TestDownloadSkipsExistingBookmark(t *testing.T) {
 	if string(data) != original {
 		t.Fatalf("existing bookmark was changed: got %q", data)
 	}
-	if filesChanged.Load() {
-		t.Fatal("existing bookmark was reported as a filesystem change")
-	}
 }
 
+// TODO: the above test is very complex. maybe accept some duplication instead of these abstraction layers.
 type bookmarkAPIFixture struct {
 	mu       sync.Mutex
 	bookmark readeckBookmark
@@ -133,7 +119,7 @@ func (fixture *bookmarkAPIFixture) snapshot() (readeckBookmark, int, int) {
 	return fixture.bookmark, len(fixture.patches), fixture.gets
 }
 
-func createNickelFixture(t *testing.T, outputDir string, status bookStatus, inCollection bool) {
+func createNickelFixture(t *testing.T, outputDir string, status bookStatus, inCollection bool) string {
 	t.Helper()
 	schema, err := os.ReadFile(filepath.Join("testdata", "nickel-schema-176.sql"))
 	if err != nil {
@@ -178,7 +164,7 @@ func createNickelFixture(t *testing.T, outputDir string, status bookStatus, inCo
 	if err := db.Close(); err != nil {
 		t.Fatal(err)
 	}
-	nickelDBPath = dbPath
+	return dbPath
 }
 
 func TestReconcileLocalFiles(t *testing.T) {
@@ -263,13 +249,13 @@ func TestReconcileLocalFiles(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			resetPackageGlobals(t)
+			resetConfig(t)
 			outputDir := t.TempDir()
 			bookPath := filepath.Join(outputDir, nativeTestBookmarkID+".kepub.epub")
 			if err := os.WriteFile(bookPath, []byte("native fixture"), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			createNickelFixture(t, outputDir, test.status, test.inCollection)
+			nickelDBPath := createNickelFixture(t, outputDir, test.status, test.inCollection)
 
 			api := &bookmarkAPIFixture{bookmark: test.initial}
 			server := httptest.NewServer(http.HandlerFunc(api.handler))
@@ -292,7 +278,7 @@ func TestReconcileLocalFiles(t *testing.T) {
 				bookmarks[nativeTestBookmarkID] = test.initial
 			}
 
-			reconcileLocalFiles(server.Client(), cfg, valid, bookmarks)
+			filesChanged := reconcileLocalFiles(server.Client(), cfg, valid, bookmarks, nickelDBPath)
 
 			state, patches, gets := api.snapshot()
 			if state.ReadProgress != test.wantReadProgress ||
@@ -310,38 +296,38 @@ func TestReconcileLocalFiles(t *testing.T) {
 			if !test.wantFile && !os.IsNotExist(statErr) {
 				t.Fatalf("stale local book still exists: %v", statErr)
 			}
-			if got := filesChanged.Load(); got != test.wantFilesChanged {
-				t.Fatalf("filesChanged = %t, want %t", got, test.wantFilesChanged)
+			if filesChanged != test.wantFilesChanged {
+				t.Fatalf("filesChanged = %t, want %t", filesChanged, test.wantFilesChanged)
 			}
 		})
 	}
 }
 
 func TestNickelRescanReportsEventFailure(t *testing.T) {
-	resetPackageGlobals(t)
-	nickelStatusPath = filepath.Join(t.TempDir(), "nickel-status")
+	resetConfig(t)
+	nickelStatusPath := filepath.Join(t.TempDir(), "nickel-status")
 	if err := os.Mkdir(nickelStatusPath, 0o700); err != nil {
 		t.Fatal(err)
 	}
 
-	err := nickelRescan()
+	err := nickelRescan(nickelStatusPath)
 	if err == nil || !strings.Contains(err.Error(), "add event: open "+nickelStatusPath) {
 		t.Fatalf("nickelRescan() error = %v", err)
 	}
 }
 
 func TestAcquireLockRejectsSecondProcess(t *testing.T) {
-	resetPackageGlobals(t)
-	lockFilePath = filepath.Join(t.TempDir(), "kobodeck.lock")
+	resetConfig(t)
+	lockFilePath := filepath.Join(t.TempDir(), "kobodeck.lock")
 
-	first, err := acquireLock()
+	first, err := acquireLock(lockFilePath)
 	if err != nil {
 		t.Fatalf("first acquireLock: %v", err)
 	}
 	t.Cleanup(func() {
 		first.Close()
 	})
-	second, err := acquireLock()
+	second, err := acquireLock(lockFilePath)
 	if second != nil {
 		second.Close()
 		t.Fatal("second acquireLock unexpectedly succeeded")
@@ -352,7 +338,7 @@ func TestAcquireLockRejectsSecondProcess(t *testing.T) {
 }
 
 func TestRunCheckOutput(t *testing.T) {
-	resetPackageGlobals(t)
+	resetConfig(t)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet || r.URL.Path != "/api/bookmarks" {
