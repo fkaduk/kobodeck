@@ -1,11 +1,14 @@
 package main
 
 import (
+	"archive/zip"
 	"bytes"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -16,6 +19,55 @@ const (
 	nativeTestBookmarkID     = "bookmark-1"
 	nativeTestFavouriteShelf = "Native Favourites"
 )
+
+func writeTestEPUB(t *testing.T, path string) []byte {
+	t.Helper()
+	var data bytes.Buffer
+	w := zip.NewWriter(&data)
+	mimetype, err := w.CreateHeader(&zip.FileHeader{Name: "mimetype", Method: zip.Store})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mimetype.Write([]byte("application/epub+zip")); err != nil {
+		t.Fatal(err)
+	}
+	container, err := w.Create("META-INF/container.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := container.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles>
+</container>`)); err != nil {
+		t.Fatal(err)
+	}
+	content, err := w.Create("OEBPS/content.opf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := content.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="bookid">test</dc:identifier><dc:title>Test</dc:title><dc:language>en</dc:language></metadata>
+  <manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/></manifest>
+  <spine><itemref idref="chapter"/></spine>
+</package>`)); err != nil {
+		t.Fatal(err)
+	}
+	chapter, err := w.Create("OEBPS/chapter.xhtml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := chapter.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Test</title></head><body><p>Hello</p></body></html>`)); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return data.Bytes()
+}
 
 func TestRunCheckMode(t *testing.T) {
 	// Given
@@ -125,10 +177,7 @@ func TestDownloadSkipsExistingKepub(t *testing.T) {
 
 	outputDir := t.TempDir()
 	path := filepath.Join(outputDir, nativeTestBookmarkID+".kepub.epub")
-	const original = "already converted"
-	if err := os.WriteFile(path, []byte(original), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	original := writeTestEPUB(t, path)
 	cfg := appConfig{
 		Server: serverConfig{URL: simulatedReadeckServer.URL, Token: "test-token"},
 		Output: outputConfig{Path: outputDir},
@@ -151,22 +200,188 @@ func TestDownloadSkipsExistingKepub(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(data) != original {
+	if !bytes.Equal(data, original) {
 		t.Fatalf("existing bookmark was changed: got %q", data)
 	}
 }
 
+func TestDownloadDoesNotSkipInvalidExistingKepub(t *testing.T) {
+	// Given
+	var requests atomic.Int32
+	simulatedReadeckServer := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requests.Add(1)
+			http.Error(w, "download attempted", http.StatusInternalServerError)
+		}))
+	t.Cleanup(simulatedReadeckServer.Close)
+
+	outputDir := t.TempDir()
+	path := filepath.Join(outputDir, nativeTestBookmarkID+".kepub.epub")
+	if err := os.WriteFile(path, []byte("non-empty but invalid"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg := appConfig{
+		Server: serverConfig{URL: simulatedReadeckServer.URL, Token: "test-token"},
+		Output: outputConfig{Path: outputDir},
+	}
+	readeck := newReadeckClient(simulatedReadeckServer.Client(), cfg.Server, cfg.Log.Verbose)
+
+	// When
+	_, err := readeck.downloadBookmarkFile(cfg.Output, readeckBookmark{ID: nativeTestBookmarkID})
+
+	// Then
+	if err == nil {
+		t.Fatal("download with failed HTTP response unexpectedly succeeded")
+	}
+	if got := requests.Load(); got != 1 {
+		t.Fatalf("invalid existing KEPUB made %d HTTP requests, want 1", got)
+	}
+}
+
+func TestDownloadRejectsUnsafeBookmarkID(t *testing.T) {
+	// Given
+	var requests atomic.Int32
+	simulatedReadeckServer := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requests.Add(1)
+		}))
+	t.Cleanup(simulatedReadeckServer.Close)
+	outputDir := t.TempDir()
+	cfg := appConfig{
+		Server: serverConfig{URL: simulatedReadeckServer.URL, Token: "test-token"},
+		Output: outputConfig{Path: outputDir},
+	}
+	readeck := newReadeckClient(simulatedReadeckServer.Client(), cfg.Server, cfg.Log.Verbose)
+
+	// When
+	_, err := readeck.downloadBookmarkFile(cfg.Output, readeckBookmark{ID: "../escape"})
+
+	// Then
+	if err == nil {
+		t.Fatal("unsafe bookmark ID unexpectedly accepted")
+	}
+	if got := requests.Load(); got != 0 {
+		t.Fatalf("unsafe bookmark ID made %d HTTP requests, want 0", got)
+	}
+}
+
+func TestAPIResponseSizeLimit(t *testing.T) {
+	// Given
+	simulatedReadeckServer := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Length", strconv.Itoa(maxAPIResponseSize+1))
+		}))
+	t.Cleanup(simulatedReadeckServer.Close)
+	readeck := newReadeckClient(simulatedReadeckServer.Client(), serverConfig{URL: simulatedReadeckServer.URL}, false)
+
+	// When
+	_, err := readeck.doAPIRequest(http.MethodGet, simulatedReadeckServer.URL, nil)
+
+	// Then
+	if err == nil || !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("oversized API response error = %v, want size-limit error", err)
+	}
+}
+
+func TestToKepubAtomicallyInstallsConvertedBook(t *testing.T) {
+	// Given
+	outputDir := t.TempDir()
+	source := filepath.Join(outputDir, "article.epub")
+	writeTestEPUB(t, source)
+
+	// When
+	kepubPath, err := toKepub(source)
+
+	// Then
+	if err != nil {
+		t.Fatalf("toKepub: %v", err)
+	}
+	if err := validateEPUB(kepubPath); err != nil {
+		t.Fatalf("converted KEPUB is invalid: %v", err)
+	}
+	if _, err := os.Stat(source); !os.IsNotExist(err) {
+		t.Fatalf("source EPUB still exists: %v", err)
+	}
+	tmpFiles, err := filepath.Glob(filepath.Join(outputDir, ".article.kepub.epub.tmp-*"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tmpFiles) != 0 {
+		t.Fatalf("conversion temporary files remain: %v", tmpFiles)
+	}
+}
+
+func TestToKepubFailurePreservesExistingBook(t *testing.T) {
+	// Given
+	outputDir := t.TempDir()
+	source := filepath.Join(outputDir, "article.epub")
+	final := filepath.Join(outputDir, "article.kepub.epub")
+	if err := os.WriteFile(source, []byte("invalid source"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	original := writeTestEPUB(t, final)
+
+	// When
+	if _, err := toKepub(source); err == nil {
+		t.Fatal("invalid source unexpectedly converted")
+	}
+
+	// Then
+	got, err := os.ReadFile(final)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, original) {
+		t.Fatal("existing KEPUB was changed after failed conversion")
+	}
+}
+
+func TestListLocalBooksOnlyListsKepubsInOutputDirectory(t *testing.T) {
+	// Given
+	outputDir := t.TempDir()
+	kepubPath := filepath.Join(outputDir, "bookmark-1.kepub.epub")
+	if err := os.WriteFile(kepubPath, []byte("kepub"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(outputDir, "ordinary.epub"), []byte("epub"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	nestedDir := filepath.Join(outputDir, "nested")
+	if err := os.Mkdir(nestedDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(nestedDir, "nested.kepub.epub"), []byte("kepub"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// When
+	books, err := listLocalBooks(outputDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Then
+	if len(books) != 1 {
+		t.Fatalf("listLocalBooks returned %d books, want 1: %+v", len(books), books)
+	}
+	if books[0].id != "bookmark-1" || books[0].path != kepubPath {
+		t.Fatalf("listLocalBooks returned %+v, want bookmark-1 at %s", books[0], kepubPath)
+	}
+}
+
 type fakeNickelLibrary struct {
-	status       bookStatus
-	inCollection bool
+	status        bookStatus
+	inCollection  bool
+	statusErr     error
+	collectionErr error
 }
 
 func (library fakeNickelLibrary) readStatus(id, outputDir string) (bookStatus, error) {
-	return library.status, nil
+	return library.status, library.statusErr
 }
 
 func (library fakeNickelLibrary) isInCollection(id, outputDir, collection string) (bool, error) {
-	return library.inCollection, nil
+	return library.inCollection, library.collectionErr
 }
 
 type reconcileHarness struct {
@@ -252,6 +467,7 @@ func (h *reconcileHarness) run(status bookStatus) reconcileResult {
 		h.book,
 		valid,
 		bookmarks,
+		h.cfg.Output.Delete,
 	)
 	if err != nil {
 		h.t.Fatal(err)
@@ -353,6 +569,58 @@ func TestReconcileDeletesStaleUnreadBookmark(t *testing.T) {
 	requireLocalFile(t, got, false)
 	if !got.filesChanged {
 		t.Fatal("deleted stale bookmark was not reported as a filesystem change")
+	}
+}
+
+func TestReconcileDoesNotDeleteWhenDeletionIsDisallowed(t *testing.T) {
+	// Given
+	reconcile := newReconcileHarness(t)
+	reconcile.deleteStaleFiles()
+	valid := make(map[string]bool)
+	bookmarks := make(map[string]readeckBookmark)
+
+	// When
+	filesChanged, err := reconcileLocalFiles(
+		&reconcile.readeck,
+		reconcile.nickel,
+		reconcile.cfg,
+		valid,
+		bookmarks,
+		false,
+	)
+	if err != nil {
+		t.Fatalf("reconcileLocalFiles: %v", err)
+	}
+
+	// Then
+	if _, err := os.Stat(reconcile.book.path); err != nil {
+		t.Fatalf("stale local book was deleted: %v", err)
+	}
+	if filesChanged {
+		t.Fatal("retained stale bookmark was reported as a filesystem change")
+	}
+}
+
+func TestReconcilePropagatesStatusError(t *testing.T) {
+	// Given
+	reconcile := newReconcileHarness(t)
+	reconcile.nickel.statusErr = errors.New("status unavailable")
+
+	// When
+	_, err := reconcileLocalBook(
+		&reconcile.readeck,
+		reconcile.nickel,
+		reconcile.cfg,
+		reconcile.cfg.Output.Path,
+		reconcile.book,
+		make(map[string]bool),
+		make(map[string]readeckBookmark),
+		false,
+	)
+
+	// Then
+	if err == nil || !strings.Contains(err.Error(), "status unavailable") {
+		t.Fatalf("status error = %v, want propagated status error", err)
 	}
 }
 
