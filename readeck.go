@@ -27,13 +27,35 @@ type readeckBookmark struct {
 	Loaded       bool      `json:"loaded"`
 }
 
+type readeckClient struct {
+	httpClient *http.Client
+	baseURL    string
+	token      string
+	verbose    bool
+}
+
+func newReadeckClient(httpClient *http.Client, server serverConfig, verbose bool) readeckClient {
+	return readeckClient{
+		httpClient: httpClient,
+		baseURL:    server.URL,
+		token:      server.Token,
+		verbose:    verbose,
+	}
+}
+
+func (client readeckClient) debugf(format string, args ...interface{}) {
+	if client.verbose {
+		log.Printf(format, args...)
+	}
+}
+
 // listBookmarks fetches bookmarks from Readeck, paging through results
-// in batches. Stops early if config.Limit is reached.
-func listBookmarks(client *http.Client) ([]readeckBookmark, error) {
+// in batches. Stops early if fetch.Limit is reached.
+func (client readeckClient) listBookmarks(fetch fetchConfig) ([]readeckBookmark, error) {
 	var all []readeckBookmark
 	const batchSize = 100
 	for offset := 0; ; offset += batchSize {
-		u, err := url.Parse(config.Server.URL + "/api/bookmarks")
+		u, err := url.Parse(client.baseURL + "/api/bookmarks")
 		if err != nil {
 			return nil, fmt.Errorf("build bookmark list URL: %w", err)
 		}
@@ -41,14 +63,14 @@ func listBookmarks(client *http.Client) ([]readeckBookmark, error) {
 		query.Set("is_archived", "false")
 		query.Set("limit", strconv.Itoa(batchSize))
 		query.Set("offset", strconv.Itoa(offset))
-		for _, s := range strings.Split(config.Fetch.Status, ",") {
+		for _, s := range strings.Split(fetch.Status, ",") {
 			if s = strings.TrimSpace(s); s != "" {
 				query.Add("read_status", s)
 			}
 		}
 		u.RawQuery = query.Encode()
 
-		data, err := doAPIRequest(client, http.MethodGet, u.String(), nil)
+		data, err := client.doAPIRequest(http.MethodGet, u.String(), nil)
 		if err != nil {
 			return nil, fmt.Errorf("list bookmarks: %w", err)
 		}
@@ -59,13 +81,13 @@ func listBookmarks(client *http.Client) ([]readeckBookmark, error) {
 		}
 		all = append(all, pageItems...)
 
-		if len(pageItems) < batchSize || (config.Fetch.Limit > 0 && len(all) >= config.Fetch.Limit) {
+		if len(pageItems) < batchSize || (fetch.Limit > 0 && len(all) >= fetch.Limit) {
 			break
 		}
 	}
 	total := len(all)
-	if config.Fetch.Limit > 0 && len(all) > config.Fetch.Limit {
-		all = all[:config.Fetch.Limit]
+	if fetch.Limit > 0 && len(all) > fetch.Limit {
+		all = all[:fetch.Limit]
 	}
 	log.Printf("found %d bookmarks, will process %d", total, len(all))
 	return all, nil
@@ -81,20 +103,20 @@ func matchesLabelFilter(tags map[string]bool, labels []string) bool {
 	return false
 }
 
-// downloadBookmarkFile fetches the EPUB for a bookmark and writes it to config.Output.Path.
+// downloadBookmarkFile fetches the EPUB for a bookmark and writes it to outputCfg.Path.
 // Skips the download if the kepub file already exists and is non-empty.
 // Deletes the partial file if the write fails.
-func downloadBookmarkFile(client *http.Client, entry readeckBookmark) (bool, error) {
-	if err := os.MkdirAll(config.Output.Path, os.ModePerm); err != nil {
+func (client readeckClient) downloadBookmarkFile(outputCfg outputConfig, entry readeckBookmark) (bool, error) {
+	if err := os.MkdirAll(outputCfg.Path, os.ModePerm); err != nil {
 		return false, fmt.Errorf("create output dir: %w", err)
 	}
-	epubURL := config.Server.URL + "/api/bookmarks/" + entry.ID + "/article.epub"
-	output := filepath.Join(config.Output.Path, entry.ID+".epub")
+	epubURL := client.baseURL + "/api/bookmarks/" + entry.ID + "/article.epub"
+	output := filepath.Join(outputCfg.Path, entry.ID+".epub")
 
-	checkPath := filepath.Join(config.Output.Path, entry.ID+".kepub.epub")
+	checkPath := filepath.Join(outputCfg.Path, entry.ID+".kepub.epub")
 	info, err := os.Stat(checkPath)
 	if err == nil && info.Size() > 0 {
-		debugf("skipping %s: already downloaded", checkPath)
+		client.debugf("skipping %s: already downloaded", checkPath)
 		return false, nil
 	} else if err != nil && !os.IsNotExist(err) {
 		return false, fmt.Errorf("stat %s: %w", checkPath, err)
@@ -105,9 +127,9 @@ func downloadBookmarkFile(client *http.Client, entry readeckBookmark) (bool, err
 	if err != nil {
 		return false, fmt.Errorf("build download request: %w", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+config.Server.Token)
+	req.Header.Set("Authorization", "Bearer "+client.token)
 
-	resp, err := client.Do(req)
+	resp, err := client.httpClient.Do(req)
 	if err != nil {
 		return false, fmt.Errorf("download %s: %w", epubURL, err)
 	}
@@ -151,18 +173,18 @@ func downloadBookmarkFile(client *http.Client, entry readeckBookmark) (bool, err
 }
 
 // patchBookmark sends a partial update to a bookmark in Readeck.
-func patchBookmark(client *http.Client, id string, fields map[string]any) error {
+func (client readeckClient) patchBookmark(id string, fields map[string]any) error {
 	body, err := json.Marshal(fields)
 	if err != nil {
 		return fmt.Errorf("encode bookmark patch: %w", err)
 	}
-	_, err = doAPIRequest(client, http.MethodPatch, config.Server.URL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
+	_, err = client.doAPIRequest(http.MethodPatch, client.baseURL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
 	return err
 }
 
 // getBookmark retrieves the metadata of a single bookmark.
-func getBookmark(client *http.Client, id string) (readeckBookmark, error) {
-	data, err := doAPIRequest(client, http.MethodGet, config.Server.URL+"/api/bookmarks/"+id, nil)
+func (client readeckClient) getBookmark(id string) (readeckBookmark, error) {
+	data, err := client.doAPIRequest(http.MethodGet, client.baseURL+"/api/bookmarks/"+id, nil)
 	if err != nil {
 		return readeckBookmark{}, err
 	}
@@ -175,28 +197,28 @@ func getBookmark(client *http.Client, id string) (readeckBookmark, error) {
 
 // doAPIRequest sends an authenticated API request and returns the response body.
 // Returns an error if the status code is outside the 2xx range.
-func doAPIRequest(client *http.Client, method, apiURL string, body io.Reader) ([]byte, error) {
+func (client readeckClient) doAPIRequest(method, apiURL string, body io.Reader) ([]byte, error) {
 	req, err := http.NewRequest(method, apiURL, body)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+config.Server.Token)
+	req.Header.Set("Authorization", "Bearer "+client.token)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
 	req.Header.Set("Accept", "application/json")
 
 	start := time.Now()
-	resp, err := client.Do(req)
+	resp, err := client.httpClient.Do(req)
 	if err != nil {
-		debugf("http method=%s path=%s outcome=transport_failure duration=%s",
+		client.debugf("http method=%s path=%s outcome=transport_failure duration=%s",
 			method, req.URL.Path, time.Since(start).Truncate(time.Millisecond))
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	data, err := io.ReadAll(resp.Body)
-	debugf("http method=%s path=%s status=%d bytes=%d duration=%s",
+	client.debugf("http method=%s path=%s status=%d bytes=%d duration=%s",
 		method, req.URL.Path, resp.StatusCode, len(data), time.Since(start).Truncate(time.Millisecond))
 	if err != nil {
 		return nil, err
