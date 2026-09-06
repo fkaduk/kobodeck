@@ -7,7 +7,7 @@
 
 A minimalist Readeck article downloader for Kobo e-readers that
 
-- fetches content from a **Readeck instance**
+- fetches articles as KEPUBs from a **Readeck instance**
 - marks completed articles as read on Readeck, optionally archives them
 - synchronizes favorites from the **Kobo device** to Readeck
 
@@ -37,11 +37,11 @@ This plugin could be useful for you if you
 
 ## How to use it
 
-When Wi-Fi is enabled,
-Kobodeck downloads unread and in-progress Readeck
-articles matching the configured filters as KEPUBs.
+When Wi-Fi is enabled, Kobodeck downloads Readeck articles
+matching the configured filters as KEPUBs.
 
 It then triggers a Nickel library rescan via a simulated USB event.
+
 Press **Connect** to rescan immediately, or **Cancel** -
 the files are already downloaded either way.
 
@@ -108,10 +108,9 @@ Check the Makefile for common operations.
 
 ### Testing
 
-Due to Kobodeck's simplicity and high integration -
-it only works with Readeck and on Kobo devices -
-the focus is on end-to-end testing via
-simulating a Kobo device in an ARMv7 QEMU VM.
+Most synchronization behavior is covered by native Go tests.
+One end-to-end smoke test simulates a Kobo device in an ARMv7 QEMU VM
+with FAT32 storage and executes Kobodeck against a real Readeck instance.
 
 To run it, install the necessary dependencies
 (QEMU, Docker, `cpio`, and `dosfstools`)
@@ -119,16 +118,53 @@ and execute `make test`.
 
 ### Known issues and limitations
 
+#### Conversion chain
+
+The reading experience of KEPUBs on Kobo devices is much better
+than for normal EPUBs (faster page turns, reading statistics).
+
+However, for a web article to arrive on a Kobo device requires
+at least 2 conversions, which by their nature are pretty messy:
+
+1. HTML → EPUB by Readeck
+1. EPUB → KEPUB by
+   [`kepubify`](https://github.com/pgaskin/kepubify)
+
+Readeck currently produces an
+[EPUB 2.0 package](https://codeberg.org/readeck/readeck/src/commit/bc07420052df/pkg/epub/types.go#L107-L112)
+whose
+[XHTML content template](https://codeberg.org/readeck/readeck/src/commit/bc07420052df/internal/bookmarks/converter/x-epub.templ#L21-L24)
+also uses
+[HTML5 and EPUB 3 constructs](https://codeberg.org/readeck/readeck/src/commit/bc07420052df/internal/bookmarks/converter/x-epub.templ#L69-L89).
+Kobodeck does not normalize this hybrid markup. Before running `kepubify`, it
+only patches the package metadata to designate the first suitable article
+image or the favicon as the cover.
+
+Possible improvements:
+
+- Normalize Readeck's EPUB 2/HTML5 hybrid output into a consistent EPUB 3 book
+  and validate representative output with
+  [EPUBCheck](https://www.w3.org/publishing/epubcheck/) in CI. But this might be better fixed upstream.
+- Improve cover selection, for example by preferring the lead or largest image,
+  and optionally generate a fallback cover.
+- Write downloads and converted books to temporary files and rename them
+  atomically. An interrupted conversion can currently leave a non-empty partial
+  KEPUB that future runs will treat as complete.
+- Option to preserve the downloaded EPUB when KEPUB conversion fails.
+
+#### Synchronization
+
 - Already downloaded articles are never refreshed when their Readeck content
-  changes or the local file is corrupted. To force a re-download, delete the
-  file from `Output.Path` (default: `/mnt/onboard/kobodeck/`).
+  changes or the local file is corrupted.
+  To force a re-download, delete the file from `Output.Path`.
 - If you enable `Sync.FavouriteCollection` in Kobodeck, the respective
   collection will serve as ground truth and will override changes
   made to your favorites e.g. via the Readeck web interface.
+- Highlights, notes, annotations, in-progress percentage and reading positions
+  are not synchronized from the Kobo device to Readeck.
+- There are no options to fetch archived articles or favorites only.
 
-### Future work
+# TODO
 
-- Sync highlights and annotations from the Kobo (`Bookmark` table in
-  `KoboReader.sqlite`) to Readeck's annotations API
-- Add option to fetch archived articles
-- Add option to fetch favorites only
+- use stable release of readeck in vm test
+
