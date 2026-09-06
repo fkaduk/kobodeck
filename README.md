@@ -57,8 +57,9 @@ to prevent Kobodeck from being suspended.
 - a running [hosted](https://readeck.com) or
   [self-hosted](https://readeck.org/en/) Readeck instance
 - a Readeck API token (generate in Readeck under Settings → API tokens)
-- a Kobo device from the Glo generation or newer running the stock Nickel firmware
-  (tested on Kobo Libra Color; very old models may not work)
+- a Kobo device running the stock Nickel firmware
+  (tested on Kobo Libra Colour; other Glo-generation and newer devices may work
+  but are not officially supported)
 
 ## Install or upgrade
 

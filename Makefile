@@ -1,8 +1,9 @@
 GNUARCH ?= $(shell arch)
 BINARY  ?= build/kobodeck.$(GNUARCH)
 SOURCES  = $(wildcard *.go) go.mod go.sum kobodeck.toml Makefile
+SOURCE_DATE_EPOCH ?= $(shell git log -1 --format=%ct)
 
-GFLAGS += -ldflags="-s -w -X main.buildVersion=$(shell git describe --always --dirty --tags)"
+GFLAGS += -trimpath -ldflags="-s -w -X main.buildVersion=$(shell git describe --always --dirty --tags)"
 CROSS_COMPILE_FLAGS = GOARCH=arm GOOS=linux CGO_ENABLED=0
 
 .PHONY: all tarball build tag clean check lint fmt fmt-check mod-check test test-e2e
@@ -14,9 +15,11 @@ tarball:
 	$(MAKE) -B build BINARY=build/kobodeck.arm $(CROSS_COMPILE_FLAGS)
 	mkdir -p root/usr/local/bin
 	cp build/kobodeck.arm root/usr/local/bin/kobodeck
-	touch root/usr
-	tar --owner=0 --group=0 --mode='u+rwX,go+rX,go-w' \
-		-C root/ -c -z -f build/KoboRoot.tgz etc usr
+	tar --sort=name --mtime='@$(SOURCE_DATE_EPOCH)' \
+		--owner=0 --group=0 --numeric-owner --mode='u+rwX,go+rX,go-w' \
+		-C root/ -c -f build/KoboRoot.tar etc usr
+	gzip -n -f build/KoboRoot.tar
+	mv build/KoboRoot.tar.gz build/KoboRoot.tgz
 	rm root/usr/local/bin/kobodeck
 
 build: $(BINARY)

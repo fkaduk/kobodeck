@@ -34,6 +34,12 @@ type readeckClient struct {
 	verbose    bool
 }
 
+const (
+	maxBookmarkIDLength = 128
+	maxEPUBSize         = 257 << 20
+	maxAPIResponseSize  = 8 << 20
+)
+
 func newReadeckClient(httpClient *http.Client, server serverConfig, verbose bool) readeckClient {
 	return readeckClient{
 		httpClient: httpClient,
@@ -55,7 +61,11 @@ func (client readeckClient) listBookmarks(fetch fetchConfig) ([]readeckBookmark,
 	var all []readeckBookmark
 	const batchSize = 100
 	for offset := 0; ; offset += batchSize {
-		u, err := url.Parse(client.baseURL + "/api/bookmarks")
+		apiURL, err := url.JoinPath(client.baseURL, "api", "bookmarks")
+		if err != nil {
+			return nil, fmt.Errorf("build bookmark list URL: %w", err)
+		}
+		u, err := url.Parse(apiURL)
 		if err != nil {
 			return nil, fmt.Errorf("build bookmark list URL: %w", err)
 		}
@@ -103,23 +113,45 @@ func matchesLabelFilter(tags map[string]bool, labels []string) bool {
 	return false
 }
 
-// downloadBookmarkFile fetches the EPUB for a bookmark and writes it to outputCfg.Path.
-// Skips the download if the kepub file already exists and is non-empty.
-// Deletes the partial file if the write fails.
+// downloadBookmarkFile fetches and converts the EPUB for a bookmark.
+// Download and conversion temporary files are kept in outputCfg.Path so the
+// completed KEPUB can be installed with an atomic rename.
 func (client readeckClient) downloadBookmarkFile(outputCfg outputConfig, entry readeckBookmark) (bool, error) {
+	if err := validateBookmarkID(entry.ID); err != nil {
+		return false, err
+	}
 	if err := os.MkdirAll(outputCfg.Path, os.ModePerm); err != nil {
 		return false, fmt.Errorf("create output dir: %w", err)
 	}
-	epubURL := client.baseURL + "/api/bookmarks/" + entry.ID + "/article.epub"
-	output := filepath.Join(outputCfg.Path, entry.ID+".epub")
+	epubURL, err := url.JoinPath(client.baseURL, "api", "bookmarks", entry.ID, "article.epub")
+	if err != nil {
+		return false, fmt.Errorf("build download URL: %w", err)
+	}
 
-	checkPath := filepath.Join(outputCfg.Path, entry.ID+".kepub.epub")
+	checkPath, err := bookmarkFilePath(outputCfg.Path, entry.ID, ".kepub.epub")
+	if err != nil {
+		return false, err
+	}
 	info, err := os.Stat(checkPath)
 	if err == nil && info.Size() > 0 {
-		client.debugf("skipping %s: already downloaded", checkPath)
-		return false, nil
+		if err := validateEPUB(checkPath); err == nil {
+			client.debugf("skipping %s: already downloaded", checkPath)
+			return false, nil
+		} else {
+			log.Printf("warning: existing KEPUB %s is invalid: %v; redownloading", checkPath, err)
+		}
 	} else if err != nil && !os.IsNotExist(err) {
 		return false, fmt.Errorf("stat %s: %w", checkPath, err)
+	}
+
+	outputFile, err := os.CreateTemp(outputCfg.Path, ".kobodeck-*.epub.tmp")
+	if err != nil {
+		return false, fmt.Errorf("create temporary EPUB: %w", err)
+	}
+	output := outputFile.Name()
+	defer os.Remove(output)
+	if err := outputFile.Close(); err != nil {
+		return false, fmt.Errorf("close temporary EPUB %s: %w", output, err)
 	}
 
 	log.Printf("downloading %s to %s", epubURL, output)
@@ -137,20 +169,29 @@ func (client readeckClient) downloadBookmarkFile(outputCfg outputConfig, entry r
 	if resp.StatusCode != http.StatusOK {
 		return false, fmt.Errorf("download %s: %s", epubURL, resp.Status)
 	}
-
-	out, err := os.Create(output)
-	if err != nil {
-		return false, fmt.Errorf("create %s: %w", output, err)
+	if resp.ContentLength > maxEPUBSize {
+		return false, fmt.Errorf("download %s exceeds %d-byte limit", epubURL, maxEPUBSize)
 	}
 
-	n, writeErr := io.Copy(out, resp.Body)
+	out, err := os.OpenFile(output, os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		return false, fmt.Errorf("open temporary EPUB %s: %w", output, err)
+	}
+
+	n, writeErr := io.Copy(out, io.LimitReader(resp.Body, maxEPUBSize+1))
+	syncErr := out.Sync()
 	closeErr := out.Close()
-	if writeErr != nil || closeErr != nil {
-		os.Remove(output)
+	if writeErr != nil || syncErr != nil || closeErr != nil {
 		if writeErr != nil {
 			return false, fmt.Errorf("write %s: %w", output, writeErr)
 		}
+		if syncErr != nil {
+			return false, fmt.Errorf("sync %s: %w", output, syncErr)
+		}
 		return false, fmt.Errorf("close %s: %w", output, closeErr)
+	}
+	if n > maxEPUBSize {
+		return false, fmt.Errorf("download %s exceeds %d-byte limit", epubURL, maxEPUBSize)
 	}
 	log.Printf("wrote %s (%d bytes)", output, n)
 
@@ -174,17 +215,25 @@ func (client readeckClient) downloadBookmarkFile(outputCfg outputConfig, entry r
 
 // patchBookmark sends a partial update to a bookmark in Readeck.
 func (client readeckClient) patchBookmark(id string, fields map[string]any) error {
+	apiURL, err := client.bookmarkURL(id)
+	if err != nil {
+		return err
+	}
 	body, err := json.Marshal(fields)
 	if err != nil {
 		return fmt.Errorf("encode bookmark patch: %w", err)
 	}
-	_, err = client.doAPIRequest(http.MethodPatch, client.baseURL+"/api/bookmarks/"+id, bytes.NewBuffer(body))
+	_, err = client.doAPIRequest(http.MethodPatch, apiURL, bytes.NewBuffer(body))
 	return err
 }
 
 // getBookmark retrieves the metadata of a single bookmark.
 func (client readeckClient) getBookmark(id string) (readeckBookmark, error) {
-	data, err := client.doAPIRequest(http.MethodGet, client.baseURL+"/api/bookmarks/"+id, nil)
+	apiURL, err := client.bookmarkURL(id)
+	if err != nil {
+		return readeckBookmark{}, err
+	}
+	data, err := client.doAPIRequest(http.MethodGet, apiURL, nil)
 	if err != nil {
 		return readeckBookmark{}, err
 	}
@@ -216,15 +265,67 @@ func (client readeckClient) doAPIRequest(method, apiURL string, body io.Reader) 
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.ContentLength > maxAPIResponseSize {
+		return nil, fmt.Errorf("API response exceeds %d-byte limit", maxAPIResponseSize)
+	}
 
-	data, err := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxAPIResponseSize+1))
 	client.debugf("http method=%s path=%s status=%d bytes=%d duration=%s",
 		method, req.URL.Path, resp.StatusCode, len(data), time.Since(start).Truncate(time.Millisecond))
 	if err != nil {
 		return nil, err
 	}
+	if len(data) > maxAPIResponseSize {
+		return nil, fmt.Errorf("API response exceeds %d-byte limit", maxAPIResponseSize)
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return data, fmt.Errorf("API %s %s: %s", method, apiURL, resp.Status)
 	}
 	return data, nil
+}
+
+func validateBookmarkID(id string) error {
+	if id == "" {
+		return fmt.Errorf("invalid bookmark ID: empty")
+	}
+	if len(id) > maxBookmarkIDLength {
+		return fmt.Errorf("invalid bookmark ID: exceeds %d bytes", maxBookmarkIDLength)
+	}
+	for _, char := range id {
+		if (char < 'a' || char > 'z') && (char < 'A' || char > 'Z') &&
+			(char < '0' || char > '9') && char != '_' && char != '-' {
+			return fmt.Errorf("invalid bookmark ID %q", id)
+		}
+	}
+	return nil
+}
+
+func (client readeckClient) bookmarkURL(id string) (string, error) {
+	if err := validateBookmarkID(id); err != nil {
+		return "", err
+	}
+	apiURL, err := url.JoinPath(client.baseURL, "api", "bookmarks", id)
+	if err != nil {
+		return "", fmt.Errorf("build bookmark URL: %w", err)
+	}
+	return apiURL, nil
+}
+
+func bookmarkFilePath(outputDir, id, suffix string) (string, error) {
+	if err := validateBookmarkID(id); err != nil {
+		return "", err
+	}
+	root, err := filepath.Abs(outputDir)
+	if err != nil {
+		return "", fmt.Errorf("resolve output directory: %w", err)
+	}
+	path := filepath.Join(root, id+suffix)
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return "", fmt.Errorf("check output path: %w", err)
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("bookmark path escapes output directory")
+	}
+	return path, nil
 }
