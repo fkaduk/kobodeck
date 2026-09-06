@@ -165,6 +165,7 @@ func (a app) sync(sigc <-chan os.Signal) error {
 	defer lock.Close()
 
 	log.Println("connecting to", a.cfg.Server.URL)
+	time.Sleep(5 * time.Second)
 	entries, err := a.readeck.listBookmarks(a.cfg.Fetch)
 	for attempt := 1; err != nil && attempt < 5; attempt++ {
 		delay := time.Duration(1<<uint(attempt)) * time.Second
@@ -176,33 +177,39 @@ func (a app) sync(sigc <-chan os.Signal) error {
 		return err
 	}
 
-	valid := make(map[string]bool)
-	bookmarks := make(map[string]readeckBookmark)
 	tags := make(map[string]bool)
 	if len(a.cfg.Fetch.Labels) > 0 {
 		for _, tag := range strings.Split(strings.ToLower(a.cfg.Fetch.Labels), ",") {
 			tags[strings.TrimSpace(tag)] = true
 		}
 	}
+	valid := make(map[string]bool)
+	bookmarks := make(map[string]readeckBookmark, len(entries))
+	for _, entry := range entries {
+		bookmarks[entry.ID] = entry
+		if len(tags) == 0 || matchesLabelFilter(tags, entry.Labels) {
+			valid[entry.ID] = true
+		}
+	}
 
 	var g errgroup.Group
 	g.SetLimit(a.cfg.Fetch.Workers)
 	var filesChanged atomic.Bool
+	cancelled := false
 
 	for _, entry := range entries {
-		bookmarks[entry.ID] = entry
-		if len(tags) > 0 && !matchesLabelFilter(tags, entry.Labels) {
+		if !valid[entry.ID] {
 			debugf(a.cfg.Log.Verbose, "skipping %s (not in tags)", entry.ID)
 			continue
 		}
 		select {
 		case sig := <-sigc:
 			log.Println("got signal:", sig, ", waiting for downloads to finish...")
+			cancelled = true
 			goto done
 		default:
 		}
 		debugf(a.cfg.Log.Verbose, "dispatching %s", entry.ID)
-		valid[entry.ID] = true
 		g.Go(func() error {
 			changed, err := a.readeck.downloadBookmarkFile(a.cfg.Output, entry)
 			if changed {
@@ -212,20 +219,34 @@ func (a app) sync(sigc <-chan os.Signal) error {
 		})
 	}
 done:
+	var syncErr error
 	if err := g.Wait(); err != nil {
 		log.Println("download error:", err)
+		syncErr = errors.Join(syncErr, fmt.Errorf("downloads failed: %w", err))
+	}
+	select {
+	case sig := <-sigc:
+		log.Println("got signal:", sig, ", downloads finished")
+		cancelled = true
+	default:
 	}
 
-	if reconcileLocalFiles(a.readeck, a.nickel, a.cfg, valid, bookmarks) {
+	changed, err := reconcileLocalFiles(a.readeck, a.nickel, a.cfg, valid, bookmarks, a.cfg.Output.Delete && !cancelled)
+	if err != nil {
+		log.Println("reconciliation error:", err)
+		syncErr = errors.Join(syncErr, err)
+	}
+	if changed {
 		filesChanged.Store(true)
 	}
 
 	if filesChanged.Load() {
 		if err := nickelRescan(a.nickelStatusPath); err != nil {
 			log.Printf("Nickel rescan failed: %v", err)
+			syncErr = errors.Join(syncErr, fmt.Errorf("Nickel rescan failed: %w", err))
 		}
 	}
-	return nil
+	return syncErr
 }
 
 func debugf(verbose bool, format string, args ...interface{}) {
@@ -460,14 +481,14 @@ type localBook struct {
 }
 
 func listLocalBooks(outputDir string) ([]localBook, error) {
-	files, err := filepath.Glob(strings.TrimSuffix(outputDir, "/") + "/*.epub")
+	files, err := filepath.Glob(strings.TrimSuffix(outputDir, "/") + "/*.kepub.epub")
 	if err != nil {
 		return nil, err
 	}
 	books := make([]localBook, 0, len(files))
 	for _, file := range files {
 		books = append(books, localBook{
-			id:   strings.TrimSuffix(strings.TrimSuffix(filepath.Base(file), ".epub"), ".kepub"),
+			id:   strings.TrimSuffix(filepath.Base(file), ".kepub.epub"),
 			path: file,
 		})
 	}
@@ -478,7 +499,7 @@ func listLocalBooks(outputDir string) ([]localBook, error) {
 // Books marked as read in Nickel are marked as read in Readeck and optionally
 // archived. When FavouriteCollection is configured, Readeck favourite state
 // mirrors Kobo shelf membership, including for archived bookmarks. Books no
-// longer in the fetched feed are deleted if cfg.Output.Delete is set, unless
+// longer in the fetched feed are deleted when allowDelete is set, unless
 // currently being read.
 func reconcileLocalFiles(
 	readeck bookmarkStore,
@@ -486,25 +507,27 @@ func reconcileLocalFiles(
 	cfg appConfig,
 	valid map[string]bool,
 	bookmarks map[string]readeckBookmark,
-) bool {
+	allowDelete bool,
+) (bool, error) {
 	filesChanged := false
 	outputDir := strings.TrimSuffix(cfg.Output.Path, "/")
 	books, err := listLocalBooks(outputDir)
 	if err != nil {
-		log.Println("cannot list local books:", err)
-		return false
+		return false, fmt.Errorf("cannot list local books: %w", err)
 	}
 	debugf(cfg.Log.Verbose, "local books to inspect: %v", books)
+	var reconcileErr error
 	for _, book := range books {
-		changed, err := reconcileLocalBook(readeck, nickel, cfg, outputDir, book, valid, bookmarks)
+		changed, err := reconcileLocalBook(readeck, nickel, cfg, outputDir, book, valid, bookmarks, allowDelete)
 		if err != nil {
-			log.Printf("warning: failed to remove %s: %s", book.path, err)
+			log.Printf("warning: failed to reconcile %s: %s", book.path, err)
+			reconcileErr = errors.Join(reconcileErr, fmt.Errorf("%s: %w", book.path, err))
 		}
 		if changed {
 			filesChanged = true
 		}
 	}
-	return filesChanged
+	return filesChanged, reconcileErr
 }
 
 func reconcileLocalBook(
@@ -515,7 +538,9 @@ func reconcileLocalBook(
 	book localBook,
 	valid map[string]bool,
 	bookmarks map[string]readeckBookmark,
+	allowDelete bool,
 ) (bool, error) {
+	var reconcileErr error
 	uid := book.id
 	if uid == "" {
 		log.Println("skipping file with empty name:", book.path)
@@ -536,6 +561,7 @@ func reconcileLocalBook(
 		inCollection, err = nickel.isInCollection(uid, outputDir, cfg.Sync.FavouriteCollection)
 		if err != nil {
 			log.Println("failed to check collection:", err)
+			reconcileErr = errors.Join(reconcileErr, fmt.Errorf("check collection: %w", err))
 		} else {
 			collectionKnown = true
 		}
@@ -543,7 +569,7 @@ func reconcileLocalBook(
 	if statusErr != nil {
 		// Skip entirely — don't delete a book we can't confirm the read state of.
 		log.Println(statusErr)
-		return false, nil
+		return false, errors.Join(reconcileErr, fmt.Errorf("read status: %w", statusErr))
 	}
 	bookmark, bookmarkKnown := bookmarks[uid]
 	if status == bookRead && wasValid {
@@ -560,6 +586,7 @@ func reconcileLocalBook(
 			log.Printf("marking entry %s as %s", uid, action)
 			if err := readeck.patchBookmark(uid, fields); err != nil {
 				log.Printf("failed to mark entry %s as %s: %v", uid, action, err)
+				reconcileErr = errors.Join(reconcileErr, fmt.Errorf("mark read: %w", err))
 			} else if cfg.Sync.Archive {
 				valid[uid] = false
 			}
@@ -570,6 +597,7 @@ func reconcileLocalBook(
 		bookmark, err = readeck.getBookmark(uid)
 		if err != nil {
 			log.Printf("cannot read Readeck favourite state for %s: %v", uid, err)
+			reconcileErr = errors.Join(reconcileErr, fmt.Errorf("get favourite state: %w", err))
 		} else {
 			bookmarkKnown = true
 		}
@@ -583,17 +611,18 @@ func reconcileLocalBook(
 		log.Printf("%s entry %s as favourite", action, uid)
 		if err := readeck.patchBookmark(uid, map[string]any{"is_marked": inCollection}); err != nil {
 			log.Printf("failed to set favourite state to %t: %v", inCollection, err)
+			reconcileErr = errors.Join(reconcileErr, fmt.Errorf("set favourite state: %w", err))
 		}
 	}
-	if cfg.Output.Delete && !valid[uid] {
+	if allowDelete && !valid[uid] {
 		if status == bookReading || status == bookClosed {
 			log.Printf("not deleting book currently being read: %s", book.path)
 		} else if err := os.Remove(book.path); err != nil {
-			return false, err
+			return false, errors.Join(reconcileErr, fmt.Errorf("delete book: %w", err))
 		} else {
 			log.Println("deleted", book.path)
 			return true, nil
 		}
 	}
-	return false, nil
+	return false, reconcileErr
 }

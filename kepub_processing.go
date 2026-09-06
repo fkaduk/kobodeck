@@ -181,8 +181,9 @@ func copyCoverZipEntry(w *zip.Writer, src *zip.File) error {
 	return err
 }
 
-// toKepub converts the EPUB at path to a .kepub.epub file, removes the
-// original, and returns the new path.
+// toKepub converts the EPUB at path to a .kepub.epub file. The converted
+// content is written and validated in a temporary file before it is atomically
+// renamed into place. The original is removed after a successful conversion.
 func toKepub(epubPath string) (string, error) {
 	r, err := zip.OpenReader(epubPath)
 	if err != nil {
@@ -191,22 +192,83 @@ func toKepub(epubPath string) (string, error) {
 	defer r.Close()
 
 	kepubPath := strings.TrimSuffix(epubPath, ".epub") + ".kepub.epub"
-	f, err := os.Create(kepubPath)
+	f, err := os.CreateTemp(filepath.Dir(kepubPath), "."+filepath.Base(kepubPath)+".tmp-*")
 	if err != nil {
 		return "", err
 	}
+	tmpPath := f.Name()
+	defer os.Remove(tmpPath)
 
 	c := kepub.NewConverterWithOptions(kepub.ConverterOptionDummyTitlepage(false))
 	convertErr := c.Convert(context.Background(), f, &r.Reader)
+	syncErr := f.Sync()
 	closeErr := f.Close()
-	if convertErr != nil || closeErr != nil {
-		os.Remove(kepubPath)
+	if convertErr != nil || syncErr != nil || closeErr != nil {
 		os.Remove(epubPath)
 		if convertErr != nil {
 			return "", convertErr
 		}
+		if syncErr != nil {
+			return "", syncErr
+		}
 		return "", closeErr
+	}
+	if err := validateEPUB(tmpPath); err != nil {
+		os.Remove(epubPath)
+		return "", fmt.Errorf("validate converted KEPUB: %w", err)
+	}
+	if err := os.Rename(tmpPath, kepubPath); err != nil {
+		return "", err
+	}
+	if err := syncDirectory(filepath.Dir(kepubPath)); err != nil {
+		log.Printf("warning: sync output directory %s: %v", filepath.Dir(kepubPath), err)
 	}
 	os.Remove(epubPath)
 	return kepubPath, nil
+}
+
+// validateEPUB checks that path is a readable EPUB/KEPUB archive with the
+// required mimetype entry.
+func validateEPUB(path string) error {
+	r, err := zip.OpenReader(path)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	for _, entry := range r.File {
+		if entry.Name != "mimetype" {
+			continue
+		}
+		reader, err := entry.Open()
+		if err != nil {
+			return err
+		}
+		data, readErr := io.ReadAll(reader)
+		closeErr := reader.Close()
+		if readErr != nil {
+			return readErr
+		}
+		if closeErr != nil {
+			return closeErr
+		}
+		if string(data) != "application/epub+zip" {
+			return fmt.Errorf("mimetype is %q", string(data))
+		}
+		return nil
+	}
+	return fmt.Errorf("mimetype entry not found")
+}
+
+func syncDirectory(path string) error {
+	dir, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	syncErr := dir.Sync()
+	closeErr := dir.Close()
+	if syncErr != nil {
+		return syncErr
+	}
+	return closeErr
 }
