@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -23,7 +24,7 @@ func fixCover(path string) error {
 	if err != nil {
 		return err
 	}
-	defer r.Close()
+	defer closeWithWarning(path, r)
 
 	const opfPath = "OEBPS/content.opf"
 
@@ -51,7 +52,7 @@ func fixCover(path string) error {
 
 	tmp := path + ".covertmp"
 	if err := writeCoverEPUB(r, tmp, opfPath, patchedOPF); err != nil {
-		os.Remove(tmp)
+		removeWithWarning(tmp)
 		return err
 	}
 	return os.Rename(tmp, path)
@@ -108,12 +109,14 @@ func addCoverToOPF(opf []byte, coverID string) []byte {
 	return []byte(s)
 }
 
-func writeCoverEPUB(r *zip.ReadCloser, dst, opfPath string, patchedOPF []byte) error {
+func writeCoverEPUB(r *zip.ReadCloser, dst, opfPath string, patchedOPF []byte) (returnErr error) {
 	f, err := os.Create(dst)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		returnErr = errors.Join(returnErr, f.Close())
+	}()
 
 	w := zip.NewWriter(f)
 
@@ -151,8 +154,8 @@ func readCoverZipEntry(r *zip.ReadCloser, name string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		defer rc.Close()
-		return io.ReadAll(rc)
+		data, readErr := io.ReadAll(rc)
+		return data, errors.Join(readErr, rc.Close())
 	}
 	return nil, fmt.Errorf("%s: not found in zip", name)
 }
@@ -176,9 +179,8 @@ func copyCoverZipEntry(w *zip.Writer, src *zip.File) error {
 	if err != nil {
 		return err
 	}
-	defer rc.Close()
-	_, err = io.Copy(ew, rc)
-	return err
+	_, copyErr := io.Copy(ew, rc)
+	return errors.Join(copyErr, rc.Close())
 }
 
 // toKepub converts the EPUB at epubPath to kepubPath. The converted content is
@@ -189,21 +191,21 @@ func toKepub(epubPath, kepubPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer r.Close()
+	defer closeWithWarning(epubPath, r)
 
 	f, err := os.CreateTemp(filepath.Dir(kepubPath), "."+filepath.Base(kepubPath)+".tmp-*")
 	if err != nil {
 		return "", err
 	}
 	tmpPath := f.Name()
-	defer os.Remove(tmpPath)
+	defer removeWithWarning(tmpPath)
 
 	c := kepub.NewConverterWithOptions(kepub.ConverterOptionDummyTitlepage(false))
 	convertErr := c.Convert(context.Background(), f, &r.Reader)
 	syncErr := f.Sync()
 	closeErr := f.Close()
 	if convertErr != nil || syncErr != nil || closeErr != nil {
-		os.Remove(epubPath)
+		removeWithWarning(epubPath)
 		if convertErr != nil {
 			return "", convertErr
 		}
@@ -213,7 +215,7 @@ func toKepub(epubPath, kepubPath string) (string, error) {
 		return "", closeErr
 	}
 	if err := validateEPUB(tmpPath); err != nil {
-		os.Remove(epubPath)
+		removeWithWarning(epubPath)
 		return "", fmt.Errorf("validate converted KEPUB: %w", err)
 	}
 	if err := os.Rename(tmpPath, kepubPath); err != nil {
@@ -222,7 +224,7 @@ func toKepub(epubPath, kepubPath string) (string, error) {
 	if err := syncDirectory(filepath.Dir(kepubPath)); err != nil {
 		log.Printf("warning: sync output directory %s: %v", filepath.Dir(kepubPath), err)
 	}
-	os.Remove(epubPath)
+	removeWithWarning(epubPath)
 	return kepubPath, nil
 }
 
@@ -233,7 +235,7 @@ func validateEPUB(path string) error {
 	if err != nil {
 		return err
 	}
-	defer r.Close()
+	defer closeWithWarning(path, r)
 
 	for _, entry := range r.File {
 		if entry.Name != "mimetype" {

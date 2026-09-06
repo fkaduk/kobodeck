@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 
@@ -26,21 +27,25 @@ type nickelDatabase struct {
 	verbose bool
 }
 
-func (db nickelDatabase) readStatus(id, outputDir string) (bookStatus, error) {
+func (db nickelDatabase) readStatus(id, outputDir string) (_ bookStatus, returnErr error) {
 	conn, err := sql.Open("sqlite", "file:"+db.path+"?mode=ro")
 	if err != nil {
 		return bookUnread, fmt.Errorf("open Nickel DB: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		returnErr = errors.Join(returnErr, conn.Close())
+	}()
 	return nickelReadStatus(conn, id, outputDir, db.verbose)
 }
 
-func (db nickelDatabase) isInCollection(id, outputDir, collection string) (bool, error) {
+func (db nickelDatabase) isInCollection(id, outputDir, collection string) (_ bool, returnErr error) {
 	conn, err := sql.Open("sqlite", "file:"+db.path+"?mode=ro")
 	if err != nil {
 		return false, fmt.Errorf("open Nickel DB: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		returnErr = errors.Join(returnErr, conn.Close())
+	}()
 	return nickelIsInCollection(conn, id, outputDir, collection)
 }
 

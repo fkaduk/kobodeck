@@ -88,7 +88,9 @@ func openNickelSchemaFixture(t *testing.T) *sql.DB {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		db.Close()
+		if err := db.Close(); err != nil {
+			t.Errorf("close Nickel test database: %v", err)
+		}
 	})
 	execNickelSQL(t, db, string(schema))
 	return db

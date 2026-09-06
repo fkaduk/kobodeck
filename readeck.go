@@ -149,7 +149,7 @@ func (client readeckClient) downloadBookmarkFile(outputCfg outputConfig, entry r
 		return false, fmt.Errorf("create temporary EPUB: %w", err)
 	}
 	output := outputFile.Name()
-	defer os.Remove(output)
+	defer removeWithWarning(output)
 	if err := outputFile.Close(); err != nil {
 		return false, fmt.Errorf("close temporary EPUB %s: %w", output, err)
 	}
@@ -165,7 +165,7 @@ func (client readeckClient) downloadBookmarkFile(outputCfg outputConfig, entry r
 	if err != nil {
 		return false, fmt.Errorf("download %s: %w", epubURL, err)
 	}
-	defer resp.Body.Close()
+	defer closeWithWarning("download response body", resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		return false, fmt.Errorf("download %s: %s", epubURL, resp.Status)
 	}
@@ -264,7 +264,7 @@ func (client readeckClient) doAPIRequest(method, apiURL string, body io.Reader) 
 			method, req.URL.Path, time.Since(start).Truncate(time.Millisecond))
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer closeWithWarning("API response body", resp.Body)
 	if resp.ContentLength > maxAPIResponseSize {
 		return nil, fmt.Errorf("API response exceeds %d-byte limit", maxAPIResponseSize)
 	}

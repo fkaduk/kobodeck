@@ -19,6 +19,10 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+          cache-dependency-path: |
+            actionlint.sum
+            go.sum
+            tools.sum
       - name: Check formatting
         run: make fmt-check
       - name: Verify Go module files
@@ -27,6 +31,8 @@ jobs:
         run: make lint
       - name: Run unit tests
         run: make test
+      - name: Check for known Go vulnerabilities
+        run: make vulncheck
 
   vm-test:
     runs-on: ubuntu-latest
