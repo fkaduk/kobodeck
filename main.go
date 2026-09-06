@@ -31,6 +31,7 @@ var (
 	checkFlag      = flag.Bool("check", false, "validate config and show what would be synced, then exit")
 )
 
+// TODO: arent there better options thana nested hierarchy of cfgs?
 type appConfig struct {
 	Server serverConfig `toml:"Server"`
 	Fetch  fetchConfig  `toml:"Fetch"`
@@ -89,11 +90,7 @@ func (c *appConfig) validate() error {
 	return nil
 }
 
-var (
-	filesChanged atomic.Bool
-	version      = "dev"
-	nickelDBPath = "/mnt/onboard/.kobo/KoboReader.sqlite"
-)
+var buildVersion = "dev"
 
 func main() {
 	flag.Parse()
@@ -119,7 +116,7 @@ func main() {
 		log.Fatal("invalid configuration: ", err)
 	}
 	log.Printf("kobodeck version %s loaded configuration from %s action=%q interface=%q",
-		version, configFile, os.Getenv("ACTION"), os.Getenv("INTERFACE"))
+		buildVersion, configFile, os.Getenv("ACTION"), os.Getenv("INTERFACE"))
 
 	if *checkFlag {
 		if err := runCheck(os.Stdout); err != nil {
@@ -130,10 +127,10 @@ func main() {
 
 	start := time.Now()
 	defer func() {
-		log.Printf("version %s completed in %s", version, time.Since(start).Truncate(time.Millisecond))
+		log.Printf("completed in %s", time.Since(start).Truncate(time.Millisecond))
 	}()
 
-	lock, err := acquireLock()
+	lock, err := acquireLock(defaultLockFilePath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -169,6 +166,7 @@ func main() {
 
 	var g errgroup.Group
 	g.SetLimit(config.Fetch.Workers)
+	var filesChanged atomic.Bool
 
 	for _, entry := range entries {
 		bookmarks[entry.ID] = entry
@@ -185,7 +183,11 @@ func main() {
 		debugf("dispatching %s", entry.ID)
 		valid[entry.ID] = true
 		g.Go(func() error {
-			return download(client, entry)
+			changed, err := downloadBookmarkFile(client, entry)
+			if changed {
+				filesChanged.Store(true)
+			}
+			return err
 		})
 	}
 done:
@@ -193,10 +195,12 @@ done:
 		log.Println("download error:", err)
 	}
 
-	reconcileLocalFiles(client, config, valid, bookmarks)
+	if reconcileLocalFiles(client, config, valid, bookmarks, defaultNickelDBPath) {
+		filesChanged.Store(true)
+	}
 
 	if filesChanged.Load() {
-		if err := nickelRescan(); err != nil {
+		if err := nickelRescan(defaultNickelStatusPath); err != nil {
 			log.Printf("Nickel rescan failed: %v", err)
 		}
 	}
@@ -209,6 +213,12 @@ func debugf(format string, args ...interface{}) {
 }
 
 const confPath = "/mnt/onboard/.adds/kobodeck/kobodeck.toml"
+
+const (
+	defaultNickelDBPath     = "/mnt/onboard/.kobo/KoboReader.sqlite"
+	defaultNickelStatusPath = "/tmp/nickel-hardware-status"
+	defaultLockFilePath     = "/tmp/kobodeck.lock"
+)
 
 var logPath = filepath.Join(filepath.Dir(confPath), "kobodeck.log")
 
@@ -309,14 +319,13 @@ func doUninstall(binaryPath string, files []string) {
 // nickelRescan triggers a Nickel library rescan by simulating a USB plug/unplug
 // via /tmp/nickel-hardware-status. The user will see a Connect/Cancel dialog;
 // pressing Connect rescans immediately, Cancel still picks up changes on reboot.
-func nickelRescan() error {
-	const nickelStatus = "/tmp/nickel-hardware-status"
+func nickelRescan(statusPath string) error {
 	log.Println("triggering Nickel rescan")
-	if err := appendNickelEvent(nickelStatus, "add"); err != nil {
+	if err := appendNickelEvent(statusPath, "add"); err != nil {
 		return err
 	}
 	time.Sleep(10 * time.Second)
-	return appendNickelEvent(nickelStatus, "remove")
+	return appendNickelEvent(statusPath, "remove")
 }
 
 func appendNickelEvent(path, event string) error {
@@ -334,10 +343,10 @@ func appendNickelEvent(path, event string) error {
 	return nil
 }
 
-// acquireLock acquires an exclusive non-blocking flock on /tmp/kobodeck.lock.
+// acquireLock acquires an exclusive non-blocking flock on path.
 // Returns an error if another instance is already running.
-func acquireLock() (*os.File, error) {
-	f, err := os.OpenFile("/tmp/kobodeck.lock", os.O_CREATE|os.O_WRONLY, 0o600)
+func acquireLock(path string) (*os.File, error) {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return nil, fmt.Errorf("open lock file: %w", err)
 	}
@@ -409,7 +418,9 @@ func reconcileLocalFiles(
 	cfg appConfig,
 	valid map[string]bool,
 	bookmarks map[string]readeckBookmark,
-) {
+	nickelDBPath string,
+) bool {
+	filesChanged := false
 	outputDir := strings.TrimSuffix(cfg.Output.Path, "/")
 	files, _ := filepath.Glob(outputDir + "/*.epub")
 	debugf("local files to inspect: %v", files)
@@ -488,14 +499,15 @@ func reconcileLocalFiles(
 			}
 		}
 		if cfg.Output.Delete && !valid[uid] {
-			if status == bookReading {
+			if status == bookReading || status == bookClosed {
 				log.Printf("not deleting book currently being read: %s", file)
 			} else if err = os.Remove(file); err != nil {
 				log.Printf("warning: failed to remove %s: %s", file, err)
 			} else {
 				log.Println("deleted", file)
-				filesChanged.Store(true)
+				filesChanged = true
 			}
 		}
 	}
+	return filesChanged
 }
