@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -41,7 +42,10 @@ func writeTestEPUB(t *testing.T, path string) []byte {
 	if _, err := content.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="bookid">test</dc:identifier><dc:title>Test</dc:title><dc:language>en</dc:language></metadata>
-  <manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/></manifest>
+  <manifest>
+    <item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/>
+    <item id="res-cover" href="cover.jpg" media-type="image/jpeg"/>
+  </manifest>
   <spine><itemref idref="chapter"/></spine>
 </package>`)); err != nil {
 		t.Fatal(err)
@@ -51,6 +55,13 @@ func writeTestEPUB(t *testing.T, path string) []byte {
 		t.Fatal(err)
 	}
 	if _, err := chapter.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Test</title></head><body><p>Hello</p></body></html>`)); err != nil {
+		t.Fatal(err)
+	}
+	cover, err := w.Create("OEBPS/cover.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cover.Write([]byte("test cover")); err != nil {
 		t.Fatal(err)
 	}
 	if err := w.Close(); err != nil {
@@ -105,5 +116,31 @@ func TestToKepubFailurePreservesExistingBook(t *testing.T) {
 	}
 	if !bytes.Equal(got, original) {
 		t.Fatal("existing KEPUB was changed after failed conversion")
+	}
+}
+
+func TestFixCoverRenameFailureRemovesTemporaryFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "article.epub")
+	original := writeTestEPUB(t, path)
+	renameErr := errors.New("rename failed")
+
+	err := fixCoverWithRename(path, func(oldPath, newPath string) error {
+		if oldPath != path+".covertmp" || newPath != path {
+			t.Errorf("rename paths = %q, %q", oldPath, newPath)
+		}
+		return renameErr
+	})
+	if !errors.Is(err, renameErr) {
+		t.Fatalf("fixCoverWithRename error = %v, want rename error", err)
+	}
+	if _, err := os.Stat(path + ".covertmp"); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("cover temporary file remains: %v", err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, original) {
+		t.Fatal("original EPUB changed after failed cover rename")
 	}
 }

@@ -16,8 +16,12 @@ readonly admin_pass=testpass123
 readonly admin_email=testadmin@test.invalid
 readonly article_url=https://example.com
 readonly qemu_host_gateway=10.0.2.2
+readonly tarball=${KOBODECK_TARBALL:-build/KoboRoot.tgz}
+readonly coverage_output_dir=${KOBODECK_COVERAGE_OUTPUT_DIR:-}
+readonly coverage_profile=build/e2e-coverage.out
 container_id=
 work_dir=
+onboard=
 
 cleanup() {
 	if [[ -n "$container_id" ]]; then
@@ -42,7 +46,12 @@ check_dependencies() {
 	for command in cpio curl docker find gzip mkfs.vfat qemu-system-arm sha256sum timeout truncate; do
 		command -v "$command" >/dev/null || die "required command not found: $command"
 	done
-	[[ -s build/KoboRoot.tgz ]] || die "build/KoboRoot.tgz is missing; run make tarball first"
+	[[ -s "$tarball" ]] || die "$tarball is missing; build the requested tarball first"
+	if [[ -n "$coverage_output_dir" ]]; then
+		for command in go mcopy; do
+			command -v "$command" >/dev/null || die "coverage mode requires command: $command"
+		done
+	fi
 }
 
 download_artifact() {
@@ -169,7 +178,7 @@ build_vm_filesystem() {
 	overlay=$work_dir/overlay
 	mkdir -p "$overlay/etc/apk" "$overlay/test"
 	cp vm_test_guest.sh "$overlay/vm_test_guest.sh"
-	cp build/KoboRoot.tgz "$overlay/test/KoboRoot.tgz"
+	cp "$tarball" "$overlay/test/KoboRoot.tgz"
 	cp testdata/nickel-schema-176.sql "$overlay/test/nickel-schema.sql"
 	printf '%s\n' "$bookmark_id" >"$overlay/test/bookmark-id"
 	printf '%s\n' "$alpine_repository_url" >"$overlay/etc/apk/repositories"
@@ -198,6 +207,12 @@ Size = 1
 Path = "/mnt/onboard/kobodeck"
 Delete = false
 EOF
+	if [[ -n "$coverage_output_dir" ]]; then
+		cat >"$overlay/test/90-kobodeck-cover.rules" <<'EOF'
+KERNEL=="eth*", ACTION=="add", RUN+="/bin/sh -c 'GOCOVERDIR=/mnt/onboard/kobodeck-coverdata /usr/local/bin/kobodeck &'"
+KERNEL=="wlan*", ACTION=="add", RUN+="/bin/sh -c 'GOCOVERDIR=/mnt/onboard/kobodeck-coverdata /usr/local/bin/kobodeck &'"
+EOF
+	fi
 	chmod 755 "$overlay/vm_test_guest.sh"
 
 	overlay_archive=$work_dir/initramfs-overlay.gz
@@ -211,7 +226,7 @@ EOF
 }
 
 run_vm() {
-	local onboard transcript
+	local transcript
 
 	onboard=$work_dir/onboard.fat
 	truncate --size 128M "$onboard"
@@ -244,14 +259,51 @@ run_vm() {
 	fi
 }
 
+collect_coverage() {
+	local extracted=$work_dir/e2e-coverdata
+	local profile=$work_dir/e2e-coverage.out
+
+	mkdir -p "$extracted"
+	if ! mcopy -i "$onboard" -s '::/kobodeck-coverdata/*' "$extracted"; then
+		die "cannot extract coverage data from onboard storage"
+	fi
+	if ! find "$extracted" -type f -name 'covmeta.*' -print -quit | grep -q .; then
+		die "instrumentation produced no coverage metadata"
+	fi
+	if ! find "$extracted" -type f -name 'covcounters.*' -print -quit | grep -q .; then
+		die "instrumentation produced no coverage counters"
+	fi
+	go tool covdata percent -i="$extracted" || die "coverage data is not usable"
+	go tool covdata textfmt -i="$extracted" -o="$profile" ||
+		die "cannot convert coverage data to text format"
+	[[ -s "$profile" ]] || die "instrumentation produced an empty coverage profile"
+
+	mkdir -p "$coverage_output_dir" "$(dirname "$coverage_profile")"
+	cp -a "$extracted"/. "$coverage_output_dir"/
+	cp "$profile" "$coverage_profile"
+}
+
+prepare_coverage_output() {
+	mkdir -p "$coverage_output_dir"
+	find "$coverage_output_dir" -maxdepth 1 -type f \
+		\( -name 'covmeta.*' -o -name 'covcounters.*' \) -delete
+	rm -f "$coverage_profile"
+}
+
 main() {
 	check_dependencies
 	work_dir=$(mktemp -d)
+	if [[ -n "$coverage_output_dir" ]]; then
+		prepare_coverage_output
+	fi
 	download_artifacts
 	start_readeck
 	prepare_readeck_test_data
 	build_vm_filesystem
 	run_vm
+	if [[ -n "$coverage_output_dir" ]]; then
+		collect_coverage
+	fi
 	echo "vm test: PASS"
 }
 

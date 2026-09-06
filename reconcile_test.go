@@ -233,6 +233,34 @@ func TestReconcilePropagatesRemotePatchError(t *testing.T) {
 	}
 }
 
+func TestReconcileKeepsStaleBookWhenRemotePatchFails(t *testing.T) {
+	reconcile := newReconcileHarness(t)
+	reconcile.deleteStaleFiles()
+	reconcile.nickel.status = bookRead
+	remoteErr := errors.New("remote update failed")
+	reconcile.readeck.patchErr = remoteErr
+
+	filesChanged, err := reconcileLocalBook(
+		&reconcile.readeck,
+		reconcile.nickel,
+		reconcile.cfg,
+		reconcile.cfg.Output.Path,
+		reconcile.book,
+		make(map[string]bool),
+		make(map[string]readeckBookmark),
+		true,
+	)
+	if !errors.Is(err, remoteErr) {
+		t.Fatalf("reconciliation error = %v, want remote update error", err)
+	}
+	if filesChanged {
+		t.Fatal("retained book was reported as a filesystem change")
+	}
+	if _, err := os.Stat(reconcile.book.path); err != nil {
+		t.Fatalf("local retry input was not preserved: %v", err)
+	}
+}
+
 func TestReconcileKeepsStaleInProgressBookmark(t *testing.T) {
 	reconcile := newReconcileHarness(t)
 	reconcile.deleteStaleFiles()
