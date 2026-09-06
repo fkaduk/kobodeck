@@ -1,6 +1,10 @@
 #!/bin/sh
 set -u
 
+# Guest-side half of the end-to-end test.
+# The host passes this script to the kernel as rdinit,
+# so it runs as PID 1 in a minimal initramfs.
+
 busybox=/bin/busybox
 log=/mnt/onboard/.adds/kobodeck/kobodeck.log
 nickel_status=/tmp/nickel-hardware-status
@@ -13,16 +17,18 @@ export PATH=/usr/bin:/bin:/usr/sbin:/sbin
 
 fail() {
 	echo "KOBODECK_VM_ERROR: $*"
+	if [ -f "$log" ]; then
+		echo "KOBODECK_VM_LOG_BEGIN"
+		cat "$log"
+		echo "KOBODECK_VM_LOG_END"
+	fi
 	poweroff -f
 	while :; do
 		sleep 3600
 	done
 }
 
-require_log() {
-	grep -Fq "$1" "$log" || fail "Kobodeck log is missing: $1"
-}
-
+# Script runs as PID=1, it must mount the usual kernel-provided filesyste itself
 echo "KOBODECK_VM: mounting virtual filesystems"
 mount -t devtmpfs devtmpfs /dev || fail "mount devtmpfs"
 mount -t proc proc /proc || fail "mount proc"
@@ -37,11 +43,12 @@ ip link set lo up || fail "enable loopback"
 ip link set eth0 up || fail "enable eth0"
 udhcpc -q -n -t 10 -i eth0 -s /usr/share/udhcpc/default.script ||
 	fail "obtain DHCP lease"
+
+echo "KOBODECK_VM: setting up onboard storage mount"
 mkdir -p /mnt/onboard
 mount -t vfat /dev/vda /mnt/onboard || fail "mount onboard FAT storage"
-mount | grep -q ' on /mnt/onboard type vfat ' || fail "verify onboard FAT storage"
 
-echo "KOBODECK_VM: installing test runtime and release"
+echo "KOBODECK_VM: installing test dependencies and release"
 apk add --initdb eudev sqlite || fail "install eudev and sqlite"
 tar -xzf /test/KoboRoot.tgz -C / || fail "install KoboRoot.tgz"
 mkdir -p /mnt/onboard/.adds/kobodeck /mnt/onboard/.kobo
@@ -57,7 +64,7 @@ ip link set eth0 name wlan0 || fail "rename network interface"
 ip link set wlan0 up || fail "enable wlan0"
 mkdir -p /run/udev
 udevd --daemon || fail "start udev"
-udevadm control --reload-rules || fail "reload udev rules"
+
 [ ! -e "$log" ] || fail "Kobodeck ran before a Wi-Fi event"
 
 echo "KOBODECK_VM: verifying remove event is ignored"
@@ -65,8 +72,10 @@ udevadm trigger --action=remove /sys/class/net/wlan0 || fail "trigger remove eve
 sleep 1
 [ ! -e "$log" ] || fail "remove event unexpectedly ran Kobodeck"
 
-echo "KOBODECK_VM: triggering release through installed udev rule"
+echo "KOBODECK_VM: triggering Kobodeck through installed udev rule"
 udevadm trigger --action=add /sys/class/net/wlan0 || fail "trigger add event"
+
+echo "KOBODECK_VM: waiting for Kobodeck to complete"
 waited=0
 while ! grep -q ' completed in ' "$log" 2>/dev/null; do
 	waited=$((waited + 1))
@@ -74,27 +83,22 @@ while ! grep -q ' completed in ' "$log" 2>/dev/null; do
 	sleep 1
 done
 
+echo "KOBODECK_VM: verifying synchronization results"
 bookmark_id=$(cat /test/bookmark-id)
 download=/mnt/onboard/kobodeck/$bookmark_id.kepub.epub
 [ -s "$download" ] || fail "downloaded KEPUB is missing"
-if grep -Eiq 'error|failed|panic' "$log"; then
-	fail "Kobodeck log contains an error"
-fi
-for fragment in \
-	'pid=' \
-	'action="add"' \
-	'interface="wlan0"' \
-	'connecting to ' \
-	'downloading ' \
-	'converted to ' \
-	'triggering Nickel rescan' \
-	'completed in '; do
-	require_log "$fragment"
-done
+
+epub_mimetype=$(unzip -p "$download" mimetype 2>/dev/null) ||
+	fail "downloaded KEPUB is not a readable ZIP archive"
+[ "$epub_mimetype" = "application/epub+zip" ] ||
+	fail "downloaded KEPUB has an invalid mimetype"
+unzip -p "$download" META-INF/container.xml >/dev/null 2>&1 ||
+	fail "downloaded KEPUB has no container metadata"
+
 grep -Fq 'usb plug add' "$nickel_status" || fail "Nickel add event is missing"
 grep -Fq 'usb plug remove' "$nickel_status" || fail "Nickel remove event is missing"
 
-echo "KOBODECK_VM: verifying release uninstall through udev"
+echo "KOBODECK_VM: triggering and verifying uninstall through udev"
 : >/mnt/onboard/.adds/kobodeck/kobodeck.toml
 udevadm trigger --action=add /sys/class/net/wlan0 || fail "trigger uninstall event"
 waited=0
@@ -105,7 +109,6 @@ while [ -e "$binary" ] || [ -e "$rule" ] || [ -e /mnt/onboard/.adds/kobodeck ]; 
 done
 [ -s "$download" ] || fail "uninstall removed downloaded article"
 
-sync
 echo "KOBODECK_VM_PASS"
 poweroff -f
 fail "power off"

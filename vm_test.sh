@@ -1,16 +1,21 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# Host-side orchestration for the end-to-end test. This script
+# - starts Readeck
+# - assembles a tiny guest containing the release tarball
+# - boots it under 32-bit ARM emulation
+# - passes control over to vm_test_guest.sh
+
 readonly alpine_base_url=https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/armv7/netboot-3.24.1
 readonly alpine_repository_url=http://dl-cdn.alpinelinux.org/alpine/v3.24/main
 readonly artifact_cache_dir=.cache/kobodeck-testvm
-readonly readeck_image=codeberg.org/readeck/readeck:0.22.3
+readonly readeck_image=codeberg.org/readeck/readeck:latest
 readonly admin_user=testadmin
 readonly admin_pass=testpass123
 readonly admin_email=testadmin@test.invalid
 readonly article_url=https://example.com
 readonly qemu_host_gateway=10.0.2.2
-
 container_id=
 work_dir=
 
@@ -47,6 +52,7 @@ download_artifact() {
 	local path=$artifact_cache_dir/$name
 	local got_hash=
 
+	# confirm cache file via hash
 	if [[ -f "$path" ]]; then
 		got_hash=$(sha256sum "$path")
 		got_hash=${got_hash%% *}
@@ -75,10 +81,11 @@ base_initramfs=$(download_artifact \
 	32807f8009a39c86bc70d601e9175293d416a7d204275f807e490cd92653cd68)
 
 echo "vm test: starting Readeck"
-container_id=$(docker run --detach --rm \
+container_id=$(docker run --pull always --detach --rm \
 	--publish 127.0.0.1::8000 \
 	"$readeck_image")
 
+echo "vm test: waiting for Readeck to become healthy"
 healthy=false
 for _ in {1..240}; do
 	if docker exec "$container_id" readeck healthcheck >/dev/null 2>&1; then
@@ -92,6 +99,7 @@ if [[ "$healthy" != true ]]; then
 	die "Readeck did not become healthy"
 fi
 
+echo "vm test: Readeck is ready; creating test user"
 docker exec "$container_id" readeck user \
 	-user "$admin_user" \
 	-password "$admin_pass" \
@@ -118,7 +126,7 @@ if [[ $token_page =~ $token_pattern ]]; then
 else
 	die "API token not found in Readeck profile page"
 fi
-
+echo "vm test: creating test bookmark in Readeck"
 bookmark_headers=$work_dir/bookmark-headers
 curl --fail --silent --show-error \
 	--dump-header "$bookmark_headers" --output /dev/null \
@@ -130,6 +138,7 @@ bookmark_id=$(awk 'tolower($1) == "bookmark-id:" {gsub("\r", "", $2); print $2}'
 	"$bookmark_headers")
 [[ -n "$bookmark_id" ]] || die "Readeck response has no Bookmark-Id header"
 
+echo "vm test: waiting for Readeck to process test bookmark"
 loaded=false
 loaded_pattern='"loaded"[[:space:]]*:[[:space:]]*true'
 for _ in {1..120}; do
@@ -143,6 +152,7 @@ for _ in {1..120}; do
 	sleep 0.25
 done
 [[ "$loaded" == true ]] || die "Readeck bookmark did not load"
+echo "vm test: Readeck test bookmark is ready"
 
 overlay=$work_dir/overlay
 mkdir -p "$overlay/etc/apk" "$overlay/test"
@@ -151,6 +161,7 @@ cp build/KoboRoot.tgz "$overlay/test/KoboRoot.tgz"
 cp testdata/nickel-schema-176.sql "$overlay/test/nickel-schema.sql"
 printf '%s\n' "$bookmark_id" >"$overlay/test/bookmark-id"
 printf '%s\n' "$alpine_repository_url" >"$overlay/etc/apk/repositories"
+echo "vm test: writing Kobodeck test configuration"
 cat >"$overlay/test/kobodeck.toml" <<EOF
 [Server]
 URL = "$vm_url"
@@ -185,11 +196,9 @@ overlay_archive=$work_dir/initramfs-overlay.gz
 combined_initramfs=$work_dir/initramfs-test
 cp "$base_initramfs" "$combined_initramfs"
 cat "$overlay_archive" >>"$combined_initramfs"
-
 onboard=$work_dir/onboard.fat
 truncate --size 128M "$onboard"
 mkfs.vfat "$onboard" >/dev/null
-
 transcript=$work_dir/qemu.log
 echo "vm test: booting ARM release smoke test"
 if ! timeout 2m qemu-system-arm \
