@@ -136,7 +136,9 @@ func newApp(cfg appConfig) app {
 
 func main() {
 	flag.Parse()
-	os.MkdirAll(filepath.Dir(confPath), 0o755)
+	if err := os.MkdirAll(filepath.Dir(confPath), 0o755); err != nil {
+		log.Fatal("create config directory: ", err)
+	}
 	configFile, cfg, configErr := findConfig()
 	setupLogging(cfg, configFile)
 	log.SetPrefix(fmt.Sprintf("pid=%d ", os.Getpid()))
@@ -148,7 +150,9 @@ func main() {
 	} else if errors.Is(configErr, errUninstallRequested) {
 		log.Println("empty config found — uninstalling")
 		doUninstall(os.Args[0], installFiles)
-		os.RemoveAll(filepath.Dir(confPath))
+		if err := os.RemoveAll(filepath.Dir(confPath)); err != nil {
+			log.Fatal("remove application directory: ", err)
+		}
 		log.Println("uninstall complete")
 		return
 	} else if configErr != nil {
@@ -186,7 +190,7 @@ func (a app) sync(sigc <-chan os.Signal) error {
 	if err != nil {
 		return err
 	}
-	defer lock.Close()
+	defer closeWithWarning("lock file", lock)
 
 	log.Println("connecting to", a.cfg.Server.URL)
 	time.Sleep(5 * time.Second)
@@ -266,8 +270,8 @@ done:
 
 	if filesChanged.Load() {
 		if err := nickelRescan(a.nickelStatusPath); err != nil {
-			log.Printf("Nickel rescan failed: %v", err)
-			syncErr = errors.Join(syncErr, fmt.Errorf("Nickel rescan failed: %w", err))
+			log.Printf("nickel rescan failed: %v", err)
+			syncErr = errors.Join(syncErr, fmt.Errorf("nickel rescan failed: %w", err))
 		}
 	}
 	return syncErr
@@ -313,12 +317,14 @@ var errUninstallRequested = errors.New("uninstall requested")
 // loadConfig decodes the TOML file at path.
 // Returns os.ErrNotExist if the file is absent, errUninstallRequested if
 // the file is empty, or an error for parse failures and unrecognised keys.
-func loadConfig(path string) (appConfig, error) {
+func loadConfig(path string) (_ appConfig, returnErr error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return appConfig{}, err
 	}
-	defer f.Close()
+	defer func() {
+		returnErr = errors.Join(returnErr, f.Close())
+	}()
 	info, err := f.Stat()
 	if err != nil {
 		return appConfig{}, err
@@ -408,8 +414,7 @@ func appendNickelEvent(path, event string) error {
 		return fmt.Errorf("%s event: open %s: %w", event, path, err)
 	}
 	if _, err := f.WriteString("usb plug " + event + "\n"); err != nil {
-		f.Close()
-		return fmt.Errorf("%s event: write %s: %w", event, path, err)
+		return errors.Join(fmt.Errorf("%s event: write %s: %w", event, path, err), f.Close())
 	}
 	if err := f.Close(); err != nil {
 		return fmt.Errorf("%s event: close %s: %w", event, path, err)
@@ -425,8 +430,7 @@ func acquireLock(path string) (*os.File, error) {
 		return nil, fmt.Errorf("open lock file: %w", err)
 	}
 	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		f.Close()
-		return nil, fmt.Errorf("already running")
+		return nil, errors.Join(errors.New("already running"), f.Close())
 	}
 	return f, nil
 }
@@ -434,41 +438,41 @@ func acquireLock(path string) (*os.File, error) {
 // runCheck prints the active configuration and lists bookmarks that would be
 // synced, without downloading anything. Used by the --check flag.
 func (a app) runCheck(w io.Writer) error {
-	writeCheckConfig(w, a.cfg)
-	fmt.Fprint(w, "Connecting to Readeck... ")
+	if _, err := io.WriteString(w, formatCheckConfig(a.cfg)+"Connecting to Readeck... "); err != nil {
+		return fmt.Errorf("write check output: %w", err)
+	}
 	entries, err := a.readeck.listBookmarks(a.cfg.Fetch)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(w, "OK")
-	fmt.Fprintln(w)
-	writeCheckEntries(w, a.cfg, entries)
+	if _, err := io.WriteString(w, "OK\n\n"+formatCheckEntries(a.cfg, entries)); err != nil {
+		return fmt.Errorf("write check output: %w", err)
+	}
 	return nil
 }
 
-func writeCheckOutput(w io.Writer, cfg appConfig, entries []readeckBookmark) {
-	writeCheckConfig(w, cfg)
-	fmt.Fprintln(w, "Connecting to Readeck... OK")
-	fmt.Fprintln(w)
-	writeCheckEntries(w, cfg, entries)
+func writeCheckOutput(w io.Writer, cfg appConfig, entries []readeckBookmark) error {
+	_, err := io.WriteString(w, formatCheckConfig(cfg)+"Connecting to Readeck... OK\n\n"+formatCheckEntries(cfg, entries))
+	return err
 }
 
-func writeCheckConfig(w io.Writer, cfg appConfig) {
-	fmt.Fprintln(w, "Configuration:")
-	fmt.Fprintf(w, "  URL:     %s\n", cfg.Server.URL)
-	fmt.Fprintf(w, "  Output:  %s\n", cfg.Output.Path)
-	fmt.Fprintf(w, "  Workers: %d\n", cfg.Fetch.Workers)
-	fmt.Fprintf(w, "  Limit:   %d\n", cfg.Fetch.Limit)
-	fmt.Fprintf(w, "  Delete:  %v\n", cfg.Output.Delete)
+func formatCheckConfig(cfg appConfig) string {
+	output := fmt.Sprintf(`Configuration:
+  URL:     %s
+  Output:  %s
+  Workers: %d
+  Limit:   %d
+  Delete:  %v
+`, cfg.Server.URL, cfg.Output.Path, cfg.Fetch.Workers, cfg.Fetch.Limit, cfg.Output.Delete)
 	if cfg.Fetch.Labels != "" {
-		fmt.Fprintf(w, "  Labels:  %s\n", cfg.Fetch.Labels)
+		output += fmt.Sprintf("  Labels:  %s\n\n", cfg.Fetch.Labels)
 	} else {
-		fmt.Fprintln(w, "  Labels:  (all)")
+		output += "  Labels:  (all)\n\n"
 	}
-	fmt.Fprintln(w)
+	return output
 }
 
-func writeCheckEntries(w io.Writer, cfg appConfig, entries []readeckBookmark) {
+func formatCheckEntries(cfg appConfig, entries []readeckBookmark) string {
 	labelFilter := make(map[string]bool)
 	if cfg.Fetch.Labels != "" {
 		for _, l := range strings.Split(strings.ToLower(cfg.Fetch.Labels), ",") {
@@ -477,20 +481,20 @@ func writeCheckEntries(w io.Writer, cfg appConfig, entries []readeckBookmark) {
 	}
 
 	var matched, skipped int
+	var output string
 	for _, entry := range entries {
 		if len(labelFilter) > 0 && !matchesLabelFilter(labelFilter, entry.Labels) {
 			skipped++
 			continue
 		}
 		matched++
-		fmt.Fprintf(w, "  %s — %s\n", entry.ID, entry.Title)
+		output += fmt.Sprintf("  %s — %s\n", entry.ID, entry.Title)
 	}
-	fmt.Fprintln(w)
-	fmt.Fprintf(w, "%d bookmarks to sync", matched)
+	output += fmt.Sprintf("\n%d bookmarks to sync", matched)
 	if skipped > 0 {
-		fmt.Fprintf(w, ", %d skipped (label filter)", skipped)
+		output += fmt.Sprintf(", %d skipped (label filter)", skipped)
 	}
-	fmt.Fprintln(w)
+	return output + "\n"
 }
 
 type bookmarkStore interface {

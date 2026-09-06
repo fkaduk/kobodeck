@@ -38,13 +38,12 @@ die() {
 	exit 1
 }
 
-for command in cpio curl docker find gzip mkfs.vfat qemu-system-arm sha256sum timeout truncate; do
-	command -v "$command" >/dev/null || die "required command not found: $command"
-done
-[[ -s build/KoboRoot.tgz ]] || die "build/KoboRoot.tgz is missing; run make tarball first"
-
-work_dir=$(mktemp -d)
-mkdir -p "$artifact_cache_dir"
+check_dependencies() {
+	for command in cpio curl docker find gzip mkfs.vfat qemu-system-arm sha256sum timeout truncate; do
+		command -v "$command" >/dev/null || die "required command not found: $command"
+	done
+	[[ -s build/KoboRoot.tgz ]] || die "build/KoboRoot.tgz is missing; run make tarball first"
+}
 
 download_artifact() {
 	local name=$1
@@ -73,96 +72,109 @@ download_artifact() {
 	printf '%s\n' "$path"
 }
 
-kernel=$(download_artifact \
-	vmlinuz-lts \
-	f36e6732b8165eb43780b86a87a3eb2e17fbabc9984bab9796a9a72c4d56debc)
-base_initramfs=$(download_artifact \
-	initramfs-lts \
-	32807f8009a39c86bc70d601e9175293d416a7d204275f807e490cd92653cd68)
+download_artifacts() {
+	mkdir -p "$artifact_cache_dir"
+	kernel=$(download_artifact \
+		vmlinuz-lts \
+		f36e6732b8165eb43780b86a87a3eb2e17fbabc9984bab9796a9a72c4d56debc)
+	base_initramfs=$(download_artifact \
+		initramfs-lts \
+		32807f8009a39c86bc70d601e9175293d416a7d204275f807e490cd92653cd68)
+}
 
-echo "vm test: starting Readeck"
-container_id=$(docker run --pull always --detach --rm \
-	--publish 127.0.0.1::8000 \
-	"$readeck_image")
+start_readeck() {
+	echo "vm test: starting Readeck"
+	container_id=$(docker run --pull always --detach --rm \
+		--publish 127.0.0.1::8000 \
+		"$readeck_image")
 
-echo "vm test: waiting for Readeck to become healthy"
-healthy=false
-for _ in {1..240}; do
-	if docker exec "$container_id" readeck healthcheck >/dev/null 2>&1; then
-		healthy=true
-		break
+	echo "vm test: waiting for Readeck to become healthy"
+	local healthy=false
+	for _ in {1..240}; do
+		if docker exec "$container_id" readeck healthcheck >/dev/null 2>&1; then
+			healthy=true
+			break
+		fi
+		sleep 0.25
+	done
+	if [[ "$healthy" != true ]]; then
+		docker logs "$container_id" >&2 || true
+		die "Readeck did not become healthy"
 	fi
-	sleep 0.25
-done
-if [[ "$healthy" != true ]]; then
-	docker logs "$container_id" >&2 || true
-	die "Readeck did not become healthy"
-fi
 
-echo "vm test: Readeck is ready; creating test user"
-docker exec "$container_id" readeck user \
-	-user "$admin_user" \
-	-password "$admin_pass" \
-	-email "$admin_email" >/dev/null
+	echo "vm test: Readeck is ready; creating test user"
+	docker exec "$container_id" readeck user \
+		-user "$admin_user" \
+		-password "$admin_pass" \
+		-email "$admin_email" >/dev/null
+}
 
-port_mapping=$(docker port "$container_id" 8000/tcp)
-host_port=${port_mapping##*:}
-[[ "$host_port" =~ ^[0-9]+$ ]] || die "cannot parse Readeck port mapping: $port_mapping"
-host_url=http://127.0.0.1:$host_port
-vm_url=http://$qemu_host_gateway:$host_port
+prepare_readeck_test_data() {
+	local port_mapping host_port cookie_jar token_page token_pattern
+	local bookmark_headers bookmark loaded loaded_pattern
 
-cookie_jar=$work_dir/readeck-cookies
-curl --fail --location --silent --show-error \
-	--cookie-jar "$cookie_jar" \
-	--data-urlencode "username=$admin_user" \
-	--data-urlencode "password=$admin_pass" \
-	--data-urlencode 'redirect=' \
-	"$host_url/login" >/dev/null
-token_page=$(curl --fail --location --silent --show-error \
-	--cookie "$cookie_jar" --data '' "$host_url/profile/tokens")
-token_pattern='value="Authorization: Bearer ([^"]+)"'
-if [[ $token_page =~ $token_pattern ]]; then
-	token=${BASH_REMATCH[1]}
-else
-	die "API token not found in Readeck profile page"
-fi
-echo "vm test: creating test bookmark in Readeck"
-bookmark_headers=$work_dir/bookmark-headers
-curl --fail --silent --show-error \
-	--dump-header "$bookmark_headers" --output /dev/null \
-	--header "Authorization: Bearer $token" \
-	--header 'Content-Type: application/json' \
-	--data "{\"url\":\"$article_url\"}" \
-	"$host_url/api/bookmarks"
-bookmark_id=$(awk 'tolower($1) == "bookmark-id:" {gsub("\r", "", $2); print $2}' \
-	"$bookmark_headers")
-[[ -n "$bookmark_id" ]] || die "Readeck response has no Bookmark-Id header"
+	port_mapping=$(docker port "$container_id" 8000/tcp)
+	host_port=${port_mapping##*:}
+	[[ "$host_port" =~ ^[0-9]+$ ]] || die "cannot parse Readeck port mapping: $port_mapping"
+	host_url=http://127.0.0.1:$host_port
+	vm_url=http://$qemu_host_gateway:$host_port
 
-echo "vm test: waiting for Readeck to process test bookmark"
-loaded=false
-loaded_pattern='"loaded"[[:space:]]*:[[:space:]]*true'
-for _ in {1..120}; do
-	bookmark=$(curl --fail --silent --show-error \
+	cookie_jar=$work_dir/readeck-cookies
+	curl --fail --location --silent --show-error \
+		--cookie-jar "$cookie_jar" \
+		--data-urlencode "username=$admin_user" \
+		--data-urlencode "password=$admin_pass" \
+		--data-urlencode 'redirect=' \
+		"$host_url/login" >/dev/null
+	token_page=$(curl --fail --location --silent --show-error \
+		--cookie "$cookie_jar" --data '' "$host_url/profile/tokens")
+	token_pattern='value="Authorization: Bearer ([^"]+)"'
+	if [[ $token_page =~ $token_pattern ]]; then
+		token=${BASH_REMATCH[1]}
+	else
+		die "API token not found in Readeck profile page"
+	fi
+	echo "vm test: creating test bookmark in Readeck"
+	bookmark_headers=$work_dir/bookmark-headers
+	curl --fail --silent --show-error \
+		--dump-header "$bookmark_headers" --output /dev/null \
 		--header "Authorization: Bearer $token" \
-		"$host_url/api/bookmarks/$bookmark_id")
-	if [[ $bookmark =~ $loaded_pattern ]]; then
-		loaded=true
-		break
-	fi
-	sleep 0.25
-done
-[[ "$loaded" == true ]] || die "Readeck bookmark did not load"
-echo "vm test: Readeck test bookmark is ready"
+		--header 'Content-Type: application/json' \
+		--data "{\"url\":\"$article_url\"}" \
+		"$host_url/api/bookmarks"
+	bookmark_id=$(awk 'tolower($1) == "bookmark-id:" {gsub("\r", "", $2); print $2}' \
+		"$bookmark_headers")
+	[[ -n "$bookmark_id" ]] || die "Readeck response has no Bookmark-Id header"
 
-overlay=$work_dir/overlay
-mkdir -p "$overlay/etc/apk" "$overlay/test"
-cp vm_test_guest.sh "$overlay/vm_test_guest.sh"
-cp build/KoboRoot.tgz "$overlay/test/KoboRoot.tgz"
-cp testdata/nickel-schema-176.sql "$overlay/test/nickel-schema.sql"
-printf '%s\n' "$bookmark_id" >"$overlay/test/bookmark-id"
-printf '%s\n' "$alpine_repository_url" >"$overlay/etc/apk/repositories"
-echo "vm test: writing Kobodeck test configuration"
-cat >"$overlay/test/kobodeck.toml" <<EOF
+	echo "vm test: waiting for Readeck to process test bookmark"
+	loaded=false
+	loaded_pattern='"loaded"[[:space:]]*:[[:space:]]*true'
+	for _ in {1..120}; do
+		bookmark=$(curl --fail --silent --show-error \
+			--header "Authorization: Bearer $token" \
+			"$host_url/api/bookmarks/$bookmark_id")
+		if [[ $bookmark =~ $loaded_pattern ]]; then
+			loaded=true
+			break
+		fi
+		sleep 0.25
+	done
+	[[ "$loaded" == true ]] || die "Readeck bookmark did not load"
+	echo "vm test: Readeck test bookmark is ready"
+}
+
+build_vm_filesystem() {
+	local overlay overlay_archive
+
+	overlay=$work_dir/overlay
+	mkdir -p "$overlay/etc/apk" "$overlay/test"
+	cp vm_test_guest.sh "$overlay/vm_test_guest.sh"
+	cp build/KoboRoot.tgz "$overlay/test/KoboRoot.tgz"
+	cp testdata/nickel-schema-176.sql "$overlay/test/nickel-schema.sql"
+	printf '%s\n' "$bookmark_id" >"$overlay/test/bookmark-id"
+	printf '%s\n' "$alpine_repository_url" >"$overlay/etc/apk/repositories"
+	echo "vm test: writing Kobodeck test configuration"
+	cat >"$overlay/test/kobodeck.toml" <<EOF
 [Server]
 URL = "$vm_url"
 Token = "$token"
@@ -186,44 +198,61 @@ Size = 1
 Path = "/mnt/onboard/kobodeck"
 Delete = false
 EOF
-chmod 755 "$overlay/vm_test_guest.sh"
+	chmod 755 "$overlay/vm_test_guest.sh"
 
-overlay_archive=$work_dir/initramfs-overlay.gz
-(
-	cd "$overlay"
-	find . -mindepth 1 -print0 | cpio --null --create --format=newc --quiet | gzip -c
-) >"$overlay_archive"
-combined_initramfs=$work_dir/initramfs-test
-cp "$base_initramfs" "$combined_initramfs"
-cat "$overlay_archive" >>"$combined_initramfs"
-onboard=$work_dir/onboard.fat
-truncate --size 128M "$onboard"
-mkfs.vfat "$onboard" >/dev/null
-transcript=$work_dir/qemu.log
-echo "vm test: booting ARM release smoke test"
-if ! timeout 2m qemu-system-arm \
-	-machine virt \
-	-cpu cortex-a15 \
-	-smp 1 \
-	-m 256 \
-	-display none \
-	-monitor none \
-	-serial stdio \
-	-no-reboot \
-	-kernel "$kernel" \
-	-initrd "$combined_initramfs" \
-	-append 'console=ttyAMA0 rdinit=/vm_test_guest.sh' \
-	-netdev user,id=net0 \
-	-device virtio-net-device,netdev=net0 \
-	-drive "file=$onboard,format=raw,if=none,id=onboard" \
-	-device virtio-blk-device,drive=onboard \
-	>"$transcript" 2>&1; then
-	cat "$transcript" >&2
-	die "QEMU failed"
-fi
-if ! grep -Fq KOBODECK_VM_PASS "$transcript"; then
-	cat "$transcript" >&2
-	die "guest did not report success"
-fi
+	overlay_archive=$work_dir/initramfs-overlay.gz
+	(
+		cd "$overlay"
+		find . -mindepth 1 -print0 | cpio --null --create --format=newc --quiet | gzip -c
+	) >"$overlay_archive"
+	combined_initramfs=$work_dir/initramfs-test
+	cp "$base_initramfs" "$combined_initramfs"
+	cat "$overlay_archive" >>"$combined_initramfs"
+}
 
-echo "vm test: PASS"
+run_vm() {
+	local onboard transcript
+
+	onboard=$work_dir/onboard.fat
+	truncate --size 128M "$onboard"
+	mkfs.vfat "$onboard" >/dev/null
+	transcript=$work_dir/qemu.log
+	echo "vm test: booting ARM release smoke test"
+	if ! timeout 2m qemu-system-arm \
+		-machine virt \
+		-cpu cortex-a15 \
+		-smp 1 \
+		-m 256 \
+		-display none \
+		-monitor none \
+		-serial stdio \
+		-no-reboot \
+		-kernel "$kernel" \
+		-initrd "$combined_initramfs" \
+		-append 'console=ttyAMA0 rdinit=/vm_test_guest.sh' \
+		-netdev user,id=net0 \
+		-device virtio-net-device,netdev=net0 \
+		-drive "file=$onboard,format=raw,if=none,id=onboard" \
+		-device virtio-blk-device,drive=onboard \
+		>"$transcript" 2>&1; then
+		cat "$transcript" >&2
+		die "QEMU failed"
+	fi
+	if ! grep -Fq KOBODECK_VM_PASS "$transcript"; then
+		cat "$transcript" >&2
+		die "guest did not report success"
+	fi
+}
+
+main() {
+	check_dependencies
+	work_dir=$(mktemp -d)
+	download_artifacts
+	start_readeck
+	prepare_readeck_test_data
+	build_vm_filesystem
+	run_vm
+	echo "vm test: PASS"
+}
+
+main "$@"

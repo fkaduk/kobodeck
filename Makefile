@@ -5,12 +5,13 @@ SOURCE_DATE_EPOCH ?= $(shell git log -1 --format=%ct)
 GO_CACHE_DIR ?= /tmp/kobodeck-go-build
 GO_MOD_CACHE_DIR ?= /tmp/kobodeck-go-mod
 GOENV ?= /tmp/kobodeck-go-env
-export GOENV
+GOLANGCI_LINT_CACHE ?= /tmp/kobodeck-golangci-lint
+export GOENV GOLANGCI_LINT_CACHE
 
 GFLAGS += -trimpath -ldflags="-s -w -X main.buildVersion=$(shell git describe --always --dirty --tags)"
 CROSS_COMPILE_FLAGS = GOARCH=arm GOOS=linux CGO_ENABLED=0
 
-.PHONY: all agent-init tarball build tag clean check lint fmt fmt-check mod-check test test-e2e
+.PHONY: all agent-init tarball build tag clean check ci lint fmt fmt-check mod-check test test-e2e vulncheck
 
 all: tarball
 
@@ -47,10 +48,14 @@ tag:
 clean:
 	rm -f ./build/*
 
-check: lint fmt-check mod-check test
+check: lint fmt-check mod-check test vulncheck
+
+ci: check test-e2e
 
 lint:
-	go vet ./...
+	mkdir -p $(GOLANGCI_LINT_CACHE)
+	go tool -modfile=actionlint.mod actionlint
+	go tool -modfile=tools.mod golangci-lint run ./...
 	docker run --rm \
 		--env NPM_CONFIG_UPDATE_NOTIFIER=false \
 		--volume "$(CURDIR):/workspace:ro" \
@@ -84,7 +89,10 @@ mod-check:
 	go mod tidy -diff
 
 test:
-	CGO_ENABLED=0 go test .
+	CGO_ENABLED=1 go test -race ./...
+
+vulncheck:
+	go tool -modfile=tools.mod govulncheck ./...
 
 test-e2e: tarball
 	./vm_test.sh
