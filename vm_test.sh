@@ -296,6 +296,9 @@ prepare_coverage_output() {
 }
 
 main() {
+	if [[ -n "$coverage_enabled" ]]; then
+		echo "vm test: coverage mode enabled"
+	fi
 	check_dependencies
 	work_dir=$(mktemp -d)
 	if [[ -n "$coverage_enabled" ]]; then
