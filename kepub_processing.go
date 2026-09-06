@@ -42,7 +42,7 @@ func fixCover(path string) error {
 		source = findIconItem(items)
 	}
 	if source == nil {
-		log.Printf("warning: no image available, leaving unchaged")
+		log.Printf("warning: no image available, leaving unchanged")
 		return nil
 	}
 
@@ -181,17 +181,16 @@ func copyCoverZipEntry(w *zip.Writer, src *zip.File) error {
 	return err
 }
 
-// toKepub converts the EPUB at path to a .kepub.epub file. The converted
-// content is written and validated in a temporary file before it is atomically
-// renamed into place. The original is removed after a successful conversion.
-func toKepub(epubPath string) (string, error) {
+// toKepub converts the EPUB at epubPath to kepubPath. The converted content is
+// written and validated in a temporary file before it is atomically renamed
+// into place. The original is removed after a successful conversion.
+func toKepub(epubPath, kepubPath string) (string, error) {
 	r, err := zip.OpenReader(epubPath)
 	if err != nil {
 		return "", err
 	}
 	defer r.Close()
 
-	kepubPath := strings.TrimSuffix(epubPath, ".epub") + ".kepub.epub"
 	f, err := os.CreateTemp(filepath.Dir(kepubPath), "."+filepath.Base(kepubPath)+".tmp-*")
 	if err != nil {
 		return "", err

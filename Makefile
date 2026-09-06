@@ -2,13 +2,22 @@ GNUARCH ?= $(shell arch)
 BINARY  ?= build/kobodeck.$(GNUARCH)
 SOURCES  = $(wildcard *.go) go.mod go.sum kobodeck.toml Makefile
 SOURCE_DATE_EPOCH ?= $(shell git log -1 --format=%ct)
+GO_CACHE_DIR ?= /tmp/kobodeck-go-build
+GO_MOD_CACHE_DIR ?= /tmp/kobodeck-go-mod
+GOENV ?= /tmp/kobodeck-go-env
+export GOENV
 
 GFLAGS += -trimpath -ldflags="-s -w -X main.buildVersion=$(shell git describe --always --dirty --tags)"
 CROSS_COMPILE_FLAGS = GOARCH=arm GOOS=linux CGO_ENABLED=0
 
-.PHONY: all tarball build tag clean check lint fmt fmt-check mod-check test test-e2e
+.PHONY: all agent-init tarball build tag clean check lint fmt fmt-check mod-check test test-e2e
 
 all: tarball
+
+agent-init:
+	go env -w GOCACHE=$(GO_CACHE_DIR) GOMODCACHE=$(GO_MOD_CACHE_DIR)
+	@echo Go build cache: $(GO_CACHE_DIR)
+	@echo Go module cache: $(GO_MOD_CACHE_DIR)
 
 tarball:
 	@echo building Kobo tarball
