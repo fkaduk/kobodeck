@@ -5,9 +5,9 @@ SOURCES  = $(wildcard *.go) go.mod go.sum kobodeck.toml Makefile
 GFLAGS += -ldflags="-s -w -X main.buildVersion=$(shell git describe --always --dirty --tags)"
 CROSS_COMPILE_FLAGS = GOARCH=arm GOOS=linux CGO_ENABLED=0
 
-.PHONY: all tarball build tag clean check test
+.PHONY: all tarball build tag clean check lint fmt fmt-check mod-check test test-e2e
 
-all: check tarball
+all: tarball
 
 tarball:
 	@echo building Kobo tarball
@@ -33,14 +33,46 @@ tag:
 	  git tag $$v && git push origin $$v
 
 clean:
-	rm -f build/kobodeck.* build/KoboRoot.tgz
+	rm -f ./build/*
 
-check:
+check: lint fmt-check mod-check test
+
+lint:
 	go vet ./...
-	@out=$$(gofmt -s -l .); if [ -n "$$out" ]; then echo "gofmt: these files need formatting:"; echo "$$out"; exit 1; fi
-	go mod tidy -diff
-	markdownlint **/*.md
+	docker run --rm \
+		--env NPM_CONFIG_UPDATE_NOTIFIER=false \
+		--volume "$(CURDIR):/workspace:ro" \
+		--workdir /workspace \
+		node:22-alpine \
+		npx --yes markdownlint-cli@0.49.1 README.md
+	docker run --rm \
+		--volume "$(CURDIR):/workspace:ro" \
+		--workdir /workspace \
+		koalaman/shellcheck-alpine:v0.11.0 \
+		shellcheck vm_test.sh vm_test_guest.sh
 
-test: tarball
+fmt:
+	gofmt -s -w .
+	docker run --rm \
+		--user "$$(id -u):$$(id -g)" \
+		--volume "$(CURDIR):/workspace" \
+		--workdir /workspace \
+		mvdan/shfmt:v3.13.1 \
+		-w vm_test.sh vm_test_guest.sh
+
+fmt-check:
+	@out=$$(gofmt -s -l .); if [ -n "$$out" ]; then echo "gofmt: these files need formatting:"; echo "$$out"; exit 1; fi
+	docker run --rm \
+		--volume "$(CURDIR):/workspace:ro" \
+		--workdir /workspace \
+		mvdan/shfmt:v3.13.1 \
+		-d vm_test.sh vm_test_guest.sh
+
+mod-check:
+	go mod tidy -diff
+
+test:
 	CGO_ENABLED=0 go test .
+
+test-e2e: tarball
 	./vm_test.sh

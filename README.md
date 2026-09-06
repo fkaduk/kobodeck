@@ -112,9 +112,11 @@ Most synchronization behavior is covered by native Go tests.
 One end-to-end smoke test simulates a Kobo device in an ARMv7 QEMU VM
 with FAT32 storage and executes Kobodeck against a real Readeck instance.
 
-To run it, install the necessary dependencies
+Run the native tests with `make test`.
+
+To run the end-to-end test, install the necessary dependencies
 (QEMU, Docker, `cpio`, and `dosfstools`)
-and execute `make test`.
+and execute `make test-e2e`.
 
 ### Known issues and limitations
 
@@ -144,7 +146,8 @@ Possible improvements:
 
 - Normalize Readeck's EPUB 2/HTML5 hybrid output into a consistent EPUB 3 book
   and validate representative output with
-  [EPUBCheck](https://www.w3.org/publishing/epubcheck/) in CI. But this might be better fixed upstream.
+  [EPUBCheck](https://www.w3.org/publishing/epubcheck/) in CI. But this might be
+  better fixed upstream.
 - Improve cover selection, for example by preferring the lead or largest image,
   and optionally generate a fallback cover.
 - Write downloads and converted books to temporary files and rename them
@@ -163,8 +166,3 @@ Possible improvements:
 - Highlights, notes, annotations, in-progress percentage and reading positions
   are not synchronized from the Kobo device to Readeck.
 - There are no options to fetch archived articles or favorites only.
-
-# TODO
-
-- use stable release of readeck in vm test
-
