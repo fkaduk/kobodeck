@@ -24,18 +24,18 @@ if [[ -n "$coverage_enabled" ]]; then
 else
 	readonly tarball=build/KoboRoot.tgz
 fi
-container_id=
-work_dir=
-onboard=
+readeck_container_id=
+temporary_work_dir=
+onboard_disk_image=
 
 cleanup() {
-	if [[ -n "$container_id" ]]; then
-		docker stop --time 1 "$container_id" >/dev/null 2>&1 || true
-		container_id=
+	if [[ -n "$readeck_container_id" ]]; then
+		docker stop --time 1 "$readeck_container_id" >/dev/null 2>&1 || true
+		readeck_container_id=
 	fi
-	if [[ -n "$work_dir" ]]; then
-		rm -rf "$work_dir"
-		work_dir=
+	if [[ -n "$temporary_work_dir" ]]; then
+		rm -rf "$temporary_work_dir"
+		temporary_work_dir=
 	fi
 }
 trap cleanup EXIT
@@ -77,12 +77,12 @@ download_artifact() {
 
 	echo "vm test: downloading $name" >&2
 	curl --fail --location --silent --show-error \
-		--output "$work_dir/$name" "$alpine_base_url/$name"
-	got_hash=$(sha256sum "$work_dir/$name")
+		--output "$temporary_work_dir/$name" "$alpine_base_url/$name"
+	got_hash=$(sha256sum "$temporary_work_dir/$name")
 	got_hash=${got_hash%% *}
 	[[ "$got_hash" == "$want_hash" ]] ||
 		die "$name sha256 is $got_hash, want $want_hash"
-	mv "$work_dir/$name" "$path"
+	mv "$temporary_work_dir/$name" "$path"
 	printf '%s\n' "$path"
 }
 
@@ -98,26 +98,26 @@ download_artifacts() {
 
 start_readeck() {
 	echo "vm test: starting Readeck"
-	container_id=$(docker run --pull always --detach --rm \
+	readeck_container_id=$(docker run --pull always --detach --rm \
 		--publish 127.0.0.1::8000 \
 		"$readeck_image")
 
 	echo "vm test: waiting for Readeck to become healthy"
 	local healthy=false
 	for _ in {1..240}; do
-		if docker exec "$container_id" readeck healthcheck >/dev/null 2>&1; then
+		if docker exec "$readeck_container_id" readeck healthcheck >/dev/null 2>&1; then
 			healthy=true
 			break
 		fi
 		sleep 0.25
 	done
 	if [[ "$healthy" != true ]]; then
-		docker logs "$container_id" >&2 || true
+		docker logs "$readeck_container_id" >&2 || true
 		die "Readeck did not become healthy"
 	fi
 
 	echo "vm test: Readeck is ready; creating test user"
-	docker exec "$container_id" readeck user \
+	docker exec "$readeck_container_id" readeck user \
 		-user "$admin_user" \
 		-password "$admin_pass" \
 		-email "$admin_email" >/dev/null
@@ -127,13 +127,13 @@ prepare_readeck_test_data() {
 	local port_mapping host_port cookie_jar token_page token_pattern
 	local bookmark_headers bookmark loaded loaded_pattern
 
-	port_mapping=$(docker port "$container_id" 8000/tcp)
+	port_mapping=$(docker port "$readeck_container_id" 8000/tcp)
 	host_port=${port_mapping##*:}
 	[[ "$host_port" =~ ^[0-9]+$ ]] || die "cannot parse Readeck port mapping: $port_mapping"
 	host_url=http://127.0.0.1:$host_port
 	vm_url=http://$qemu_host_gateway:$host_port
 
-	cookie_jar=$work_dir/readeck-cookies
+	cookie_jar=$temporary_work_dir/readeck-cookies
 	curl --fail --location --silent --show-error \
 		--cookie-jar "$cookie_jar" \
 		--data-urlencode "username=$admin_user" \
@@ -149,7 +149,7 @@ prepare_readeck_test_data() {
 		die "API token not found in Readeck profile page"
 	fi
 	echo "vm test: creating test bookmark in Readeck"
-	bookmark_headers=$work_dir/bookmark-headers
+	bookmark_headers=$temporary_work_dir/bookmark-headers
 	curl --fail --silent --show-error \
 		--dump-header "$bookmark_headers" --output /dev/null \
 		--header "Authorization: Bearer $token" \
@@ -180,7 +180,7 @@ prepare_readeck_test_data() {
 build_vm_filesystem() {
 	local overlay overlay_archive
 
-	overlay=$work_dir/overlay
+	overlay=$temporary_work_dir/overlay
 	mkdir -p "$overlay/etc/apk" "$overlay/test"
 	cp vm_test_guest.sh "$overlay/vm_test_guest.sh"
 	cp "$tarball" "$overlay/test/KoboRoot.tgz"
@@ -220,12 +220,12 @@ EOF
 	fi
 	chmod 755 "$overlay/vm_test_guest.sh"
 
-	overlay_archive=$work_dir/initramfs-overlay.gz
+	overlay_archive=$temporary_work_dir/initramfs-overlay.gz
 	(
 		cd "$overlay"
 		find . -mindepth 1 -print0 | cpio --null --create --format=newc --quiet | gzip -c
 	) >"$overlay_archive"
-	combined_initramfs=$work_dir/initramfs-test
+	combined_initramfs=$temporary_work_dir/initramfs-test
 	cp "$base_initramfs" "$combined_initramfs"
 	cat "$overlay_archive" >>"$combined_initramfs"
 }
@@ -233,10 +233,10 @@ EOF
 run_vm() {
 	local transcript
 
-	onboard=$work_dir/onboard.fat
-	truncate --size 128M "$onboard"
-	mkfs.vfat "$onboard" >/dev/null
-	transcript=$work_dir/qemu.log
+	onboard_disk_image=$temporary_work_dir/onboard.fat
+	truncate --size 128M "$onboard_disk_image"
+	mkfs.vfat "$onboard_disk_image" >/dev/null
+	transcript=$temporary_work_dir/qemu.log
 	echo "vm test: booting ARM release smoke test"
 	if ! timeout 2m qemu-system-arm \
 		-machine virt \
@@ -252,7 +252,7 @@ run_vm() {
 		-append 'console=ttyAMA0 rdinit=/vm_test_guest.sh' \
 		-netdev user,id=net0 \
 		-device virtio-net-device,netdev=net0 \
-		-drive "file=$onboard,format=raw,if=none,id=onboard" \
+		-drive "file=$onboard_disk_image,format=raw,if=none,id=onboard" \
 		-device virtio-blk-device,drive=onboard \
 		>"$transcript" 2>&1; then
 		cat "$transcript" >&2
@@ -265,11 +265,11 @@ run_vm() {
 }
 
 collect_coverage() {
-	local extracted=$work_dir/e2e-coverdata
-	local profile=$work_dir/e2e-coverage.out
+	local extracted=$temporary_work_dir/e2e-coverdata
+	local profile=$temporary_work_dir/e2e-coverage.out
 
 	mkdir -p "$extracted"
-	if ! mcopy -i "$onboard" -s '::/kobodeck-coverdata/*' "$extracted"; then
+	if ! mcopy -i "$onboard_disk_image" -s '::/kobodeck-coverdata/*' "$extracted"; then
 		die "cannot extract coverage data from onboard storage"
 	fi
 	if ! find "$extracted" -type f -name 'covmeta.*' -print -quit | grep -q .; then
@@ -300,7 +300,7 @@ main() {
 		echo "vm test: coverage mode enabled"
 	fi
 	check_dependencies
-	work_dir=$(mktemp -d)
+	temporary_work_dir=$(mktemp -d)
 	if [[ -n "$coverage_enabled" ]]; then
 		prepare_coverage_output
 	fi
