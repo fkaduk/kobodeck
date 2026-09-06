@@ -28,7 +28,7 @@ fail() {
 	done
 }
 
-# Script runs as PID=1, it must mount the usual kernel-provided filesyste itself
+# Script runs as PID=1, it must mount the usual kernel-provided filesystems itself
 echo "KOBODECK_VM: mounting virtual filesystems"
 mount -t devtmpfs devtmpfs /dev || fail "mount devtmpfs"
 mount -t proc proc /proc || fail "mount proc"

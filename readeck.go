@@ -199,7 +199,7 @@ func (client readeckClient) downloadBookmarkFile(outputCfg outputConfig, entry r
 		log.Printf("warning: cover fix %s: %v", filepath.Base(output), err)
 	}
 
-	kepubPath, err := toKepub(output)
+	kepubPath, err := toKepub(output, checkPath)
 	if err != nil {
 		return false, fmt.Errorf("kepub convert %s: %w", output, err)
 	}

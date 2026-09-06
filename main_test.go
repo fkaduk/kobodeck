@@ -3,7 +3,10 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/json"
 	"errors"
+	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,6 +17,63 @@ import (
 	"testing"
 	"time"
 )
+
+func validAppConfig(outputPath string) appConfig {
+	return appConfig{
+		Server: serverConfig{URL: "https://readeck.example/api", Token: "token", Timeout: 5},
+		Fetch:  fetchConfig{Workers: 2, Limit: 10, Status: "unread,reading"},
+		Log:    logConfig{Size: 1},
+		Output: outputConfig{Path: outputPath},
+	}
+}
+
+func TestAppConfigValidation(t *testing.T) {
+	outputPath := t.TempDir()
+	tests := []struct {
+		name   string
+		mutate func(*appConfig)
+		valid  bool
+	}{
+		{name: "http URL", mutate: func(c *appConfig) { c.Server.URL = "http://localhost:8080/readeck/" }, valid: true},
+		{name: "URL with query", mutate: func(c *appConfig) { c.Server.URL = "https://readeck.example?token=x" }},
+		{name: "URL with fragment", mutate: func(c *appConfig) { c.Server.URL = "https://readeck.example/#api" }},
+		{name: "URL without host", mutate: func(c *appConfig) { c.Server.URL = "https:///api" }},
+		{name: "URL with unsupported scheme", mutate: func(c *appConfig) { c.Server.URL = "ftp://readeck.example" }},
+		{name: "empty status", mutate: func(c *appConfig) { c.Fetch.Status = "" }, valid: true},
+		{name: "valid statuses", mutate: func(c *appConfig) { c.Fetch.Status = "unread, reading,read" }, valid: true},
+		{name: "invalid status", mutate: func(c *appConfig) { c.Fetch.Status = "unread,finished" }},
+		{name: "negative limit", mutate: func(c *appConfig) { c.Fetch.Limit = -1 }},
+		{name: "too many workers", mutate: func(c *appConfig) { c.Fetch.Workers = 33 }},
+		{name: "negative log size", mutate: func(c *appConfig) { c.Log.Size = -1 }},
+		{name: "relative output", mutate: func(c *appConfig) { c.Output.Path = "books" }},
+		{name: "root output", mutate: func(c *appConfig) { c.Output.Path = "/" }},
+		{name: "absolute output", mutate: func(c *appConfig) { c.Output.Path = outputPath }, valid: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := validAppConfig(outputPath)
+			tt.mutate(&cfg)
+			err := cfg.validate()
+			if tt.valid && err != nil {
+				t.Fatalf("validate() returned unexpected error: %v", err)
+			}
+			if !tt.valid && err == nil {
+				t.Fatal("validate() accepted invalid configuration")
+			}
+		})
+	}
+}
+
+func TestSetupLoggingUsesConfigDirectory(t *testing.T) {
+	configDir := t.TempDir()
+	configPath := filepath.Join(configDir, "custom.toml")
+	setupLogging(appConfig{Log: logConfig{Size: 1}}, configPath)
+	defer log.SetOutput(io.Discard)
+	log.Print("custom config logging test")
+	if _, err := os.Stat(filepath.Join(configDir, "kobodeck.log")); err != nil {
+		t.Fatalf("custom config log was not created: %v", err)
+	}
+}
 
 const (
 	nativeTestBookmarkID     = "bookmark-1"
@@ -120,6 +180,7 @@ type fakeBookmarkStore struct {
 	bookmark readeckBookmark
 	patches  []map[string]any
 	gets     int
+	patchErr error
 }
 
 func (store *fakeBookmarkStore) getBookmark(id string) (readeckBookmark, error) {
@@ -129,6 +190,9 @@ func (store *fakeBookmarkStore) getBookmark(id string) (readeckBookmark, error) 
 
 func (store *fakeBookmarkStore) patchBookmark(id string, fields map[string]any) error {
 	store.patches = append(store.patches, fields)
+	if store.patchErr != nil {
+		return store.patchErr
+	}
 	if progress, ok := fields["read_progress"].(int); ok {
 		store.bookmark.ReadProgress = progress
 	}
@@ -139,6 +203,44 @@ func (store *fakeBookmarkStore) patchBookmark(id string, fields map[string]any) 
 		store.bookmark.IsMarked = marked
 	}
 	return nil
+}
+
+func TestListBookmarksPaginatesFiltersAndAppliesLimit(t *testing.T) {
+	// Given
+	var offsets []string
+	simulatedReadeckServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		offsets = append(offsets, r.URL.Query().Get("offset"))
+		if got := r.URL.Query().Get("read_status"); got != "unread" {
+			t.Errorf("read_status = %q, want unread", got)
+		}
+		pageSize := 100
+		if r.URL.Query().Get("offset") == "100" {
+			pageSize = 10
+		}
+		entries := make([]readeckBookmark, pageSize)
+		for i := range entries {
+			entries[i].ID = strconv.Itoa(len(offsets)*100 + i)
+		}
+		if err := json.NewEncoder(w).Encode(entries); err != nil {
+			t.Error(err)
+		}
+	}))
+	t.Cleanup(simulatedReadeckServer.Close)
+	client := newReadeckClient(simulatedReadeckServer.Client(), serverConfig{URL: simulatedReadeckServer.URL}, false)
+
+	// When
+	entries, err := client.listBookmarks(fetchConfig{Limit: 101, Status: "unread"})
+
+	// Then
+	if err != nil {
+		t.Fatalf("listBookmarks: %v", err)
+	}
+	if len(entries) != 101 {
+		t.Fatalf("listBookmarks returned %d entries, want 101", len(entries))
+	}
+	if strings.Join(offsets, ",") != "0,100" {
+		t.Fatalf("requested offsets %v, want [0 100]", offsets)
+	}
 }
 
 func TestAcquireLockRejectsSecondProcess(t *testing.T) {
@@ -238,6 +340,48 @@ func TestDownloadDoesNotSkipInvalidExistingKepub(t *testing.T) {
 	}
 }
 
+func TestDownloadInstallsKepubUsingBookmarkID(t *testing.T) {
+	// Given
+	sourcePath := filepath.Join(t.TempDir(), "source.epub")
+	epub := writeTestEPUB(t, sourcePath)
+	simulatedReadeckServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/bookmarks/"+nativeTestBookmarkID+"/article.epub" {
+			t.Errorf("download path = %q", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/epub+zip")
+		_, _ = w.Write(epub)
+	}))
+	t.Cleanup(simulatedReadeckServer.Close)
+
+	outputDir := t.TempDir()
+	cfg := appConfig{
+		Server: serverConfig{URL: simulatedReadeckServer.URL, Token: "test-token"},
+		Output: outputConfig{Path: outputDir},
+	}
+	readeck := newReadeckClient(simulatedReadeckServer.Client(), cfg.Server, cfg.Log.Verbose)
+	wantPath := filepath.Join(outputDir, nativeTestBookmarkID+".kepub.epub")
+
+	// When
+	changed, err := readeck.downloadBookmarkFile(cfg.Output, readeckBookmark{
+		ID:      nativeTestBookmarkID,
+		Updated: time.Now(),
+	})
+
+	// Then
+	if err != nil {
+		t.Fatalf("download bookmark: %v", err)
+	}
+	if !changed {
+		t.Fatal("downloaded bookmark was not reported as a filesystem change")
+	}
+	if _, err := os.Stat(wantPath); err != nil {
+		t.Fatalf("downloaded bookmark path: %v", err)
+	}
+	if err := validateEPUB(wantPath); err != nil {
+		t.Fatalf("downloaded bookmark is invalid: %v", err)
+	}
+}
+
 func TestDownloadRejectsUnsafeBookmarkID(t *testing.T) {
 	// Given
 	var requests atomic.Int32
@@ -287,10 +431,11 @@ func TestToKepubAtomicallyInstallsConvertedBook(t *testing.T) {
 	// Given
 	outputDir := t.TempDir()
 	source := filepath.Join(outputDir, "article.epub")
+	destination := filepath.Join(outputDir, "article.kepub.epub")
 	writeTestEPUB(t, source)
 
 	// When
-	kepubPath, err := toKepub(source)
+	kepubPath, err := toKepub(source, destination)
 
 	// Then
 	if err != nil {
@@ -322,7 +467,7 @@ func TestToKepubFailurePreservesExistingBook(t *testing.T) {
 	original := writeTestEPUB(t, final)
 
 	// When
-	if _, err := toKepub(source); err == nil {
+	if _, err := toKepub(source, final); err == nil {
 		t.Fatal("invalid source unexpectedly converted")
 	}
 
@@ -539,6 +684,20 @@ func TestReconcileMarksFinishedBookmarkReadWithoutArchiving(t *testing.T) {
 	requireLocalFile(t, got, true)
 }
 
+func TestReconcileMarksFinishedBookOutsideFetchedFeedRead(t *testing.T) {
+	// Given
+	reconcile := newReconcileHarness(t)
+	reconcile.archiveReadBooks()
+
+	// When
+	got := reconcile.run(bookRead)
+
+	// Then
+	requireReadeckState(t, got.state, 100, true, false)
+	requireAPICalls(t, got, 1, 1)
+	requireLocalFile(t, got, true)
+}
+
 func TestReconcileUnfavoursArchivedBookmark(t *testing.T) {
 	// Given
 	reconcile := newReconcileHarness(t)
@@ -621,6 +780,31 @@ func TestReconcilePropagatesStatusError(t *testing.T) {
 	// Then
 	if err == nil || !strings.Contains(err.Error(), "status unavailable") {
 		t.Fatalf("status error = %v, want propagated status error", err)
+	}
+}
+
+func TestReconcilePropagatesRemotePatchError(t *testing.T) {
+	// Given
+	reconcile := newReconcileHarness(t)
+	reconcile.bookWasFetched()
+	reconcile.nickel.status = bookRead
+	reconcile.readeck.patchErr = errors.New("remote update failed")
+
+	// When
+	_, err := reconcileLocalBook(
+		&reconcile.readeck,
+		reconcile.nickel,
+		reconcile.cfg,
+		reconcile.cfg.Output.Path,
+		reconcile.book,
+		map[string]bool{nativeTestBookmarkID: true},
+		map[string]readeckBookmark{nativeTestBookmarkID: reconcile.readeck.bookmark},
+		false,
+	)
+
+	// Then
+	if err == nil || !strings.Contains(err.Error(), "remote update failed") {
+		t.Fatalf("patch error = %v, want propagated remote update error", err)
 	}
 }
 

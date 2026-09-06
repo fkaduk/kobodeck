@@ -1,0 +1,2 @@
+- Instructions in AGENTS.md are concise
+- Use Make targets for Go work, run `make agent-init` first to point cache at agent-writeable location

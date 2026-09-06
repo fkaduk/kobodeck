@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# Host-side orchestration for the end-to-end test. This script
-# - starts Readeck
-# - assembles a tiny guest containing the release tarball
+# Host-side orchestration for the end-to-end test, which
+# - starts Readeck docker container
+# - assembles a tiny guest VM containing the release tarball
 # - boots it under 32-bit ARM emulation
 # - passes control over to vm_test_guest.sh
 
