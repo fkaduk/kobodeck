@@ -3,7 +3,7 @@ BINARY  ?= build/kobodeck.$(GNUARCH)
 TARBALL_BINARY ?= build/kobodeck.arm
 TARBALL ?= build/KoboRoot.tgz
 BUILD_FLAGS ?=
-COVERAGE_OUTPUT_DIR ?=
+COVERAGE_ENABLED ?=
 SOURCES  = $(wildcard *.go) go.mod go.sum kobodeck.toml Makefile
 SOURCE_DATE_EPOCH ?= $(shell git log -1 --format=%ct)
 GO_CACHE_DIR ?= /tmp/kobodeck-go-build
@@ -63,7 +63,7 @@ coverage: test
 		TARBALL_BINARY=build/kobodeck.cover.arm \
 		TARBALL=build/KoboRoot.cover.tgz \
 		BUILD_FLAGS="-cover -covermode=atomic" \
-		COVERAGE_OUTPUT_DIR=build/e2e-coverdata
+		COVERAGE_ENABLED=1
 	@for input in build/unit-coverdata build/e2e-coverdata; do \
 		[ -d "$$input" ] || { echo "coverage: missing input directory $$input" >&2; exit 1; }; \
 		find "$$input" -maxdepth 1 -type f -name 'covmeta.*' -print -quit | grep -q . || \
@@ -134,6 +134,5 @@ vulncheck:
 	go tool -modfile=tools.mod govulncheck ./...
 
 test-e2e: tarball
-	KOBODECK_TARBALL=$(TARBALL) \
-		KOBODECK_COVERAGE_OUTPUT_DIR=$(COVERAGE_OUTPUT_DIR) \
+	KOBODECK_COVERAGE=$(COVERAGE_ENABLED) \
 		./vm_test.sh

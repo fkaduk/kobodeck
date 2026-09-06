@@ -16,9 +16,14 @@ readonly admin_pass=testpass123
 readonly admin_email=testadmin@test.invalid
 readonly article_url=https://example.com
 readonly qemu_host_gateway=10.0.2.2
-readonly tarball=${KOBODECK_TARBALL:-build/KoboRoot.tgz}
-readonly coverage_output_dir=${KOBODECK_COVERAGE_OUTPUT_DIR:-}
+readonly coverage_enabled=${KOBODECK_COVERAGE:-}
+readonly coverage_output_dir=build/e2e-coverdata
 readonly coverage_profile=build/e2e-coverage.out
+if [[ -n "$coverage_enabled" ]]; then
+	readonly tarball=build/KoboRoot.cover.tgz
+else
+	readonly tarball=build/KoboRoot.tgz
+fi
 container_id=
 work_dir=
 onboard=
@@ -47,7 +52,7 @@ check_dependencies() {
 		command -v "$command" >/dev/null || die "required command not found: $command"
 	done
 	[[ -s "$tarball" ]] || die "$tarball is missing; build the requested tarball first"
-	if [[ -n "$coverage_output_dir" ]]; then
+	if [[ -n "$coverage_enabled" ]]; then
 		for command in go mcopy; do
 			command -v "$command" >/dev/null || die "coverage mode requires command: $command"
 		done
@@ -207,7 +212,7 @@ Size = 1
 Path = "/mnt/onboard/kobodeck"
 Delete = false
 EOF
-	if [[ -n "$coverage_output_dir" ]]; then
+	if [[ -n "$coverage_enabled" ]]; then
 		cat >"$overlay/test/90-kobodeck-cover.rules" <<'EOF'
 KERNEL=="eth*", ACTION=="add", RUN+="/bin/sh -c 'GOCOVERDIR=/mnt/onboard/kobodeck-coverdata /usr/local/bin/kobodeck &'"
 KERNEL=="wlan*", ACTION=="add", RUN+="/bin/sh -c 'GOCOVERDIR=/mnt/onboard/kobodeck-coverdata /usr/local/bin/kobodeck &'"
@@ -293,7 +298,7 @@ prepare_coverage_output() {
 main() {
 	check_dependencies
 	work_dir=$(mktemp -d)
-	if [[ -n "$coverage_output_dir" ]]; then
+	if [[ -n "$coverage_enabled" ]]; then
 		prepare_coverage_output
 	fi
 	download_artifacts
@@ -301,7 +306,7 @@ main() {
 	prepare_readeck_test_data
 	build_vm_filesystem
 	run_vm
-	if [[ -n "$coverage_output_dir" ]]; then
+	if [[ -n "$coverage_enabled" ]]; then
 		collect_coverage
 	fi
 	echo "vm test: PASS"
