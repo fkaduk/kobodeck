@@ -9,7 +9,7 @@ require (
 	github.com/pgaskin/kepubify/v4 v4.0.4
 	golang.org/x/sync v0.22.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
-	modernc.org/sqlite v1.57.0
+	modernc.org/sqlite v1.58.0
 )
 
 require (
@@ -24,7 +24,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
-	modernc.org/libc v1.74.4 // indirect
+	modernc.org/libc v1.75.6 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
-	modernc.org/memory v1.11.0 // indirect
+	modernc.org/memory v1.12.1 // indirect
 )
