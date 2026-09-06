@@ -2,7 +2,7 @@ GNUARCH ?= $(shell arch)
 BINARY  ?= build/kobodeck.$(GNUARCH)
 SOURCES  = $(wildcard *.go) go.mod go.sum kobodeck.toml Makefile
 
-GFLAGS += -ldflags="-s -w -X main.version=$(shell git describe --always --dirty --tags)"
+GFLAGS += -ldflags="-s -w -X main.buildVersion=$(shell git describe --always --dirty --tags)"
 CROSS_COMPILE_FLAGS = GOARCH=arm GOOS=linux CGO_ENABLED=0
 
 .PHONY: all tarball build tag clean check test
@@ -42,4 +42,5 @@ check:
 	markdownlint **/*.md
 
 test: tarball
-	CGO_ENABLED=0 go test -timeout 10m $(VMTESTFLAGS) .
+	CGO_ENABLED=0 go test .
+	./vm_test.sh
