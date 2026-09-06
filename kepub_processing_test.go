@@ -14,6 +14,8 @@ const (
 	nativeTestFavouriteShelf = "Native Favourites"
 )
 
+// writeTestEPUB writes a minimal valid EPUB and returns its bytes so tests can
+// verify that failed operations leave the original file unchanged.
 func writeTestEPUB(t *testing.T, path string) []byte {
 	t.Helper()
 	var data bytes.Buffer
