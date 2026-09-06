@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -71,11 +72,34 @@ func (c *appConfig) validate() error {
 	if c.Server.URL == "" {
 		return fmt.Errorf("Server.URL is required")
 	}
+	serverURL, err := url.Parse(c.Server.URL)
+	if err != nil || (serverURL.Scheme != "http" && serverURL.Scheme != "https") || serverURL.Host == "" || serverURL.RawQuery != "" || serverURL.Fragment != "" {
+		return fmt.Errorf("Server.URL must be a valid http or https URL with a host and no query or fragment")
+	}
 	if c.Server.Token == "" {
 		return fmt.Errorf("Server.Token is required")
 	}
+	if c.Fetch.Limit < 0 {
+		return fmt.Errorf("Fetch.Limit must not be negative")
+	}
+	if c.Fetch.Workers > 32 {
+		return fmt.Errorf("Fetch.Workers must not exceed 32")
+	}
+	for _, status := range strings.Split(c.Fetch.Status, ",") {
+		status = strings.TrimSpace(status)
+		if status != "" && status != "unread" && status != "reading" && status != "read" {
+			return fmt.Errorf("Fetch.Status contains invalid value %q", status)
+		}
+	}
+	if c.Log.Size < 0 {
+		return fmt.Errorf("Log.Size must not be negative")
+	}
 	if c.Output.Path == "" {
 		return fmt.Errorf("Output.Path is required")
+	}
+	cleanOutputPath := filepath.Clean(c.Output.Path)
+	if !filepath.IsAbs(c.Output.Path) || cleanOutputPath == filepath.VolumeName(cleanOutputPath)+string(filepath.Separator) {
+		return fmt.Errorf("Output.Path must be an absolute path other than the filesystem root")
 	}
 	if c.Fetch.Workers <= 0 {
 		return fmt.Errorf("Fetch.Workers must be greater than 0")
@@ -114,7 +138,7 @@ func main() {
 	flag.Parse()
 	os.MkdirAll(filepath.Dir(confPath), 0o755)
 	configFile, cfg, configErr := findConfig()
-	setupLogging(cfg)
+	setupLogging(cfg, configFile)
 	log.SetPrefix(fmt.Sprintf("pid=%d ", os.Getpid()))
 	debug.SetPanicOnFault(true)
 
@@ -266,14 +290,18 @@ const (
 var logPath = filepath.Join(filepath.Dir(confPath), "kobodeck.log")
 
 // setupLogging configures the global logger to write to a size-capped rotating
-// log file at the hardcoded path.
-func setupLogging(cfg appConfig) {
+// log file beside the resolved configuration file.
+func setupLogging(cfg appConfig, configFilename string) {
 	maxSizeMB := cfg.Log.Size
 	if maxSizeMB < 1 {
 		maxSizeMB = 1
 	}
+	filename := logPath
+	if configFilename != "" {
+		filename = filepath.Join(filepath.Dir(configFilename), "kobodeck.log")
+	}
 	log.SetOutput(&lumberjack.Logger{
-		Filename:   logPath,
+		Filename:   filename,
 		MaxSize:    maxSizeMB,
 		MaxBackups: 7,
 		MaxAge:     7,
@@ -546,13 +574,6 @@ func reconcileLocalBook(
 		log.Println("skipping file with empty name:", book.path)
 		return false, nil
 	}
-	// Keep the feed membership from the beginning of this reconciliation.
-	// Archiving below removes the entry from valid, but it must still be
-	// favourited during this same run. On the next run an archived entry is
-	// absent from the feed, so this also avoids sending the same favourite
-	// PATCH on every Wi-Fi connection.
-	wasValid := valid[uid]
-
 	status, statusErr := nickel.readStatus(uid, outputDir)
 	var inCollection bool
 	collectionKnown := cfg.Sync.FavouriteCollection == ""
@@ -572,7 +593,17 @@ func reconcileLocalBook(
 		return false, errors.Join(reconcileErr, fmt.Errorf("read status: %w", statusErr))
 	}
 	bookmark, bookmarkKnown := bookmarks[uid]
-	if status == bookRead && wasValid {
+	if status == bookRead && !bookmarkKnown {
+		var err error
+		bookmark, err = readeck.getBookmark(uid)
+		if err != nil {
+			log.Printf("cannot read Readeck bookmark %s: %v", uid, err)
+			reconcileErr = errors.Join(reconcileErr, fmt.Errorf("get bookmark: %w", err))
+		} else {
+			bookmarkKnown = true
+		}
+	}
+	if status == bookRead && bookmarkKnown {
 		fields := make(map[string]any)
 		action := "read"
 		if bookmark.ReadProgress != 100 {
