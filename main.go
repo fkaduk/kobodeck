@@ -79,11 +79,17 @@ func (c *appConfig) validate() error {
 	if c.Server.Token == "" {
 		return fmt.Errorf("Server.Token is required")
 	}
-	if c.Fetch.Limit < 0 {
-		return fmt.Errorf("Fetch.Limit must not be negative")
+	if c.Server.Timeout <= 0 {
+		return fmt.Errorf("Server.Timeout must be greater than 0")
+	}
+	if c.Fetch.Workers <= 0 {
+		return fmt.Errorf("Fetch.Workers must be greater than 0")
 	}
 	if c.Fetch.Workers > 32 {
 		return fmt.Errorf("Fetch.Workers must not exceed 32")
+	}
+	if c.Fetch.Limit < 0 {
+		return fmt.Errorf("Fetch.Limit must not be negative")
 	}
 	for _, status := range strings.Split(c.Fetch.Status, ",") {
 		status = strings.TrimSpace(status)
@@ -100,12 +106,6 @@ func (c *appConfig) validate() error {
 	cleanOutputPath := filepath.Clean(c.Output.Path)
 	if !filepath.IsAbs(c.Output.Path) || cleanOutputPath == filepath.VolumeName(cleanOutputPath)+string(filepath.Separator) {
 		return fmt.Errorf("Output.Path must be an absolute path other than the filesystem root")
-	}
-	if c.Fetch.Workers <= 0 {
-		return fmt.Errorf("Fetch.Workers must be greater than 0")
-	}
-	if c.Server.Timeout <= 0 {
-		return fmt.Errorf("Server.Timeout must be greater than 0")
 	}
 	return nil
 }
