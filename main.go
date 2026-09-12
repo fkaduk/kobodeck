@@ -136,9 +136,9 @@ func newDownloadRun(workerLimit, maxDownloads int, download func(readeckBookmark
 	return run
 }
 
-// start schedules a bookmark download. Failures are collected by the run so
+// schedule adds a bookmark download to the run. Failures are collected so
 // the errgroup controls concurrency and completion without losing later errors.
-func (run *downloadRun) start(entry readeckBookmark) {
+func (run *downloadRun) schedule(entry readeckBookmark) {
 	run.group.Go(func() error {
 		changed, err := run.download(entry)
 		if changed {
@@ -151,8 +151,9 @@ func (run *downloadRun) start(entry readeckBookmark) {
 	})
 }
 
-// wait completes the download run and may only be called once.
-func (run *downloadRun) wait() (bool, error) {
+// finish waits for scheduled downloads and collects their results. It may only
+// be called once after all downloads have been scheduled.
+func (run *downloadRun) finish() (bool, error) {
 	waitErr := run.group.Wait()
 	close(run.failures)
 	var failures []error
@@ -281,11 +282,11 @@ func (a app) sync(sigc <-chan os.Signal) error {
 		default:
 		}
 		debugf(a.cfg.Log.Verbose, "dispatching %s", entry.ID)
-		downloads.start(entry)
+		downloads.schedule(entry)
 	}
 done:
 	var syncErr error
-	downloadsChanged, err := downloads.wait()
+	downloadsChanged, err := downloads.finish()
 	if err != nil {
 		log.Println("download error:", err)
 		syncErr = errors.Join(syncErr, fmt.Errorf("downloads failed: %w", err))
