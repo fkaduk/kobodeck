@@ -139,10 +139,10 @@ func TestDownloadRunPreservesAllBookmarkFailures(t *testing.T) {
 		}
 	})
 	for _, id := range []string{"first", "successful", "second"} {
-		run.start(readeckBookmark{ID: id})
+		run.schedule(readeckBookmark{ID: id})
 	}
 	// When
-	filesChanged, err := run.wait()
+	filesChanged, err := run.finish()
 	// Then
 	if !errors.Is(err, firstErr) || !errors.Is(err, secondErr) {
 		t.Fatalf("download error = %v, want both failures", err)
