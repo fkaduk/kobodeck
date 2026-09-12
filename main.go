@@ -136,6 +136,8 @@ func newDownloadRun(workerLimit, maxDownloads int, download func(readeckBookmark
 	return run
 }
 
+// start schedules a bookmark download. Failures are collected by the run so
+// the errgroup controls concurrency and completion without losing later errors.
 func (run *downloadRun) start(entry readeckBookmark) {
 	run.group.Go(func() error {
 		changed, err := run.download(entry)
@@ -145,8 +147,6 @@ func (run *downloadRun) start(entry readeckBookmark) {
 		if err != nil {
 			run.failures <- fmt.Errorf("bookmark %s: %w", entry.ID, err)
 		}
-		// Failures are collected above so the group only controls concurrency
-		// and completion rather than discarding all but its first error.
 		return nil
 	})
 }
