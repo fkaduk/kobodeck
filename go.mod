@@ -7,7 +7,7 @@ toolchain go1.26.5
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/pgaskin/kepubify/v4 v4.0.4
-	golang.org/x/sync v0.22.0
+	golang.org/x/sync v0.23.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	modernc.org/sqlite v1.58.0
 )
