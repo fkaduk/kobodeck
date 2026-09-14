@@ -269,6 +269,7 @@ func (a app) sync(sigc <-chan os.Signal) error {
 	filesChanged := false
 	cancelled := false
 
+downloadLoop:
 	for _, entry := range entries {
 		if !keepLocal[entry.ID] {
 			debugf(a.cfg.Log.Verbose, "skipping %s (not in tags)", entry.ID)
@@ -278,13 +279,12 @@ func (a app) sync(sigc <-chan os.Signal) error {
 		case sig := <-sigc:
 			log.Println("got signal:", sig, ", waiting for downloads to finish...")
 			cancelled = true
-			goto done
+			break downloadLoop
 		default:
 		}
 		debugf(a.cfg.Log.Verbose, "dispatching %s", entry.ID)
 		downloads.schedule(entry)
 	}
-done:
 	var syncErr error
 	downloadsChanged, err := downloads.finish()
 	if err != nil {
