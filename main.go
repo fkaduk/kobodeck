@@ -254,12 +254,12 @@ func (a app) sync(sigc <-chan os.Signal) error {
 			tags[strings.TrimSpace(tag)] = true
 		}
 	}
-	valid := make(map[string]bool)
+	keepLocal := make(map[string]bool)
 	bookmarks := make(map[string]readeckBookmark, len(entries))
 	for _, entry := range entries {
 		bookmarks[entry.ID] = entry
 		if len(tags) == 0 || matchesLabelFilter(tags, entry.Labels) {
-			valid[entry.ID] = true
+			keepLocal[entry.ID] = true
 		}
 	}
 
@@ -270,7 +270,7 @@ func (a app) sync(sigc <-chan os.Signal) error {
 	cancelled := false
 
 	for _, entry := range entries {
-		if !valid[entry.ID] {
+		if !keepLocal[entry.ID] {
 			debugf(a.cfg.Log.Verbose, "skipping %s (not in tags)", entry.ID)
 			continue
 		}
@@ -301,7 +301,7 @@ done:
 	default:
 	}
 
-	changed, err := reconcileLocalFiles(a.readeck, a.nickel, a.cfg, valid, bookmarks, a.cfg.Output.Delete && !cancelled)
+	changed, err := reconcileLocalFiles(a.readeck, a.nickel, a.cfg, keepLocal, bookmarks, a.cfg.Output.Delete && !cancelled)
 	if err != nil {
 		log.Println("reconciliation error:", err)
 		syncErr = errors.Join(syncErr, err)
@@ -579,7 +579,7 @@ func reconcileLocalFiles(
 	readeck bookmarkStore,
 	nickel nickelLibrary,
 	cfg appConfig,
-	valid map[string]bool,
+	keepLocal map[string]bool,
 	bookmarks map[string]readeckBookmark,
 	allowDelete bool,
 ) (bool, error) {
@@ -592,7 +592,7 @@ func reconcileLocalFiles(
 	debugf(cfg.Log.Verbose, "local books to inspect: %v", books)
 	var reconcileErr error
 	for _, book := range books {
-		changed, err := reconcileLocalBook(readeck, nickel, cfg, outputDir, book, valid, bookmarks, allowDelete)
+		changed, err := reconcileLocalBook(readeck, nickel, cfg, outputDir, book, keepLocal, bookmarks, allowDelete)
 		if err != nil {
 			log.Printf("warning: failed to reconcile %s: %s", book.path, err)
 			reconcileErr = errors.Join(reconcileErr, fmt.Errorf("%s: %w", book.path, err))
@@ -610,7 +610,7 @@ func reconcileLocalBook(
 	cfg appConfig,
 	outputDir string,
 	book localBook,
-	valid map[string]bool,
+	keepLocal map[string]bool,
 	bookmarks map[string]readeckBookmark,
 	allowDelete bool,
 ) (bool, error) {
@@ -665,7 +665,7 @@ func reconcileLocalBook(
 				log.Printf("failed to mark entry %s as %s: %v", uid, action, err)
 				reconcileErr = errors.Join(reconcileErr, fmt.Errorf("mark read: %w", err))
 			} else if cfg.Sync.Archive {
-				valid[uid] = false
+				keepLocal[uid] = false
 			}
 		}
 	}
@@ -691,7 +691,7 @@ func reconcileLocalBook(
 			reconcileErr = errors.Join(reconcileErr, fmt.Errorf("set favourite state: %w", err))
 		}
 	}
-	if allowDelete && !valid[uid] {
+	if allowDelete && !keepLocal[uid] {
 		// Keep the local book as retry input whenever its remote state may not
 		// have been reconciled successfully.
 		if reconcileErr != nil {
