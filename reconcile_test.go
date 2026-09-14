@@ -58,7 +58,7 @@ type localBookReconcileTest struct {
 	nickel         fakeNickelLibrary
 	cfg            appConfig
 	book           localBook
-	valid          bool
+	keepLocal      bool
 	listedBookmark bool
 }
 
@@ -78,7 +78,7 @@ func newLocalBookReconcileTest(t *testing.T) *localBookReconcileTest {
 	}
 }
 
-func (h *localBookReconcileTest) bookWasFetched()   { h.valid = true; h.listedBookmark = true }
+func (h *localBookReconcileTest) bookWasFetched()   { h.keepLocal = true; h.listedBookmark = true }
 func (h *localBookReconcileTest) archiveReadBooks() { h.cfg.Sync.Archive = true }
 func (h *localBookReconcileTest) syncFavourites() {
 	h.cfg.Sync.FavouriteCollection = nativeTestFavouriteShelf
@@ -104,16 +104,16 @@ type reconcileResult struct {
 func (h *localBookReconcileTest) run(status bookStatus) reconcileResult {
 	h.t.Helper()
 	h.nickel.status = status
-	valid := make(map[string]bool)
-	if h.valid {
-		valid[nativeTestBookmarkID] = true
+	keepLocal := make(map[string]bool)
+	if h.keepLocal {
+		keepLocal[nativeTestBookmarkID] = true
 	}
 	bookmarks := make(map[string]readeckBookmark)
 	if h.listedBookmark {
 		bookmarks[nativeTestBookmarkID] = h.readeck.bookmark
 	}
 
-	filesChanged, err := reconcileLocalBook(&h.readeck, h.nickel, h.cfg, h.cfg.Output.Path, h.book, valid, bookmarks, h.cfg.Output.Delete)
+	filesChanged, err := reconcileLocalBook(&h.readeck, h.nickel, h.cfg, h.cfg.Output.Path, h.book, keepLocal, bookmarks, h.cfg.Output.Delete)
 	if err != nil {
 		h.t.Fatal(err)
 	}
@@ -215,10 +215,10 @@ func TestReconcileDoesNotDeleteWhenDeletionIsDisallowed(t *testing.T) {
 	// Given
 	reconcile := newLocalBookReconcileTest(t)
 	reconcile.deleteStaleFiles()
-	valid := make(map[string]bool)
+	keepLocal := make(map[string]bool)
 	bookmarks := make(map[string]readeckBookmark)
 	// When
-	filesChanged, err := reconcileLocalFiles(&reconcile.readeck, reconcile.nickel, reconcile.cfg, valid, bookmarks, false)
+	filesChanged, err := reconcileLocalFiles(&reconcile.readeck, reconcile.nickel, reconcile.cfg, keepLocal, bookmarks, false)
 	// Then
 	if err != nil {
 		t.Fatalf("reconcileLocalFiles: %v", err)
