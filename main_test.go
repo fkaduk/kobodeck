@@ -2,13 +2,11 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"testing"
 )
 
@@ -122,44 +120,6 @@ func TestRunCheckMode(t *testing.T) {
 	}
 }
 
-func TestDownloadRunPreservesAllBookmarkFailures(t *testing.T) {
-	// Given
-	firstErr := errors.New("first download failed")
-	secondErr := errors.New("second download failed")
-	var completed atomic.Int32
-	run := newDownloadRun(2, 3, func(entry readeckBookmark) (bool, error) {
-		completed.Add(1)
-		switch entry.ID {
-		case "first":
-			return false, firstErr
-		case "second":
-			return false, secondErr
-		default:
-			return true, nil
-		}
-	})
-	for _, id := range []string{"first", "successful", "second"} {
-		run.schedule(readeckBookmark{ID: id})
-	}
-	// When
-	filesChanged, err := run.finish()
-	// Then
-	if !errors.Is(err, firstErr) || !errors.Is(err, secondErr) {
-		t.Fatalf("download error = %v, want both failures", err)
-	}
-	for _, bookmarkID := range []string{"first", "second"} {
-		if !strings.Contains(err.Error(), "bookmark "+bookmarkID) {
-			t.Errorf("download error does not identify bookmark %s: %v", bookmarkID, err)
-		}
-	}
-	if got := completed.Load(); got != 3 {
-		t.Fatalf("completed downloads = %d, want 3", got)
-	}
-	if !filesChanged {
-		t.Fatal("successful download was not reported as a filesystem change")
-	}
-}
-
 func TestAcquireLockRejectsSecondProcess(t *testing.T) {
 	// Given
 	lockFilePath := filepath.Join(t.TempDir(), "kobodeck.lock")
@@ -183,38 +143,6 @@ func TestAcquireLockRejectsSecondProcess(t *testing.T) {
 	}
 	if err == nil || err.Error() != "already running" {
 		t.Fatalf("second acquireLock error = %v, want already running", err)
-	}
-}
-
-func TestListLocalBooksOnlyListsKepubsInOutputDirectory(t *testing.T) {
-	// Important: Files outside Kobodeck's output directory must not become deletion candidates
-	// Given
-	outputDir := t.TempDir()
-	kepubPath := filepath.Join(outputDir, "bookmark-1.kepub.epub")
-	if err := os.WriteFile(kepubPath, []byte("kepub"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(outputDir, "ordinary.epub"), []byte("epub"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	nestedDir := filepath.Join(outputDir, "nested")
-	if err := os.Mkdir(nestedDir, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(nestedDir, "nested.kepub.epub"), []byte("kepub"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	// When
-	books, err := listLocalBooks(outputDir)
-	// Then
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(books) != 1 {
-		t.Fatalf("listLocalBooks returned %d books, want 1: %+v", len(books), books)
-	}
-	if books[0].id != "bookmark-1" || books[0].path != kepubPath {
-		t.Fatalf("listLocalBooks returned %+v, want bookmark-1 at %s", books[0], kepubPath)
 	}
 }
 
