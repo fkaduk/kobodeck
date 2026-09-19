@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -16,17 +17,38 @@ var (
 	buildVersion = "dev"
 )
 
+const defaultConfigPath = "/mnt/onboard/.adds/kobodeck/kobodeck.toml"
+
 func main() {
 	flag.Parse()
 
-	configFile, cfg, configErr := findConfig()
-	setupLogging(cfg, configFile)
+	configFile := defaultConfigPath
+	createConfig := *configFileFlag == ""
+	configMissing := false
+	if !createConfig {
+		configFile = *configFileFlag
+	} else if _, err := os.Stat(configFile); errors.Is(err, os.ErrNotExist) {
+		configMissing = true
+		if err := os.MkdirAll(filepath.Dir(configFile), 0o755); err != nil {
+			log.Fatal(fmt.Errorf("create config directory: %w", err))
+		}
+	}
+	logFile, err := setupLogging(configFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer closeWithWarning("log file", logFile)
 	log.SetPrefix(fmt.Sprintf("pid=%d ", os.Getpid()))
+	if configMissing {
+		if err := os.WriteFile(configFile, configTemplate, 0o600); err != nil {
+			log.Fatal(fmt.Errorf("write config template: %w", err))
+		}
+		log.Printf("no config found — template written to %s, please edit it", configFile)
+		return
+	}
+	cfg, configErr := loadConfig(configFile)
 
 	switch {
-	case errors.Is(configErr, errConfigCreated):
-		log.Printf("no config found — template written to %s, please edit it", confPath)
-		return
 	case errors.Is(configErr, errUninstallRequested):
 		log.Println("empty config found — uninstalling")
 		if err := uninstallApplication(os.Args[0]); err != nil {
@@ -34,7 +56,7 @@ func main() {
 		}
 		return
 	case configErr != nil:
-		log.Fatal(fmt.Errorf("invalid configuration: %w", configErr))
+		log.Fatal(fmt.Errorf("invalid configuration: load config %s: %w", configFile, configErr))
 	}
 	if err := cfg.validate(); err != nil {
 		log.Fatal(fmt.Errorf("invalid configuration: %w", err))
