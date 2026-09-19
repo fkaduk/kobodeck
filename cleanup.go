@@ -7,6 +7,7 @@ import (
 	"os"
 )
 
+// TODO: add descriptions to both
 func closeWithWarning(name string, closer io.Closer) {
 	if err := closer.Close(); err != nil {
 		log.Printf("warning: close %s: %v", name, err)

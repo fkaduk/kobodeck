@@ -22,6 +22,7 @@ func (a app) runCheck(w io.Writer) error {
 	return nil
 }
 
+// TODO: why is a separate function needed here? runCheck already takes ioWriter ?
 func writeCheckOutput(w io.Writer, cfg appConfig, entries []readeckBookmark) error {
 	_, err := io.WriteString(w, formatCheckConfig(cfg)+"Connecting to Readeck... OK\n\n"+formatCheckEntries(cfg, entries))
 	return err
@@ -43,6 +44,7 @@ func formatCheckConfig(cfg appConfig) string {
 	return output
 }
 
+// TODO: this replicates core functionality. is there a better way?
 // formatCheckEntries lists entries matching the configured label filter.
 func formatCheckEntries(cfg appConfig, entries []readeckBookmark) string {
 	labelFilter := make(map[string]bool)

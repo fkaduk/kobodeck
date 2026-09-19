@@ -94,6 +94,7 @@ func (c *appConfig) validate() error {
 	return nil
 }
 
+// TODO: shouldnt this stuff be at the top ?
 const confPath = "/mnt/onboard/.adds/kobodeck/kobodeck.toml"
 
 var errUninstallRequested = errors.New("uninstall requested")
@@ -132,6 +133,7 @@ func loadConfig(path string) (_ appConfig, returnErr error) {
 // and the function returns errConfigCreated. If the config is empty,
 // errUninstallRequested is returned.
 func findConfig() (string, appConfig, error) {
+	// TODO: explain this, i dont get it
 	if *configFileFlag != "" {
 		cfg, err := loadConfig(*configFileFlag)
 		if err != nil {
@@ -152,4 +154,5 @@ func findConfig() (string, appConfig, error) {
 	return confPath, cfg, nil
 }
 
+// TODO: also at the top
 var errConfigCreated = errors.New("config template created")
