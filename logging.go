@@ -4,6 +4,7 @@ import (
 	"log"
 	"path/filepath"
 
+	// TODO: is this really the best options? why not use slog?
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 

@@ -49,6 +49,7 @@ func (db nickelDatabase) isInCollection(id, outputDir, collection string) (_ boo
 	return nickelIsInCollection(conn, id, outputDir, collection)
 }
 
+// TODO: not sure why the following functions arent also methods on the db struct ?
 // nickelIsInCollection reports whether a book is in the named Kobo collection.
 func nickelIsInCollection(db *sql.DB, id, outputDir, collection string) (bool, error) {
 	contentID := nickelContentID(outputDir, id)

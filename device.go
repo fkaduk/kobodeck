@@ -38,6 +38,7 @@ func uninstallApplication(binaryPath string) error {
 	if uninstallErr != nil {
 		return fmt.Errorf("uninstall partially failed: %w", uninstallErr)
 	}
+	// TODO: probably shouldnt remove the log file?
 	if err := os.RemoveAll(filepath.Dir(confPath)); err != nil {
 		return fmt.Errorf("remove application directory: %w", err)
 	}
@@ -57,6 +58,7 @@ func nickelRescan(statusPath string) error {
 	return appendNickelEvent(statusPath, "remove")
 }
 
+// TODO: this isnt descriptive, also not sure why 2 functions are needed. This only needs to appends to udev?
 func appendNickelEvent(path, event string) error {
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0)
 	if err != nil {

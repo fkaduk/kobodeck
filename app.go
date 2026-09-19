@@ -13,10 +13,11 @@ import (
 )
 
 type app struct {
-	cfg              appConfig
-	readeck          readeckClient
-	nickel           nickelLibrary
-	lockFilePath     string
+	cfg          appConfig
+	readeck      readeckClient
+	nickel       nickelLibrary
+	lockFilePath string
+	// TODO: explain why this is necessary
 	nickelStatusPath string
 }
 
@@ -42,6 +43,7 @@ func run(output io.Writer, binaryPath string, signals <-chan os.Signal) error {
 	configFile, cfg, configErr := findConfig()
 	setupLogging(cfg, configFile)
 	log.SetPrefix(fmt.Sprintf("pid=%d ", os.Getpid()))
+	// TODO: EXPLAIN what this does
 	debug.SetPanicOnFault(true)
 
 	switch {
