@@ -25,7 +25,7 @@ func main() {
 	if *configFileFlag != "" {
 		configFile = *configFileFlag
 	}
-	logFile, err := setupLogging(configFile)
+	logFile, err := setupLogging(configFile, retainedLines)
 	if err != nil {
 		log.Fatal(err)
 	}
