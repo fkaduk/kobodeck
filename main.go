@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"time"
 )
 
@@ -23,15 +22,8 @@ func main() {
 	flag.Parse()
 
 	configFile := defaultConfigPath
-	createConfig := *configFileFlag == ""
-	configMissing := false
-	if !createConfig {
+	if *configFileFlag != "" {
 		configFile = *configFileFlag
-	} else if _, err := os.Stat(configFile); errors.Is(err, os.ErrNotExist) {
-		configMissing = true
-		if err := os.MkdirAll(filepath.Dir(configFile), 0o755); err != nil {
-			log.Fatal(fmt.Errorf("create config directory: %w", err))
-		}
 	}
 	logFile, err := setupLogging(configFile)
 	if err != nil {
@@ -39,15 +31,17 @@ func main() {
 	}
 	defer closeWithWarning("log file", logFile)
 	log.SetPrefix(fmt.Sprintf("pid=%d ", os.Getpid()))
-	if configMissing {
-		if err := os.WriteFile(configFile, configTemplate, 0o600); err != nil {
-			log.Fatal(fmt.Errorf("write config template: %w", err))
-		}
-		log.Printf("no config found — template written to %s, please edit it", configFile)
-		return
-	}
-	cfg, configErr := loadConfig(configFile)
 
+	log.Printf("loading config file %s, configFile")
+	_, err = os.Stat(configFile)
+	if errors.Is(err, os.ErrNotExist) {
+		log.Fatal("config file not found")
+	} else if err != nil {
+		log.Fatal("cannot access config file: %w", err)
+	}
+
+	// TODO: do not write the template anymore
+	cfg, configErr := loadConfig(configFile)
 	switch {
 	case errors.Is(configErr, errUninstallRequested):
 		log.Println("empty config found — uninstalling")
@@ -61,10 +55,12 @@ func main() {
 	if err := cfg.validate(); err != nil {
 		log.Fatal(fmt.Errorf("invalid configuration: %w", err))
 	}
-	log.Printf("kobodeck version %s loaded configuration from %s action=%q interface=%q",
+	log.Printf(
+		"kobodeck version %s loaded configuration from %s action=%q interface=%q",
 		buildVersion, configFile, os.Getenv("ACTION"), os.Getenv("INTERFACE"))
 
 	application := newApp(cfg)
+	// TODO: can we just pass this flag down to sync and adjust this inline ?
 	if *checkFlag {
 		if err := application.runCheck(os.Stdout); err != nil {
 			log.Fatal(fmt.Errorf("check failed: %w", err))
