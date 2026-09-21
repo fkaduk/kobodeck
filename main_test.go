@@ -3,7 +3,8 @@ package main
 import (
 	"bytes"
 	"io"
-	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,7 +15,7 @@ func newValidAppConfig(outputPath string) appConfig {
 	return appConfig{
 		Server: serverConfig{URL: "https://readeck.example/api", Token: "token", Timeout: 5},
 		Fetch:  fetchConfig{Workers: 2, Limit: 10, Status: "unread,reading"},
-		Log:    logConfig{Size: 1},
+		Log:    logConfig{RetainedFiles: 10},
 		Output: outputConfig{Path: outputPath},
 	}
 }
@@ -37,7 +38,8 @@ func TestAppConfigValidation(t *testing.T) {
 		{name: "empty status", mutate: func(c *appConfig) { c.Fetch.Status = "" }, valid: true},
 		{name: "valid statuses", mutate: func(c *appConfig) { c.Fetch.Status = "unread, reading,read" }, valid: true},
 		{name: "invalid status", mutate: func(c *appConfig) { c.Fetch.Status = "unread,finished" }},
-		{name: "negative log size", mutate: func(c *appConfig) { c.Log.Size = -1 }},
+		{name: "zero retained logs", mutate: func(c *appConfig) { c.Log.RetainedFiles = 0 }},
+		{name: "too many retained logs", mutate: func(c *appConfig) { c.Log.RetainedFiles = 101 }},
 		{name: "relative output", mutate: func(c *appConfig) { c.Output.Path = "books" }},
 		{name: "root output", mutate: func(c *appConfig) { c.Output.Path = "/" }},
 		{name: "absolute output", mutate: func(c *appConfig) { c.Output.Path = outputPath }, valid: true},
@@ -59,42 +61,31 @@ func TestAppConfigValidation(t *testing.T) {
 	}
 }
 
-func TestSetupLoggingUsesConfigDirectory(t *testing.T) {
-	// Given
-	configDir := t.TempDir()
-	configPath := filepath.Join(configDir, "custom.toml")
-	// When
-	setupLogging(appConfig{Log: logConfig{Size: 1}}, configPath)
-	defer log.SetOutput(io.Discard)
-	log.Print("custom config logging test")
-	// Then
-	if _, err := os.Stat(filepath.Join(configDir, "kobodeck.log")); err != nil {
-		t.Fatalf("custom config log was not created: %v", err)
-	}
-}
-
 func TestRunCheckMode(t *testing.T) {
 	// Given
 	outputDir := t.TempDir()
+	simulatedReadeckServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, err := io.WriteString(w, `[{"id":"included","title":"Included article","labels":["TECH"]},{"id":"excluded","title":"Excluded article","labels":["news"]}]`); err != nil {
+			t.Error(err)
+		}
+	}))
+	t.Cleanup(simulatedReadeckServer.Close)
 	cfg := appConfig{
-		Server: serverConfig{URL: "https://readeck.example", Timeout: 5},
+		Server: serverConfig{URL: simulatedReadeckServer.URL, Timeout: 5},
 		Fetch:  fetchConfig{Workers: 2, Limit: 10, Labels: "tech"},
 		Output: outputConfig{Path: outputDir, Delete: true},
 	}
-	bookmarks := []readeckBookmark{
-		{ID: "included", Title: "Included article", Labels: []string{"TECH"}},
-		{ID: "excluded", Title: "Excluded article", Labels: []string{"news"}},
-	}
 	// When
 	var output bytes.Buffer
-	if err := writeCheckOutput(&output, cfg, bookmarks); err != nil {
+	application := app{cfg: cfg, readeck: newReadeckClient(simulatedReadeckServer.Client(), cfg.Server, false)}
+	if err := application.runCheck(&output); err != nil {
 		t.Fatal(err)
 	}
 	// Then
 	text := output.String()
 	for _, fragment := range []string{
 		"Configuration:",
-		"URL:     https://readeck.example",
+		"URL:     " + simulatedReadeckServer.URL,
 		"Output:  " + outputDir,
 		"Connecting to Readeck... OK",
 		"included — Included article",
