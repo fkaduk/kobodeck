@@ -32,25 +32,17 @@ func main() {
 	defer closeWithWarning("log file", logFile)
 	log.SetPrefix(fmt.Sprintf("pid=%d ", os.Getpid()))
 
-	log.Printf("loading config file %s, configFile")
-	_, err = os.Stat(configFile)
-	if errors.Is(err, os.ErrNotExist) {
-		log.Fatal("config file not found")
-	} else if err != nil {
-		log.Fatal("cannot access config file: %w", err)
-	}
-
-	// TODO: do not write the template anymore
+	log.Printf("loading config file %s", configFile)
 	cfg, configErr := loadConfig(configFile)
-	switch {
-	case errors.Is(configErr, errUninstallRequested):
+	if errors.Is(configErr, errUninstallRequested) {
 		log.Println("empty config found — uninstalling")
 		if err := uninstallApplication(os.Args[0]); err != nil {
 			log.Fatal(err)
 		}
 		return
-	case configErr != nil:
-		log.Fatal(fmt.Errorf("invalid configuration: load config %s: %w", configFile, configErr))
+	}
+	if configErr != nil {
+		log.Fatal(fmt.Errorf("invalid configuration: %w", configErr))
 	}
 	if err := cfg.validate(); err != nil {
 		log.Fatal(fmt.Errorf("invalid configuration: %w", err))
