@@ -40,8 +40,8 @@ type syncConfig struct {
 }
 
 type logConfig struct {
-	Verbose bool `toml:"Verbose"`
-	Size    int  `toml:"Size"` // in MB
+	Verbose       bool `toml:"Verbose"`
+	RetainedFiles int  `toml:"RetainedFiles"`
 }
 
 type outputConfig struct {
@@ -109,8 +109,11 @@ func (c *appConfig) validate() error {
 			return fmt.Errorf("Fetch.Status contains invalid value %q", status)
 		}
 	}
-	if c.Log.Size < 0 {
-		return fmt.Errorf("Log.Size must not be negative")
+	if c.Log.RetainedFiles < 1 {
+		return fmt.Errorf("Log.RetainedFiles must be greater than 0")
+	}
+	if c.Log.RetainedFiles > 100 {
+		return fmt.Errorf("Log.RetainedFiles must not exceed 100")
 	}
 	if c.Output.Path == "" {
 		return fmt.Errorf("Output.Path is required")
