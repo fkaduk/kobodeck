@@ -1,7 +1,6 @@
 package main
 
 import (
-	_ "embed"
 	"errors"
 	"fmt"
 	"net/url"
@@ -12,8 +11,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-//go:embed kobodeck.toml
-var configTemplate []byte
+var errUninstallRequested = errors.New("uninstall requested")
 
 type appConfig struct {
 	Server serverConfig `toml:"Server"`
@@ -49,6 +47,36 @@ type logConfig struct {
 type outputConfig struct {
 	Path   string `toml:"Path"`
 	Delete bool   `toml:"Delete"`
+}
+
+// loadConfig opens and decodes the TOML config at path. An empty file returns
+// errUninstallRequested; parse, unknown-key, and close failures are returned.
+func loadConfig(path string) (_ appConfig, returnErr error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return appConfig{}, fmt.Errorf("open config file %s: %w", path, err)
+	}
+	defer func() {
+		returnErr = errors.Join(returnErr, f.Close())
+	}()
+
+	info, err := f.Stat()
+	if err != nil {
+		return appConfig{}, fmt.Errorf("stat config file %s: %w", path, err)
+	}
+	if info.Size() == 0 {
+		return appConfig{}, errUninstallRequested
+	}
+
+	var cfg appConfig
+	metadata, err := toml.NewDecoder(f).Decode(&cfg)
+	if err != nil {
+		return appConfig{}, fmt.Errorf("decode config file %s: %w", path, err)
+	}
+	if keys := metadata.Undecoded(); len(keys) > 0 {
+		return appConfig{}, fmt.Errorf("unknown keys: %v", keys)
+	}
+	return cfg, nil
 }
 
 // validate checks that all required config fields are present and sane.
@@ -93,66 +121,3 @@ func (c *appConfig) validate() error {
 	}
 	return nil
 }
-
-// TODO: shouldnt this stuff be at the top ?
-const confPath = "/mnt/onboard/.adds/kobodeck/kobodeck.toml"
-
-var errUninstallRequested = errors.New("uninstall requested")
-
-// loadConfig decodes the TOML file at path.
-// Returns os.ErrNotExist if the file is absent, errUninstallRequested if
-// the file is empty, or an error for parse failures and unrecognised keys.
-func loadConfig(path string) (_ appConfig, returnErr error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return appConfig{}, err
-	}
-	defer func() {
-		returnErr = errors.Join(returnErr, f.Close())
-	}()
-	info, err := f.Stat()
-	if err != nil {
-		return appConfig{}, err
-	}
-	if info.Size() == 0 {
-		return appConfig{}, errUninstallRequested
-	}
-	var cfg appConfig
-	md, err := toml.NewDecoder(f).Decode(&cfg)
-	if err != nil {
-		return appConfig{}, err
-	}
-	if keys := md.Undecoded(); len(keys) > 0 {
-		return appConfig{}, fmt.Errorf("unknown keys: %v", keys)
-	}
-	return cfg, nil
-}
-
-// findConfig resolves the config path (--config flag or default) and loads it.
-// For the default path only: if no config exists, a template is written there
-// and the function returns errConfigCreated. If the config is empty,
-// errUninstallRequested is returned.
-func findConfig() (string, appConfig, error) {
-	// TODO: explain this, i dont get it
-	if *configFileFlag != "" {
-		cfg, err := loadConfig(*configFileFlag)
-		if err != nil {
-			return "", appConfig{}, fmt.Errorf("load config %s: %w", *configFileFlag, err)
-		}
-		return *configFileFlag, cfg, nil
-	}
-	if _, err := os.Stat(confPath); errors.Is(err, os.ErrNotExist) {
-		if err := os.WriteFile(confPath, configTemplate, 0o600); err != nil {
-			return "", appConfig{}, fmt.Errorf("write config template: %w", err)
-		}
-		return confPath, appConfig{}, errConfigCreated
-	}
-	cfg, err := loadConfig(confPath)
-	if err != nil {
-		return "", appConfig{}, fmt.Errorf("load config %s: %w", confPath, err)
-	}
-	return confPath, cfg, nil
-}
-
-// TODO: also at the top
-var errConfigCreated = errors.New("config template created")
