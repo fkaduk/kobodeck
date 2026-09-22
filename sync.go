@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -55,13 +53,7 @@ func (run *downloadRun) finish() (bool, error) {
 	return run.filesChanged.Load(), errors.Join(errors.Join(failures...), waitErr)
 }
 
-func (a app) sync(sigc <-chan os.Signal) error {
-	lock, err := acquireLock(a.lockFilePath)
-	if err != nil {
-		return err
-	}
-	defer closeWithWarning("lock file", lock)
-
+func (a app) sync() error {
 	log.Println("connecting to", a.cfg.Server.URL)
 	time.Sleep(5 * time.Second)
 	entries, err := a.readeck.listBookmarks(a.cfg.Fetch)
@@ -75,39 +67,25 @@ func (a app) sync(sigc <-chan os.Signal) error {
 		return err
 	}
 
-	tags := make(map[string]bool)
-	if len(a.cfg.Fetch.Labels) > 0 {
-		for _, tag := range strings.Split(strings.ToLower(a.cfg.Fetch.Labels), ",") {
-			tags[strings.TrimSpace(tag)] = true
-		}
-	}
+	matchedEntries, _ := filterBookmarksByLabel(entries, a.cfg.Fetch.Labels)
 	keepLocal := make(map[string]bool)
 	bookmarks := make(map[string]readeckBookmark, len(entries))
 	for _, entry := range entries {
 		bookmarks[entry.ID] = entry
-		if len(tags) == 0 || matchesLabelFilter(tags, entry.Labels) {
-			keepLocal[entry.ID] = true
-		}
+	}
+	for _, entry := range matchedEntries {
+		keepLocal[entry.ID] = true
 	}
 
 	downloads := newDownloadRun(a.cfg.Fetch.Workers, len(entries), func(entry readeckBookmark) (bool, error) {
 		return a.readeck.downloadBookmarkFile(a.cfg.Output, entry)
 	})
 	filesChanged := false
-	cancelled := false
 
-downloadLoop:
 	for _, entry := range entries {
 		if !keepLocal[entry.ID] {
 			debugf(a.cfg.Log.Verbose, "skipping %s (not in tags)", entry.ID)
 			continue
-		}
-		select {
-		case sig := <-sigc:
-			log.Println("got signal:", sig, ", waiting for downloads to finish...")
-			cancelled = true
-			break downloadLoop
-		default:
 		}
 		debugf(a.cfg.Log.Verbose, "dispatching %s", entry.ID)
 		downloads.schedule(entry)
@@ -121,14 +99,7 @@ downloadLoop:
 	if downloadsChanged {
 		filesChanged = true
 	}
-	select {
-	case sig := <-sigc:
-		log.Println("got signal:", sig, ", downloads finished")
-		cancelled = true
-	default:
-	}
-
-	changed, err := syncLocalBooks(a.readeck, a.nickel, a.cfg, keepLocal, bookmarks, a.cfg.Output.Delete && !cancelled)
+	changed, err := syncLocalBooks(a.readeck, a.nickel, a.cfg, keepLocal, bookmarks, a.cfg.Output.Delete)
 	if err != nil {
 		log.Println("local book sync error:", err)
 		syncErr = errors.Join(syncErr, err)
