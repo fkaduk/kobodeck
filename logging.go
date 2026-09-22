@@ -1,72 +1,64 @@
 package main
 
 import (
-	"bytes"
-	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 )
 
-const retainedLines = 20_000
+const retainedLogFiles = 10
 
-type logFile struct {
-	file *os.File
-	path string
-}
-
-// setupLogging configures the global logger to write to a bounded log file
-// beside the resolved configuration file.
-func setupLogging(configFilename string, maxLines int) (*logFile, error) {
+// setupLogging creates a new log file for this run beside the resolved config.
+func setupLogging(configFilename string) (*os.File, error) {
 	configBase := filepath.Base(configFilename)
-	filename := strings.TrimSuffix(configBase, filepath.Ext(configBase)) + ".log"
-	filename = filepath.Join(filepath.Dir(configFilename), filename)
-	file, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0o600)
+	configStem := strings.TrimSuffix(configBase, filepath.Ext(configBase))
+	logDir := filepath.Dir(configFilename)
+	logName := fmt.Sprintf("%s-%s-p%d.log", configStem, time.Now().UTC().Format("20060102-150405.000000000"), os.Getpid())
+	logPath := filepath.Join(logDir, logName)
+	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
-		return nil, fmt.Errorf("open log file %s: %w", filename, err)
+		return nil, fmt.Errorf("create log file %s: %w", logPath, err)
 	}
-	logger := &logFile{file: file, path: filename}
-	if err := logger.trimIfNeeded(maxLines); err != nil {
-		return nil, errors.Join(fmt.Errorf("trim log file %s: %w", filename, err), file.Close())
+	log.SetOutput(file)
+	return file, nil
+}
+
+// removeOldLogs retains the newest run logs matching currentLogPath.
+func removeOldLogs(currentLogPath string, maxFiles int) error {
+	if maxFiles < 1 {
+		return fmt.Errorf("maximum log files must be positive")
 	}
-	log.SetOutput(logger)
-	return logger, nil
-}
-
-func (logger *logFile) Write(p []byte) (int, error) {
-	return logger.file.Write(p)
-}
-
-func (logger *logFile) Close() error {
-	return logger.file.Close()
-}
-
-// trimIfNeeded keeps only the newest 20,000 lines in the existing log.
-func (logger *logFile) trimIfNeeded(maxLines int) error {
-	data, err := os.ReadFile(logger.path)
+	dir := filepath.Dir(currentLogPath)
+	current := filepath.Base(currentLogPath)
+	name := strings.TrimSuffix(current, filepath.Ext(current))
+	separator := strings.LastIndex(name, "-20")
+	if separator < 0 {
+		return fmt.Errorf("invalid run log filename %s", current)
+	}
+	prefix := name[:separator+1]
+	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return fmt.Errorf("read log file %s: %w", logger.path, err)
+		return fmt.Errorf("read log directory %s: %w", dir, err)
 	}
-	lines := bytes.Split(data, []byte{'\n'})
-	lineCount := len(lines)
-	if len(data) > 0 && data[len(data)-1] == '\n' {
-		lineCount--
+	var logs []string
+	for _, entry := range entries {
+		if entry.IsDir() || entry.Name() == current || !strings.HasPrefix(entry.Name(), prefix) || !strings.HasSuffix(entry.Name(), ".log") {
+			continue
+		}
+		logs = append(logs, entry.Name())
 	}
-	if lineCount <= maxLines {
+	sort.Sort(sort.Reverse(sort.StringSlice(logs)))
+	if len(logs) <= maxFiles-1 {
 		return nil
 	}
-	data = bytes.Join(lines[lineCount-maxLines:], []byte{'\n'})
-	if err := logger.file.Truncate(0); err != nil {
-		return fmt.Errorf("truncate log file %s: %w", logger.path, err)
-	}
-	if _, err := logger.file.Seek(0, io.SeekStart); err != nil {
-		return fmt.Errorf("seek log file %s: %w", logger.path, err)
-	}
-	if _, err := logger.file.Write(data); err != nil {
-		return errors.Join(fmt.Errorf("rewrite log file %s: %w", logger.path, err), logger.file.Sync())
+	for _, name := range logs[maxFiles-1:] {
+		if err := os.Remove(filepath.Join(dir, name)); err != nil {
+			return fmt.Errorf("remove %s: %w", filepath.Join(dir, name), err)
+		}
 	}
 	return nil
 }
