@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"syscall"
 	"time"
@@ -20,6 +21,13 @@ var (
 const (
 	defaultConfigPath = "/mnt/onboard/.adds/kobodeck/kobodeck.toml"
 )
+
+type app struct {
+	cfg              appConfig
+	readeck          readeckClient
+	nickel           nickelLibrary
+	nickelStatusPath string
+}
 
 func main() {
 	flag.Parse()
@@ -75,6 +83,19 @@ func main() {
 	}()
 	if err := application.sync(); err != nil {
 		log.Fatal(err)
+	}
+}
+
+func newApp(cfg appConfig) app {
+	client := &http.Client{
+		Timeout: time.Duration(cfg.Server.Timeout) * time.Second,
+	}
+	readeck := newReadeckClient(client, cfg.Server, cfg.Log.Verbose)
+	return app{
+		cfg:              cfg,
+		readeck:          readeck,
+		nickel:           nickelDatabase{path: defaultNickelDBPath, verbose: cfg.Log.Verbose},
+		nickelStatusPath: defaultNickelStatusPath,
 	}
 }
 
