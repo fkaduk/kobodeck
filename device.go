@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -38,17 +36,12 @@ func uninstallApplication(binaryPath string) error {
 	if uninstallErr != nil {
 		return fmt.Errorf("uninstall partially failed: %w", uninstallErr)
 	}
-	// TODO: probably shouldnt remove the log file?
-	if err := os.RemoveAll(filepath.Dir(confPath)); err != nil {
-		return fmt.Errorf("remove application directory: %w", err)
-	}
 	log.Println("uninstall complete")
 	return nil
 }
 
 // nickelRescan triggers a Nickel library rescan by simulating a USB plug/unplug
-// via /tmp/nickel-hardware-status. The user will see a Connect/Cancel dialog;
-// pressing Connect rescans immediately, Cancel still picks up changes on reboot.
+// via /tmp/nickel-hardware-status.
 func nickelRescan(statusPath string) error {
 	log.Println("triggering Nickel rescan")
 	if err := appendNickelEvent(statusPath, "add"); err != nil {
@@ -59,6 +52,7 @@ func nickelRescan(statusPath string) error {
 }
 
 // TODO: this isnt descriptive, also not sure why 2 functions are needed. This only needs to appends to udev?
+// appendNickelEvent writes the status-file command Nickel uses to emulate USB events.
 func appendNickelEvent(path, event string) error {
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0)
 	if err != nil {
@@ -71,17 +65,4 @@ func appendNickelEvent(path, event string) error {
 		return fmt.Errorf("%s event: close %s: %w", event, path, err)
 	}
 	return nil
-}
-
-// acquireLock acquires an exclusive non-blocking flock on path.
-// Returns an error if another instance is already running.
-func acquireLock(path string) (*os.File, error) {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o600)
-	if err != nil {
-		return nil, fmt.Errorf("open lock file: %w", err)
-	}
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		return nil, errors.Join(errors.New("already running"), f.Close())
-	}
-	return f, nil
 }
