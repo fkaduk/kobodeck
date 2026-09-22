@@ -17,42 +17,6 @@ type downloadRun struct {
 	failures     chan error
 }
 
-func newDownloadRun(workerLimit, maxDownloads int, download func(readeckBookmark) (bool, error)) *downloadRun {
-	run := &downloadRun{
-		download: download,
-		failures: make(chan error, maxDownloads),
-	}
-	run.group.SetLimit(workerLimit)
-	return run
-}
-
-// schedule adds a bookmark download to the run. Failures are collected so
-// the errgroup controls concurrency and completion without losing later errors.
-func (run *downloadRun) schedule(entry readeckBookmark) {
-	run.group.Go(func() error {
-		changed, err := run.download(entry)
-		if changed {
-			run.filesChanged.Store(true)
-		}
-		if err != nil {
-			run.failures <- fmt.Errorf("bookmark %s: %w", entry.ID, err)
-		}
-		return nil
-	})
-}
-
-// finish waits for scheduled downloads and collects their results. It may only
-// be called once after all downloads have been scheduled.
-func (run *downloadRun) finish() (bool, error) {
-	waitErr := run.group.Wait()
-	close(run.failures)
-	var failures []error
-	for err := range run.failures {
-		failures = append(failures, err)
-	}
-	return run.filesChanged.Load(), errors.Join(errors.Join(failures...), waitErr)
-}
-
 func (a app) sync() error {
 	log.Println("connecting to", a.cfg.Server.URL)
 	time.Sleep(5 * time.Second)
@@ -115,4 +79,40 @@ func (a app) sync() error {
 		}
 	}
 	return syncErr
+}
+
+func newDownloadRun(workerLimit, maxDownloads int, download func(readeckBookmark) (bool, error)) *downloadRun {
+	run := &downloadRun{
+		download: download,
+		failures: make(chan error, maxDownloads),
+	}
+	run.group.SetLimit(workerLimit)
+	return run
+}
+
+// schedule adds a bookmark download to the run. Failures are collected so
+// the errgroup controls concurrency and completion without losing later errors.
+func (run *downloadRun) schedule(entry readeckBookmark) {
+	run.group.Go(func() error {
+		changed, err := run.download(entry)
+		if changed {
+			run.filesChanged.Store(true)
+		}
+		if err != nil {
+			run.failures <- fmt.Errorf("bookmark %s: %w", entry.ID, err)
+		}
+		return nil
+	})
+}
+
+// finish waits for scheduled downloads and collects their results. It may only
+// be called once after all downloads have been scheduled.
+func (run *downloadRun) finish() (bool, error) {
+	waitErr := run.group.Wait()
+	close(run.failures)
+	var failures []error
+	for err := range run.failures {
+		failures = append(failures, err)
+	}
+	return run.filesChanged.Load(), errors.Join(errors.Join(failures...), waitErr)
 }
