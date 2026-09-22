@@ -11,8 +11,6 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-var errUninstallRequested = errors.New("uninstall requested")
-
 type appConfig struct {
 	Server serverConfig `toml:"Server"`
 	Fetch  fetchConfig  `toml:"Fetch"`
@@ -49,8 +47,8 @@ type outputConfig struct {
 	Delete bool   `toml:"Delete"`
 }
 
-// loadConfig opens and decodes the TOML config at path. An empty file returns
-// errUninstallRequested; parse, unknown-key, and close failures are returned.
+// loadConfig opens and decodes the TOML config at path. Parse, unknown-key, and
+// close failures are returned.
 func loadConfig(path string) (_ appConfig, returnErr error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -59,14 +57,6 @@ func loadConfig(path string) (_ appConfig, returnErr error) {
 	defer func() {
 		returnErr = errors.Join(returnErr, f.Close())
 	}()
-
-	info, err := f.Stat()
-	if err != nil {
-		return appConfig{}, fmt.Errorf("stat config file %s: %w", path, err)
-	}
-	if info.Size() == 0 {
-		return appConfig{}, errUninstallRequested
-	}
 
 	var cfg appConfig
 	metadata, err := toml.NewDecoder(f).Decode(&cfg)
