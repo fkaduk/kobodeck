@@ -71,7 +71,8 @@ func main() {
 	application := newApp(cfg)
 	// TODO: can we just pass this flag down to sync and adjust this inline ?
 	if *checkFlag {
-		if err := application.runCheck(os.Stdout); err != nil {
+		err := application.runCheck(os.Stdout)
+		if err != nil {
 			log.Fatal(fmt.Errorf("check failed: %w", err))
 		}
 		return
@@ -81,7 +82,8 @@ func main() {
 	defer func() {
 		log.Printf("completed in %s", time.Since(start).Truncate(time.Millisecond))
 	}()
-	if err := application.sync(); err != nil {
+	err = application.sync()
+	if err != nil {
 		log.Fatal(err)
 	}
 }
