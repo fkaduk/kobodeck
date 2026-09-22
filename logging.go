@@ -5,12 +5,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"sort"
+	"regexp"
 	"strings"
 	"time"
 )
 
-const retainedLogFiles = 10
+var logTimestampPattern = regexp.MustCompile(`-[0-9]{8}-[0-9]{6}\.[0-9]{9}-p[0-9]+\.log$`)
 
 // setupLogging creates a new log file for this run beside the resolved config.
 func setupLogging(configFilename string) (*os.File, error) {
@@ -34,30 +34,32 @@ func removeOldLogs(currentLogPath string, maxFiles int) error {
 	}
 	dir := filepath.Dir(currentLogPath)
 	current := filepath.Base(currentLogPath)
-	name := strings.TrimSuffix(current, filepath.Ext(current))
-	separator := strings.LastIndex(name, "-20")
-	if separator < 0 {
+	suffix := logTimestampPattern.FindString(current)
+	if suffix == "" {
 		return fmt.Errorf("invalid run log filename %s", current)
 	}
-	prefix := name[:separator+1]
+	prefix := strings.TrimSuffix(current, suffix)
+	if prefix == "" {
+		return fmt.Errorf("invalid run log filename %s", current)
+	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return fmt.Errorf("read log directory %s: %w", dir, err)
 	}
-	var logs []string
-	for _, entry := range entries {
-		if entry.IsDir() || entry.Name() == current || !strings.HasPrefix(entry.Name(), prefix) || !strings.HasSuffix(entry.Name(), ".log") {
+	kept := 0
+	for i := len(entries) - 1; i >= 0; i-- {
+		entry := entries[i]
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasPrefix(name, prefix) || !logTimestampPattern.MatchString(name) {
 			continue
 		}
-		logs = append(logs, entry.Name())
-	}
-	sort.Sort(sort.Reverse(sort.StringSlice(logs)))
-	if len(logs) <= maxFiles-1 {
-		return nil
-	}
-	for _, name := range logs[maxFiles-1:] {
-		if err := os.Remove(filepath.Join(dir, name)); err != nil {
-			return fmt.Errorf("remove %s: %w", filepath.Join(dir, name), err)
+		if kept < maxFiles {
+			kept++
+			continue
+		}
+		path := filepath.Join(dir, name)
+		if err := os.Remove(path); err != nil {
+			return fmt.Errorf("remove %s: %w", path, err)
 		}
 	}
 	return nil
