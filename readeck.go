@@ -15,6 +15,12 @@ import (
 	"time"
 )
 
+const (
+	maxBookmarkIDLength = 128
+	maxEPUBSize         = 257 << 20
+	maxAPIResponseSize  = 8 << 20
+)
+
 type readeckBookmark struct {
 	ID           string    `json:"id"`
 	Title        string    `json:"title"`
@@ -33,12 +39,6 @@ type readeckClient struct {
 	token      string
 	verbose    bool
 }
-
-const (
-	maxBookmarkIDLength = 128
-	maxEPUBSize         = 257 << 20
-	maxAPIResponseSize  = 8 << 20
-)
 
 func newReadeckClient(httpClient *http.Client, server serverConfig, verbose bool) readeckClient {
 	return readeckClient{
@@ -111,6 +111,28 @@ func matchesLabelFilter(tags map[string]bool, labels []string) bool {
 		}
 	}
 	return false
+}
+
+// filterBookmarksByLabel returns the entries selected by a comma-separated
+// label filter and the number excluded by that filter.
+func filterBookmarksByLabel(entries []readeckBookmark, labels string) ([]readeckBookmark, int) {
+	labelFilter := make(map[string]bool)
+	if labels != "" {
+		for _, label := range strings.Split(strings.ToLower(labels), ",") {
+			labelFilter[strings.TrimSpace(label)] = true
+		}
+	}
+
+	matched := make([]readeckBookmark, 0, len(entries))
+	skipped := 0
+	for _, entry := range entries {
+		if len(labelFilter) > 0 && !matchesLabelFilter(labelFilter, entry.Labels) {
+			skipped++
+			continue
+		}
+		matched = append(matched, entry)
+	}
+	return matched, skipped
 }
 
 // downloadBookmarkFile fetches and converts the EPUB for a bookmark.
