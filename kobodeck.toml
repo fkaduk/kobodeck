@@ -27,8 +27,8 @@ FavouriteCollection = ""
 [Log]
 # The log will be written to the same directory as this config
 Verbose = false
-# Max log file size in MB
-Size = 1
+# Number of recent run logs to retain
+RetainedFiles = 10
 
 [Output]
 # Directory dedicated to Kobodeck-downloaded (K)EPUB files
