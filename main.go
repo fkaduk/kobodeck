@@ -40,8 +40,8 @@ func main() {
 	defer closeWithWarning("lock file", lock)
 	log.Printf("loading config file %s", configFile)
 	cfg, configErr := loadConfig(configFile)
-	if errors.Is(configErr, errUninstallRequested) {
-		log.Println("empty config found — uninstalling")
+	if errors.Is(configErr, os.ErrNotExist) && configFile == defaultConfigPath {
+		log.Println("default config not found — uninstalling")
 		if err := uninstallApplication(os.Args[0]); err != nil {
 			log.Fatal(err)
 		}
