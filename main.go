@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"syscall"
 	"time"
 )
 
@@ -16,7 +17,9 @@ var (
 	buildVersion = "dev"
 )
 
-const defaultConfigPath = "/mnt/onboard/.adds/kobodeck/kobodeck.toml"
+const (
+	defaultConfigPath = "/mnt/onboard/.adds/kobodeck/kobodeck.toml"
+)
 
 func main() {
 	flag.Parse()
@@ -25,13 +28,16 @@ func main() {
 	if *configFileFlag != "" {
 		configFile = *configFileFlag
 	}
-	logFile, err := setupLogging(configFile, retainedLines)
+	logFile, err := setupLogging(configFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer closeWithWarning("log file", logFile)
-	log.SetPrefix(fmt.Sprintf("pid=%d ", os.Getpid()))
-
+	lock, err := acquireLock(defaultLockFilePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer closeWithWarning("lock file", lock)
 	log.Printf("loading config file %s", configFile)
 	cfg, configErr := loadConfig(configFile)
 	if errors.Is(configErr, errUninstallRequested) {
@@ -46,6 +52,9 @@ func main() {
 	}
 	if err := cfg.validate(); err != nil {
 		log.Fatal(fmt.Errorf("invalid configuration: %w", err))
+	}
+	if err := removeOldLogs(logFile.Name(), cfg.Log.RetainedFiles); err != nil {
+		log.Fatal(fmt.Errorf("remove old log files: %w", err))
 	}
 	log.Printf(
 		"kobodeck version %s loaded configuration from %s action=%q interface=%q",
@@ -67,4 +76,17 @@ func main() {
 	if err := application.sync(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// acquireLock acquires an exclusive non-blocking flock on path.
+// Returns an error if another instance is already running.
+func acquireLock(path string) (*os.File, error) {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("open lock file: %w", err)
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		return nil, errors.Join(errors.New("already running"), f.Close())
+	}
+	return f, nil
 }
