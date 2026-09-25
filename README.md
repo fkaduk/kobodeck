@@ -78,7 +78,8 @@ To install or upgrade
 1. safely disconnect the reader - it should restart, install Kobodeck and remove
    `KoboRoot.tgz`
 
-Logs are written to `.adds/kobodeck/kobodeck.log` on the device.
+Logs are written beside the configuration file, with one timestamped file per
+run. The 10 most recent run logs are retained.
 
 ### Output directory and deletion
 
@@ -93,12 +94,11 @@ contains unrelated books.
 
 ## Uninstall
 
-Empty the file `.adds/kobodeck/kobodeck.toml`
-(delete its contents, but keep the file) and connect to Wi-Fi.
+Delete the file `.adds/kobodeck/kobodeck.toml` and connect to Wi-Fi.
 Kobodeck will remove the installed files,
 without deleting downloaded articles,
 and exit.
-If uninstall succeeded, `.adds/kobodeck/` will no longer exist.
+The `.adds/kobodeck/` directory and its contents, including logs, are preserved.
 
 ### Manual uninstall
 
