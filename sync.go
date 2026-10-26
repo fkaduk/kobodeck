@@ -10,6 +10,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// TODO: also explain why this download run is necessary
 type downloadRun struct {
 	group        errgroup.Group
 	download     func(readeckBookmark) (bool, error)
@@ -81,6 +82,7 @@ func (a app) sync() error {
 	return syncErr
 }
 
+// TODO: i always want the following structure in files: 1. variables etc, 2. lower level, helper functions, 3. high level, main function. also instruct on this in AGENTS.md if it doesnt exist already.
 func newDownloadRun(workerLimit, maxDownloads int, download func(readeckBookmark) (bool, error)) *downloadRun {
 	run := &downloadRun{
 		download: download,
