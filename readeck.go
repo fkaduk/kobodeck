@@ -17,10 +17,12 @@ import (
 
 const (
 	maxBookmarkIDLength = 128
-	maxEPUBSize         = 257 << 20
-	maxAPIResponseSize  = 8 << 20
+	// TODO: add comment with human readable values
+	maxEPUBSize        = 257 << 20
+	maxAPIResponseSize = 8 << 20
 )
 
+// TODO: describe what this contains. Is it a struct representation of what the readeck API call for a bookmark returns?
 type readeckBookmark struct {
 	ID           string    `json:"id"`
 	Title        string    `json:"title"`
@@ -49,6 +51,7 @@ func newReadeckClient(httpClient *http.Client, server serverConfig, verbose bool
 	}
 }
 
+// TODO: this already exists as standalone function. how can we deal with this duplication?
 func (client readeckClient) debugf(format string, args ...interface{}) {
 	if client.verbose {
 		log.Printf(format, args...)
@@ -104,6 +107,7 @@ func (client readeckClient) listBookmarks(fetch fetchConfig) ([]readeckBookmark,
 }
 
 // matchesLabelFilter reports whether any of the bookmark's labels match the tag filter.
+// TODO: this is only used in a single place. consider consolidation
 func matchesLabelFilter(tags map[string]bool, labels []string) bool {
 	for _, label := range labels {
 		if tags[strings.ToLower(label)] {
@@ -139,6 +143,7 @@ func filterBookmarksByLabel(entries []readeckBookmark, labels string) ([]readeck
 // Download and conversion temporary files are kept in outputCfg.Path so the
 // completed KEPUB can be installed with an atomic rename.
 func (client readeckClient) downloadBookmarkFile(outputCfg outputConfig, entry readeckBookmark) (bool, error) {
+	// TODO: i think how files should be structured should generally be changed. start with the variables/constants, then the helper functions, then the higher level functions, at the end the last calling function. this will make review easier and should be noted in AGENTS.md
 	if err := validateBookmarkID(entry.ID); err != nil {
 		return false, err
 	}
@@ -150,6 +155,7 @@ func (client readeckClient) downloadBookmarkFile(outputCfg outputConfig, entry r
 		return false, fmt.Errorf("build download URL: %w", err)
 	}
 
+	// TODO: this looks like a function that outputs a bookmarkFilePath, i would like most functions to start with a verb, which makes it more readable, add this instruction to the AGENTS.md. in this case it could be assembleBookmarkFilepath? Check for something better if you find it use that.
 	checkPath, err := bookmarkFilePath(outputCfg.Path, entry.ID, ".kepub.epub")
 	if err != nil {
 		return false, err
@@ -236,6 +242,7 @@ func (client readeckClient) downloadBookmarkFile(outputCfg outputConfig, entry r
 }
 
 // patchBookmark sends a partial update to a bookmark in Readeck.
+// TODO: what is meant by partial, clarify
 func (client readeckClient) patchBookmark(id string, fields map[string]any) error {
 	apiURL, err := client.bookmarkURL(id)
 	if err != nil {
@@ -250,6 +257,7 @@ func (client readeckClient) patchBookmark(id string, fields map[string]any) erro
 }
 
 // getBookmark retrieves the metadata of a single bookmark.
+// TODO: ok what does this do now, getBookmark sounds like it retrieves the bookmark, but here you say it only retrieves the metadata? what is it now?
 func (client readeckClient) getBookmark(id string) (readeckBookmark, error) {
 	apiURL, err := client.bookmarkURL(id)
 	if err != nil {
@@ -268,6 +276,7 @@ func (client readeckClient) getBookmark(id string) (readeckBookmark, error) {
 
 // doAPIRequest sends an authenticated API request and returns the response body.
 // Returns an error if the status code is outside the 2xx range.
+// TODO: shouldnt this be a general, reusable function instead of a method?
 func (client readeckClient) doAPIRequest(method, apiURL string, body io.Reader) ([]byte, error) {
 	req, err := http.NewRequest(method, apiURL, body)
 	if err != nil {
@@ -306,6 +315,7 @@ func (client readeckClient) doAPIRequest(method, apiURL string, body io.Reader) 
 	return data, nil
 }
 
+// TODO: always add descriptions to functions! except for "new" functions that generate some new struct/etc. also instruct on this in AGENTS.md
 func validateBookmarkID(id string) error {
 	if id == "" {
 		return fmt.Errorf("invalid bookmark ID: empty")
@@ -322,6 +332,7 @@ func validateBookmarkID(id string) error {
 	return nil
 }
 
+// TODO: again, missing verb
 func (client readeckClient) bookmarkURL(id string) (string, error) {
 	if err := validateBookmarkID(id); err != nil {
 		return "", err

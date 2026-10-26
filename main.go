@@ -41,6 +41,8 @@ func main() {
 		log.Fatal(err)
 	}
 	defer closeWithWarning("log file", logFile)
+	// TODO: document that opening the log file before acquiring the lock
+	// is a compromise
 	lock, err := acquireLock(defaultLockFilePath)
 	if err != nil {
 		log.Fatal(err)
@@ -49,7 +51,7 @@ func main() {
 	log.Printf("loading config file %s", configFile)
 	cfg, configErr := loadConfig(configFile)
 	if errors.Is(configErr, os.ErrNotExist) && configFile == defaultConfigPath {
-		log.Println("default config not found — uninstalling")
+		log.Println("default config not found - uninstalling")
 		if err := uninstallApplication(os.Args[0]); err != nil {
 			log.Fatal(err)
 		}
@@ -58,6 +60,8 @@ func main() {
 	if configErr != nil {
 		log.Fatal(fmt.Errorf("invalid configuration: %w", configErr))
 	}
+	// TODO: do not use this format as it is hard to read. happy path remains on the left. this means that cfg.validate will go in its own rows. also instruct on this in AGENTS.md
+	// TODO: i think the entire logging isnt set up correctly. what about this log.Fatal? this will never arrive in the logfile? also the log file location is never passed into sync, how will you write the progress there?
 	if err := cfg.validate(); err != nil {
 		log.Fatal(fmt.Errorf("invalid configuration: %w", err))
 	}
