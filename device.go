@@ -44,16 +44,16 @@ func uninstallApplication(binaryPath string) error {
 // via /tmp/nickel-hardware-status.
 func nickelRescan(statusPath string) error {
 	log.Println("triggering Nickel rescan")
-	if err := appendNickelEvent(statusPath, "add"); err != nil {
+	if err := writeUSBEvent(statusPath, "add"); err != nil {
 		return err
 	}
 	time.Sleep(10 * time.Second)
-	return appendNickelEvent(statusPath, "remove")
+	return writeUSBEvent(statusPath, "remove")
 }
 
-// TODO: this isnt descriptive, also not sure why 2 functions are needed. This only needs to appends to udev?
-// appendNickelEvent writes the status-file command Nickel uses to emulate USB events.
-func appendNickelEvent(path, event string) error {
+// writeUSBEvent appends a "usb plug <event>" line to Nickel's hardware status
+// file; the firmware reads it to emulate a USB plug/unplug.
+func writeUSBEvent(path, event string) error {
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0)
 	if err != nil {
 		return fmt.Errorf("%s event: open %s: %w", event, path, err)
