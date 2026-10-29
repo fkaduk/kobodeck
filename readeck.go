@@ -276,7 +276,6 @@ func (client readeckClient) getBookmark(id string) (readeckBookmark, error) {
 
 // doAPIRequest sends an authenticated API request and returns the response body.
 // Returns an error if the status code is outside the 2xx range.
-// TODO: shouldnt this be a general, reusable function instead of a method?
 func (client readeckClient) doAPIRequest(method, apiURL string, body io.Reader) ([]byte, error) {
 	req, err := http.NewRequest(method, apiURL, body)
 	if err != nil {
