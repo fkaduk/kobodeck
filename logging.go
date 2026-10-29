@@ -12,7 +12,8 @@ import (
 
 var logTimestampPattern = regexp.MustCompile(`-[0-9]{8}-[0-9]{6}\.[0-9]{9}-p[0-9]+\.log$`)
 
-// setupLogging creates a new log file for this run beside the resolved config.
+// setupLogging creates a new log file for this run beside the resolved config
+// and sets the global log output to it, so all later log calls write to the file.
 func setupLogging(configFilename string) (*os.File, error) {
 	configBase := filepath.Base(configFilename)
 	configStem := strings.TrimSuffix(configBase, filepath.Ext(configBase))

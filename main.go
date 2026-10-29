@@ -61,7 +61,6 @@ func main() {
 	if configErr != nil {
 		log.Fatal(fmt.Errorf("invalid configuration: %w", configErr))
 	}
-	// TODO: i think the entire logging isnt set up correctly. what about this log.Fatal? this will never arrive in the logfile? also the log file location is never passed into sync, how will you write the progress there?
 	err = cfg.validate()
 	if err != nil {
 		log.Fatal(fmt.Errorf("invalid configuration: %w", err))
@@ -77,6 +76,8 @@ func main() {
 	application := newApp(cfg)
 	// TODO: can we just pass this flag down to sync and adjust this inline ?
 	if *checkFlag {
+		// Route check progress to stdout so it matches the summary runCheck prints.
+		log.SetOutput(os.Stdout)
 		err := application.runCheck(os.Stdout)
 		if err != nil {
 			log.Fatal(fmt.Errorf("check failed: %w", err))
