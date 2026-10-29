@@ -102,7 +102,6 @@ func (client readeckClient) listBookmarks(fetch fetchConfig) ([]readeckBookmark,
 }
 
 // matchesLabelFilter reports whether any of the bookmark's labels match the tag filter.
-// TODO: this is only used in a single place. consider consolidation
 func matchesLabelFilter(tags map[string]bool, labels []string) bool {
 	for _, label := range labels {
 		if tags[strings.ToLower(label)] {
