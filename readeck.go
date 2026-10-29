@@ -53,13 +53,6 @@ func newReadeckClient(httpClient *http.Client, server serverConfig, verbose bool
 	}
 }
 
-// TODO: this already exists as standalone function. how can we deal with this duplication?
-func (client readeckClient) debugf(format string, args ...interface{}) {
-	if client.verbose {
-		log.Printf(format, args...)
-	}
-}
-
 // listBookmarks fetches bookmarks from Readeck, paging through results
 // in batches. Stops early if fetch.Limit is reached.
 func (client readeckClient) listBookmarks(fetch fetchConfig) ([]readeckBookmark, error) {
@@ -164,7 +157,7 @@ func (client readeckClient) downloadBookmarkFile(outputCfg outputConfig, entry r
 	info, err := os.Stat(checkPath)
 	if err == nil && info.Size() > 0 {
 		if err := validateEPUB(checkPath); err == nil {
-			client.debugf("skipping %s: already downloaded", checkPath)
+			debugf(client.verbose, "skipping %s: already downloaded", checkPath)
 			return false, nil
 		} else {
 			log.Printf("warning: existing KEPUB %s is invalid: %v; redownloading", checkPath, err)
@@ -290,7 +283,7 @@ func (client readeckClient) doAPIRequest(method, apiURL string, body io.Reader) 
 	start := time.Now()
 	resp, err := client.httpClient.Do(req)
 	if err != nil {
-		client.debugf("http method=%s path=%s outcome=transport_failure duration=%s",
+		debugf(client.verbose, "http method=%s path=%s outcome=transport_failure duration=%s",
 			method, req.URL.Path, time.Since(start).Truncate(time.Millisecond))
 		return nil, err
 	}
@@ -300,7 +293,7 @@ func (client readeckClient) doAPIRequest(method, apiURL string, body io.Reader) 
 	}
 
 	data, err := io.ReadAll(io.LimitReader(resp.Body, maxAPIResponseSize+1))
-	client.debugf("http method=%s path=%s status=%d bytes=%d duration=%s",
+	debugf(client.verbose, "http method=%s path=%s status=%d bytes=%d duration=%s",
 		method, req.URL.Path, resp.StatusCode, len(data), time.Since(start).Truncate(time.Millisecond))
 	if err != nil {
 		return nil, err
