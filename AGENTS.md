@@ -16,6 +16,7 @@
 
 - Optimize code for a human maintainer with some Go knowledge, favoring clarity and explicit behavior
 - Follow idiomatic Go style including naming and formatting
+- Order file contents top-to-bottom: package-level vars and consts, types, low-level helpers, then higher-level functions, with the main entry point last
 - Use descriptive domain names and conventional short names in small, obvious scopes
 - Name functions for their behavior, prefer verbs for actions, `newX` for constructors, and `buildX` for values assembled from parts (paths, URLs, strings)
 - Keep the main flow left-aligned and extract helpers only for meaningful operations or distinct responsibilities

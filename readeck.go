@@ -53,6 +53,125 @@ func newReadeckClient(httpClient *http.Client, server serverConfig, verbose bool
 	}
 }
 
+// TODO: always add descriptions to functions! except for "new" functions that generate some new struct/etc. also instruct on this in AGENTS.md
+func validateBookmarkID(id string) error {
+	if id == "" {
+		return fmt.Errorf("invalid bookmark ID: empty")
+	}
+	if len(id) > maxBookmarkIDLength {
+		return fmt.Errorf("invalid bookmark ID: exceeds %d bytes", maxBookmarkIDLength)
+	}
+	for _, char := range id {
+		if (char < 'a' || char > 'z') && (char < 'A' || char > 'Z') &&
+			(char < '0' || char > '9') && char != '_' && char != '-' {
+			return fmt.Errorf("invalid bookmark ID %q", id)
+		}
+	}
+	return nil
+}
+
+func buildBookmarkFilePath(outputDir, id, suffix string) (string, error) {
+	if err := validateBookmarkID(id); err != nil {
+		return "", err
+	}
+	root, err := filepath.Abs(outputDir)
+	if err != nil {
+		return "", fmt.Errorf("resolve output directory: %w", err)
+	}
+	path := filepath.Join(root, id+suffix)
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return "", fmt.Errorf("check output path: %w", err)
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("bookmark path escapes output directory")
+	}
+	return path, nil
+}
+
+func (client readeckClient) buildBookmarkURL(id string) (string, error) {
+	if err := validateBookmarkID(id); err != nil {
+		return "", err
+	}
+	apiURL, err := url.JoinPath(client.baseURL, "api", "bookmarks", id)
+	if err != nil {
+		return "", fmt.Errorf("build bookmark URL: %w", err)
+	}
+	return apiURL, nil
+}
+
+// doAPIRequest sends an authenticated API request and returns the response body.
+// Returns an error if the status code is outside the 2xx range.
+func (client readeckClient) doAPIRequest(method, apiURL string, body io.Reader) ([]byte, error) {
+	req, err := http.NewRequest(method, apiURL, body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+client.token)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	req.Header.Set("Accept", "application/json")
+
+	start := time.Now()
+	resp, err := client.httpClient.Do(req)
+	if err != nil {
+		debugf(client.verbose, "http method=%s path=%s outcome=transport_failure duration=%s",
+			method, req.URL.Path, time.Since(start).Truncate(time.Millisecond))
+		return nil, err
+	}
+	defer closeWithWarning("API response body", resp.Body)
+	if resp.ContentLength > maxAPIResponseSize {
+		return nil, fmt.Errorf("API response exceeds %d-byte limit", maxAPIResponseSize)
+	}
+
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxAPIResponseSize+1))
+	debugf(client.verbose, "http method=%s path=%s status=%d bytes=%d duration=%s",
+		method, req.URL.Path, resp.StatusCode, len(data), time.Since(start).Truncate(time.Millisecond))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > maxAPIResponseSize {
+		return nil, fmt.Errorf("API response exceeds %d-byte limit", maxAPIResponseSize)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return data, fmt.Errorf("API %s %s: %s", method, apiURL, resp.Status)
+	}
+	return data, nil
+}
+
+// matchesLabelFilter reports whether any of the bookmark's labels match the tag filter.
+func matchesLabelFilter(tags map[string]bool, labels []string) bool {
+	for _, label := range labels {
+		if tags[strings.ToLower(label)] {
+			return true
+		}
+	}
+	return false
+}
+
+// filterBookmarksByLabel returns the entries selected by a comma-separated
+// label filter and the number excluded by that filter.
+func filterBookmarksByLabel(entries []readeckBookmark, labels string) ([]readeckBookmark, int) {
+	labelFilter := make(map[string]bool)
+	if labels != "" {
+		for _, label := range strings.Split(strings.ToLower(labels), ",") {
+			labelFilter[strings.TrimSpace(label)] = true
+		}
+	}
+
+	matched := make([]readeckBookmark, 0, len(entries))
+	skipped := 0
+	for _, entry := range entries {
+		if len(labelFilter) > 0 && !matchesLabelFilter(labelFilter, entry.Labels) {
+			skipped++
+			continue
+		}
+		matched = append(matched, entry)
+	}
+	return matched, skipped
+}
+
 // listBookmarks fetches bookmarks from Readeck, paging through results
 // in batches. Stops early if fetch.Limit is reached.
 func (client readeckClient) listBookmarks(fetch fetchConfig) ([]readeckBookmark, error) {
@@ -101,43 +220,42 @@ func (client readeckClient) listBookmarks(fetch fetchConfig) ([]readeckBookmark,
 	return all, nil
 }
 
-// matchesLabelFilter reports whether any of the bookmark's labels match the tag filter.
-func matchesLabelFilter(tags map[string]bool, labels []string) bool {
-	for _, label := range labels {
-		if tags[strings.ToLower(label)] {
-			return true
-		}
+// getBookmark retrieves a single bookmark from Readeck by ID.
+func (client readeckClient) getBookmark(id string) (readeckBookmark, error) {
+	apiURL, err := client.buildBookmarkURL(id)
+	if err != nil {
+		return readeckBookmark{}, err
 	}
-	return false
+	data, err := client.doAPIRequest(http.MethodGet, apiURL, nil)
+	if err != nil {
+		return readeckBookmark{}, err
+	}
+	var bookmark readeckBookmark
+	if err := json.Unmarshal(data, &bookmark); err != nil {
+		return readeckBookmark{}, err
+	}
+	return bookmark, nil
 }
 
-// filterBookmarksByLabel returns the entries selected by a comma-separated
-// label filter and the number excluded by that filter.
-func filterBookmarksByLabel(entries []readeckBookmark, labels string) ([]readeckBookmark, int) {
-	labelFilter := make(map[string]bool)
-	if labels != "" {
-		for _, label := range strings.Split(strings.ToLower(labels), ",") {
-			labelFilter[strings.TrimSpace(label)] = true
-		}
+// patchBookmark updates only the provided fields of a bookmark in Readeck
+// (HTTP PATCH); fields not in the map are left unchanged.
+func (client readeckClient) patchBookmark(id string, fields map[string]any) error {
+	apiURL, err := client.buildBookmarkURL(id)
+	if err != nil {
+		return err
 	}
-
-	matched := make([]readeckBookmark, 0, len(entries))
-	skipped := 0
-	for _, entry := range entries {
-		if len(labelFilter) > 0 && !matchesLabelFilter(labelFilter, entry.Labels) {
-			skipped++
-			continue
-		}
-		matched = append(matched, entry)
+	body, err := json.Marshal(fields)
+	if err != nil {
+		return fmt.Errorf("encode bookmark patch: %w", err)
 	}
-	return matched, skipped
+	_, err = client.doAPIRequest(http.MethodPatch, apiURL, bytes.NewBuffer(body))
+	return err
 }
 
 // downloadBookmarkFile fetches and converts the EPUB for a bookmark.
 // Download and conversion temporary files are kept in outputCfg.Path so the
 // completed KEPUB can be installed with an atomic rename.
 func (client readeckClient) downloadBookmarkFile(outputCfg outputConfig, entry readeckBookmark) (bool, error) {
-	// TODO: i think how files should be structured should generally be changed. start with the variables/constants, then the helper functions, then the higher level functions, at the end the last calling function. this will make review easier and should be noted in AGENTS.md
 	if err := validateBookmarkID(entry.ID); err != nil {
 		return false, err
 	}
@@ -232,123 +350,4 @@ func (client readeckClient) downloadBookmarkFile(outputCfg outputConfig, entry r
 	}
 	log.Printf("converted to %s (timestamp %s)", kepubPath, entry.Updated.Format(time.RFC3339))
 	return true, nil
-}
-
-// patchBookmark updates only the provided fields of a bookmark in Readeck
-// (HTTP PATCH); fields not in the map are left unchanged.
-func (client readeckClient) patchBookmark(id string, fields map[string]any) error {
-	apiURL, err := client.buildBookmarkURL(id)
-	if err != nil {
-		return err
-	}
-	body, err := json.Marshal(fields)
-	if err != nil {
-		return fmt.Errorf("encode bookmark patch: %w", err)
-	}
-	_, err = client.doAPIRequest(http.MethodPatch, apiURL, bytes.NewBuffer(body))
-	return err
-}
-
-// getBookmark retrieves a single bookmark from Readeck by ID.
-func (client readeckClient) getBookmark(id string) (readeckBookmark, error) {
-	apiURL, err := client.buildBookmarkURL(id)
-	if err != nil {
-		return readeckBookmark{}, err
-	}
-	data, err := client.doAPIRequest(http.MethodGet, apiURL, nil)
-	if err != nil {
-		return readeckBookmark{}, err
-	}
-	var bookmark readeckBookmark
-	if err := json.Unmarshal(data, &bookmark); err != nil {
-		return readeckBookmark{}, err
-	}
-	return bookmark, nil
-}
-
-// doAPIRequest sends an authenticated API request and returns the response body.
-// Returns an error if the status code is outside the 2xx range.
-func (client readeckClient) doAPIRequest(method, apiURL string, body io.Reader) ([]byte, error) {
-	req, err := http.NewRequest(method, apiURL, body)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+client.token)
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	req.Header.Set("Accept", "application/json")
-
-	start := time.Now()
-	resp, err := client.httpClient.Do(req)
-	if err != nil {
-		debugf(client.verbose, "http method=%s path=%s outcome=transport_failure duration=%s",
-			method, req.URL.Path, time.Since(start).Truncate(time.Millisecond))
-		return nil, err
-	}
-	defer closeWithWarning("API response body", resp.Body)
-	if resp.ContentLength > maxAPIResponseSize {
-		return nil, fmt.Errorf("API response exceeds %d-byte limit", maxAPIResponseSize)
-	}
-
-	data, err := io.ReadAll(io.LimitReader(resp.Body, maxAPIResponseSize+1))
-	debugf(client.verbose, "http method=%s path=%s status=%d bytes=%d duration=%s",
-		method, req.URL.Path, resp.StatusCode, len(data), time.Since(start).Truncate(time.Millisecond))
-	if err != nil {
-		return nil, err
-	}
-	if len(data) > maxAPIResponseSize {
-		return nil, fmt.Errorf("API response exceeds %d-byte limit", maxAPIResponseSize)
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return data, fmt.Errorf("API %s %s: %s", method, apiURL, resp.Status)
-	}
-	return data, nil
-}
-
-// TODO: always add descriptions to functions! except for "new" functions that generate some new struct/etc. also instruct on this in AGENTS.md
-func validateBookmarkID(id string) error {
-	if id == "" {
-		return fmt.Errorf("invalid bookmark ID: empty")
-	}
-	if len(id) > maxBookmarkIDLength {
-		return fmt.Errorf("invalid bookmark ID: exceeds %d bytes", maxBookmarkIDLength)
-	}
-	for _, char := range id {
-		if (char < 'a' || char > 'z') && (char < 'A' || char > 'Z') &&
-			(char < '0' || char > '9') && char != '_' && char != '-' {
-			return fmt.Errorf("invalid bookmark ID %q", id)
-		}
-	}
-	return nil
-}
-
-func (client readeckClient) buildBookmarkURL(id string) (string, error) {
-	if err := validateBookmarkID(id); err != nil {
-		return "", err
-	}
-	apiURL, err := url.JoinPath(client.baseURL, "api", "bookmarks", id)
-	if err != nil {
-		return "", fmt.Errorf("build bookmark URL: %w", err)
-	}
-	return apiURL, nil
-}
-
-func buildBookmarkFilePath(outputDir, id, suffix string) (string, error) {
-	if err := validateBookmarkID(id); err != nil {
-		return "", err
-	}
-	root, err := filepath.Abs(outputDir)
-	if err != nil {
-		return "", fmt.Errorf("resolve output directory: %w", err)
-	}
-	path := filepath.Join(root, id+suffix)
-	rel, err := filepath.Rel(root, path)
-	if err != nil {
-		return "", fmt.Errorf("check output path: %w", err)
-	}
-	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", fmt.Errorf("bookmark path escapes output directory")
-	}
-	return path, nil
 }
