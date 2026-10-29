@@ -245,7 +245,7 @@ func (client readeckClient) downloadBookmarkFile(outputCfg outputConfig, entry r
 // patchBookmark updates only the provided fields of a bookmark in Readeck
 // (HTTP PATCH); fields not in the map are left unchanged.
 func (client readeckClient) patchBookmark(id string, fields map[string]any) error {
-	apiURL, err := client.bookmarkURL(id)
+	apiURL, err := client.buildBookmarkURL(id)
 	if err != nil {
 		return err
 	}
@@ -259,7 +259,7 @@ func (client readeckClient) patchBookmark(id string, fields map[string]any) erro
 
 // getBookmark retrieves a single bookmark from Readeck by ID.
 func (client readeckClient) getBookmark(id string) (readeckBookmark, error) {
-	apiURL, err := client.bookmarkURL(id)
+	apiURL, err := client.buildBookmarkURL(id)
 	if err != nil {
 		return readeckBookmark{}, err
 	}
@@ -332,8 +332,7 @@ func validateBookmarkID(id string) error {
 	return nil
 }
 
-// TODO: again, missing verb
-func (client readeckClient) bookmarkURL(id string) (string, error) {
+func (client readeckClient) buildBookmarkURL(id string) (string, error) {
 	if err := validateBookmarkID(id); err != nil {
 		return "", err
 	}
