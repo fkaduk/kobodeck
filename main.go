@@ -61,12 +61,13 @@ func main() {
 	if configErr != nil {
 		log.Fatal(fmt.Errorf("invalid configuration: %w", configErr))
 	}
-	// TODO: do not use this format as it is hard to read. happy path remains on the left. this means that cfg.validate will go in its own rows. also instruct on this in AGENTS.md
 	// TODO: i think the entire logging isnt set up correctly. what about this log.Fatal? this will never arrive in the logfile? also the log file location is never passed into sync, how will you write the progress there?
-	if err := cfg.validate(); err != nil {
+	err = cfg.validate()
+	if err != nil {
 		log.Fatal(fmt.Errorf("invalid configuration: %w", err))
 	}
-	if err := removeOldLogs(logFile.Name(), cfg.Log.RetainedFiles); err != nil {
+	err = removeOldLogs(logFile.Name(), cfg.Log.RetainedFiles)
+	if err != nil {
 		log.Fatal(fmt.Errorf("remove old log files: %w", err))
 	}
 	log.Printf(
