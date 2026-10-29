@@ -243,8 +243,8 @@ func (client readeckClient) downloadBookmarkFile(outputCfg outputConfig, entry r
 	return true, nil
 }
 
-// patchBookmark sends a partial update to a bookmark in Readeck.
-// TODO: what is meant by partial, clarify
+// patchBookmark updates only the provided fields of a bookmark in Readeck
+// (HTTP PATCH); fields not in the map are left unchanged.
 func (client readeckClient) patchBookmark(id string, fields map[string]any) error {
 	apiURL, err := client.bookmarkURL(id)
 	if err != nil {
