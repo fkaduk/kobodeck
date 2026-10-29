@@ -65,6 +65,7 @@ func removeOldLogs(currentLogPath string, maxFiles int) error {
 	return nil
 }
 
+// debugf logs the formatted message only when verbose is true.
 func debugf(verbose bool, format string, args ...interface{}) {
 	if verbose {
 		log.Printf(format, args...)

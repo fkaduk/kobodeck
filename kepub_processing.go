@@ -23,6 +23,8 @@ func fixCover(path string) error {
 	return fixCoverWithRename(path, os.Rename)
 }
 
+// fixCoverWithRename patches the cover of the EPUB at path, installing the
+// result via renameFile. It is the testable core of fixCover.
 func fixCoverWithRename(path string, renameFile func(oldPath, newPath string) error) error {
 	r, err := zip.OpenReader(path)
 	if err != nil {
@@ -75,6 +77,7 @@ type coverOPFDoc struct {
 	Items []coverManifestItem `xml:"manifest>item"`
 }
 
+// parseCoverManifest decodes the EPUB OPF and returns its manifest items.
 func parseCoverManifest(opf []byte) ([]coverManifestItem, error) {
 	var doc coverOPFDoc
 	if err := xml.Unmarshal(opf, &doc); err != nil {
@@ -83,6 +86,7 @@ func parseCoverManifest(opf []byte) ([]coverManifestItem, error) {
 	return doc.Items, nil
 }
 
+// findFirstContentImage returns the first res-* image (JPEG/PNG) in the manifest.
 func findFirstContentImage(items []coverManifestItem) *coverManifestItem {
 	for i := range items {
 		if !strings.HasPrefix(items[i].ID, "res-") {
@@ -96,6 +100,7 @@ func findFirstContentImage(items []coverManifestItem) *coverManifestItem {
 	return nil
 }
 
+// findIconItem returns the first icon-* item in the manifest, or nil.
 func findIconItem(items []coverManifestItem) *coverManifestItem {
 	for i := range items {
 		if strings.HasPrefix(items[i].ID, "icon-") {
@@ -116,6 +121,8 @@ func addCoverToOPF(opf []byte, coverID string) []byte {
 	return []byte(s)
 }
 
+// writeCoverEPUB writes a new EPUB to dst from r, replacing only the OPF with
+// patchedOPF and copying all other entries.
 func writeCoverEPUB(r *zip.ReadCloser, dst, opfPath string, patchedOPF []byte) (returnErr error) {
 	f, err := os.Create(dst)
 	if err != nil {
@@ -152,6 +159,7 @@ func writeCoverEPUB(r *zip.ReadCloser, dst, opfPath string, patchedOPF []byte) (
 	return w.Close()
 }
 
+// readCoverZipEntry returns the contents of the named entry in the EPUB.
 func readCoverZipEntry(r *zip.ReadCloser, name string) ([]byte, error) {
 	for _, f := range r.File {
 		if f.Name != name {
@@ -167,6 +175,8 @@ func readCoverZipEntry(r *zip.ReadCloser, name string) ([]byte, error) {
 	return nil, fmt.Errorf("%s: not found in zip", name)
 }
 
+// writeCoverZipBytes writes a single named entry to the EPUB writer using the
+// given compression method.
 func writeCoverZipBytes(w *zip.Writer, name string, data []byte, method uint16) error {
 	h := &zip.FileHeader{Name: name, Method: method}
 	ew, err := w.CreateHeader(h)
@@ -177,6 +187,7 @@ func writeCoverZipBytes(w *zip.Writer, name string, data []byte, method uint16) 
 	return err
 }
 
+// copyCoverZipEntry copies an existing EPUB entry into the writer unchanged.
 func copyCoverZipEntry(w *zip.Writer, src *zip.File) error {
 	ew, err := w.CreateHeader(&src.FileHeader)
 	if err != nil {
@@ -268,6 +279,7 @@ func validateEPUB(path string) error {
 	return fmt.Errorf("mimetype entry not found")
 }
 
+// syncDirectory syncs the directory at path to stable storage.
 func syncDirectory(path string) error {
 	dir, err := os.Open(path)
 	if err != nil {

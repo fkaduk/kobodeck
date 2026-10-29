@@ -53,7 +53,8 @@ func newReadeckClient(httpClient *http.Client, server serverConfig, verbose bool
 	}
 }
 
-// TODO: always add descriptions to functions! except for "new" functions that generate some new struct/etc. also instruct on this in AGENTS.md
+// validateBookmarkID checks that id is a non-empty bookmark ID using only
+// [A-Za-z0-9_-] within the length limit.
 func validateBookmarkID(id string) error {
 	if id == "" {
 		return fmt.Errorf("invalid bookmark ID: empty")
@@ -70,6 +71,8 @@ func validateBookmarkID(id string) error {
 	return nil
 }
 
+// buildBookmarkFilePath returns the path to a bookmark file (id+suffix)
+// inside outputDir, rejecting IDs that would escape the directory.
 func buildBookmarkFilePath(outputDir, id, suffix string) (string, error) {
 	if err := validateBookmarkID(id); err != nil {
 		return "", err
@@ -89,6 +92,7 @@ func buildBookmarkFilePath(outputDir, id, suffix string) (string, error) {
 	return path, nil
 }
 
+// buildBookmarkURL returns the Readeck API URL for the bookmark with the given ID.
 func (client readeckClient) buildBookmarkURL(id string) (string, error) {
 	if err := validateBookmarkID(id); err != nil {
 		return "", err
