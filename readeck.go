@@ -17,9 +17,10 @@ import (
 
 const (
 	maxBookmarkIDLength = 128
-	// TODO: add comment with human readable values
-	maxEPUBSize        = 257 << 20
-	maxAPIResponseSize = 8 << 20
+	mib                 = 1 << 20
+
+	maxEPUBSize        = 257 * mib
+	maxAPIResponseSize = 8 * mib
 )
 
 // TODO: describe what this contains. Is it a struct representation of what the readeck API call for a bookmark returns?
