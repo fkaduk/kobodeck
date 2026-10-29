@@ -41,8 +41,9 @@ func main() {
 		log.Fatal(err)
 	}
 	defer closeWithWarning("log file", logFile)
-	// TODO: document that opening the log file before acquiring the lock
-	// is a compromise
+	// The log file is opened before the lock so the lock outcome (including
+	// "already running") is captured in the per-run file; the tradeoff is that
+	// an instance losing the lock still creates a near-empty log file.
 	lock, err := acquireLock(defaultLockFilePath)
 	if err != nil {
 		log.Fatal(err)
