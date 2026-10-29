@@ -22,6 +22,10 @@ const (
 
 const nickelContentTypeBook = 6
 
+// nickelDatabase is a read-only handle to the Nickel library. Each method
+// opens a fresh read-only connection and delegates to a pure query function
+// (nickelReadStatus or nickelIsInCollection); those are kept separate from the
+// connection so they can be unit-tested against a fixture *sql.DB.
 type nickelDatabase struct {
 	path    string
 	verbose bool
@@ -49,7 +53,6 @@ func (db nickelDatabase) isInCollection(id, outputDir, collection string) (_ boo
 	return nickelIsInCollection(conn, id, outputDir, collection)
 }
 
-// TODO: not sure why the following functions arent also methods on the db struct ?
 // nickelIsInCollection reports whether a book is in the named Kobo collection.
 func nickelIsInCollection(db *sql.DB, id, outputDir, collection string) (bool, error) {
 	contentID := nickelContentID(outputDir, id)
