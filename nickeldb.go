@@ -31,6 +31,8 @@ type nickelDatabase struct {
 	verbose bool
 }
 
+// readStatus returns the Nickel reading status for the book with the given ID,
+// opening a fresh read-only connection.
 func (db nickelDatabase) readStatus(id, outputDir string) (_ bookStatus, returnErr error) {
 	conn, err := sql.Open("sqlite", "file:"+db.path+"?mode=ro")
 	if err != nil {
@@ -42,6 +44,8 @@ func (db nickelDatabase) readStatus(id, outputDir string) (_ bookStatus, returnE
 	return nickelReadStatus(conn, id, outputDir, db.verbose)
 }
 
+// isInCollection reports whether the book with the given ID is in the named
+// Kobo collection, opening a fresh read-only connection.
 func (db nickelDatabase) isInCollection(id, outputDir, collection string) (_ bool, returnErr error) {
 	conn, err := sql.Open("sqlite", "file:"+db.path+"?mode=ro")
 	if err != nil {
@@ -97,6 +101,7 @@ func nickelReadStatus(db *sql.DB, id, outputDir string, verbose bool) (bookStatu
 	return bookReading, nil
 }
 
+// nickelContentID returns the file:// URI Nickel uses to identify a book on disk.
 func nickelContentID(outputDir, id string) string {
 	return fmt.Sprintf("file://%s/%s.kepub.epub", outputDir, id)
 }

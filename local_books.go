@@ -29,6 +29,7 @@ type readeckUpdateResult struct {
 	archivedInReadeck bool
 }
 
+// listLocalBooks returns the local .kepub.epub books in outputDir, keyed by file stem.
 func listLocalBooks(outputDir string) ([]localBook, error) {
 	files, err := filepath.Glob(strings.TrimSuffix(outputDir, "/") + "/*.kepub.epub")
 	if err != nil {
@@ -85,6 +86,8 @@ func syncLocalBooks(
 	return filesChanged, syncErr
 }
 
+// updateReadeckFromKobo pushes Kobo reading state to Readeck: marks a finished
+// book as read (and archives it if configured) and syncs favourite state.
 func updateReadeckFromKobo(
 	readeck bookmarkStore,
 	nickel nickelLibrary,
@@ -171,6 +174,8 @@ func updateReadeckFromKobo(
 	return result, updateErr
 }
 
+// removeStaleLocalBook deletes a local book that is no longer kept, but never
+// one that is currently being read.
 func removeStaleLocalBook(book localBook, keepLocal, allowDelete bool, status bookStatus) (bool, error) {
 	if !allowDelete || keepLocal {
 		return false, nil

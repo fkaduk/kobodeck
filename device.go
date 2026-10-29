@@ -20,6 +20,8 @@ var installFiles = []string{
 	"/usr/local/bin/kobodeck",
 }
 
+// uninstallApplication removes the installed kobodeck files, after confirming
+// the running binary lives under /usr/local.
 func uninstallApplication(binaryPath string) error {
 	if !strings.HasPrefix(binaryPath, "/usr/local") {
 		return fmt.Errorf("unexpected command path, aborting uninstall: %s", binaryPath)

@@ -57,6 +57,8 @@ func (run *downloadRun) finish() (bool, error) {
 	return run.filesChanged.Load(), errors.Join(errors.Join(failures...), waitErr)
 }
 
+// sync runs one full sync: fetches bookmarks, downloads new books, updates
+// Readeck from local reading state, and triggers a Nickel rescan if changed.
 func (a app) sync() error {
 	log.Println("connecting to", a.cfg.Server.URL)
 	time.Sleep(5 * time.Second)
