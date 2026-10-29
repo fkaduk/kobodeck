@@ -157,8 +157,7 @@ func (client readeckClient) downloadBookmarkFile(outputCfg outputConfig, entry r
 		return false, fmt.Errorf("build download URL: %w", err)
 	}
 
-	// TODO: this looks like a function that outputs a bookmarkFilePath, i would like most functions to start with a verb, which makes it more readable, add this instruction to the AGENTS.md. in this case it could be assembleBookmarkFilepath? Check for something better if you find it use that.
-	checkPath, err := bookmarkFilePath(outputCfg.Path, entry.ID, ".kepub.epub")
+	checkPath, err := buildBookmarkFilePath(outputCfg.Path, entry.ID, ".kepub.epub")
 	if err != nil {
 		return false, err
 	}
@@ -345,7 +344,7 @@ func (client readeckClient) bookmarkURL(id string) (string, error) {
 	return apiURL, nil
 }
 
-func bookmarkFilePath(outputDir, id, suffix string) (string, error) {
+func buildBookmarkFilePath(outputDir, id, suffix string) (string, error) {
 	if err := validateBookmarkID(id); err != nil {
 		return "", err
 	}
