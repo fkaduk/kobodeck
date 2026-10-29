@@ -21,6 +21,7 @@
 - Name functions for their behavior, prefer verbs for actions, `newX` for constructors, and `buildX` for values assembled from parts (paths, URLs, strings)
 - Document every function with a doc comment except `newX` constructors and `main`
 - Keep the main flow left-aligned and extract helpers only for meaningful operations or distinct responsibilities
+- Write the happy path on the left: put each call on its own row before checking its error instead of embedding the call in the if condition
 - Define interfaces at the consumer only for a concrete substitution or testing need
 - Keep call sites self-explanatory, especially for booleans and adjacent values of the same type
 - Prefer the standard library and existing dependencies and justify additions
