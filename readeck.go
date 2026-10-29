@@ -23,7 +23,8 @@ const (
 	maxAPIResponseSize = 8 * mib
 )
 
-// TODO: describe what this contains. Is it a struct representation of what the readeck API call for a bookmark returns?
+// readeckBookmark is the Readeck API representation of a bookmark, as returned
+// by the list and single-bookmark endpoints.
 type readeckBookmark struct {
 	ID           string    `json:"id"`
 	Title        string    `json:"title"`
