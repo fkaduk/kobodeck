@@ -258,8 +258,7 @@ func (client readeckClient) patchBookmark(id string, fields map[string]any) erro
 	return err
 }
 
-// getBookmark retrieves the metadata of a single bookmark.
-// TODO: ok what does this do now, getBookmark sounds like it retrieves the bookmark, but here you say it only retrieves the metadata? what is it now?
+// getBookmark retrieves a single bookmark from Readeck by ID.
 func (client readeckClient) getBookmark(id string) (readeckBookmark, error) {
 	apiURL, err := client.bookmarkURL(id)
 	if err != nil {
