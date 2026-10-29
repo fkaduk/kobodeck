@@ -10,7 +10,10 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// TODO: also explain why this download run is necessary
+// downloadRun runs bookmark downloads with bounded concurrency. It wraps an
+// errgroup so every download completes even when some fail: errors are
+// collected on a channel and joined at the end instead of stopping the group,
+// and filesChanged records whether any file changed so the caller knows to rescan.
 type downloadRun struct {
 	group        errgroup.Group
 	download     func(readeckBookmark) (bool, error)
