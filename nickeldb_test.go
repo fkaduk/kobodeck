@@ -53,6 +53,24 @@ func TestNickelReadStatusMissingBookIsUnread(t *testing.T) {
 	}
 }
 
+func TestNickelReadStatusUnknownStateAssumesReading(t *testing.T) {
+	// Given
+	db := openNickelSchemaFixture(t)
+	outputDir := t.TempDir()
+	// The schema has no CHECK on ReadStatus, so an out-of-range value a new
+	// Nickel firmware might write is representable here.
+	insertNickelContent(t, db, outputDir, "unknown-state", bookStatus(99))
+	// When
+	got, err := nickelReadStatus(db, "unknown-state", outputDir, false)
+	// Then
+	if err != nil {
+		t.Fatalf("nickelReadStatus: %v", err)
+	}
+	if got != bookReading {
+		t.Fatalf("nickelReadStatus = %d, want %d (assume reading for unknown state)", got, bookReading)
+	}
+}
+
 func TestNickelIsInCollectionUsesSchemaFixture(t *testing.T) {
 	// Given
 	db := openNickelSchemaFixture(t)
