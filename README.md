@@ -87,7 +87,8 @@ run. Older runs are pruned to keep the most recent `Log.RetainedFiles`
 
 ### Output directory and deletion
 
-`Output.Path` must be a directory dedicated to Kobodeck downloads. Kobodeck
+`Output.Path` is required in the config (there is no default) and must be a
+directory dedicated to Kobodeck downloads. Kobodeck
 treats every top-level `*.kepub.epub` in that directory as a Readeck article,
 using the filename without `.kepub.epub` as the bookmark ID.
 
