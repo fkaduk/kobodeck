@@ -158,6 +158,44 @@ func TestToKepubFailurePreservesExistingBook(t *testing.T) {
 	}
 }
 
+func TestToKepubRenameFailurePreservesExistingBookAndSource(t *testing.T) {
+	// Given
+	outputDir := t.TempDir()
+	source := filepath.Join(outputDir, "article.epub")
+	final := filepath.Join(outputDir, "article.kepub.epub")
+	writeTestEPUB(t, source)
+	original := writeTestEPUB(t, final)
+	renameErr := errors.New("rename failed")
+	// When
+	_, convertErr := toKepubWithRename(source, final, func(oldPath, newPath string) error {
+		if newPath != final {
+			t.Errorf("rename target = %q, want %q", newPath, final)
+		}
+		return renameErr
+	})
+	// Then
+	if !errors.Is(convertErr, renameErr) {
+		t.Fatalf("toKepubWithRename error = %v, want rename error", convertErr)
+	}
+	got, err := os.ReadFile(final)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, original) {
+		t.Fatal("existing KEPUB was changed after failed rename")
+	}
+	if _, err := os.Stat(source); err != nil {
+		t.Fatalf("source EPUB was not preserved: %v", err)
+	}
+	tmpFiles, err := filepath.Glob(filepath.Join(outputDir, ".article.kepub.epub.tmp-*"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tmpFiles) != 0 {
+		t.Fatalf("conversion temporary files remain: %v", tmpFiles)
+	}
+}
+
 func TestFixCoverAddsEPUB2AndEPUB3Metadata(t *testing.T) {
 	// Given
 	path := filepath.Join(t.TempDir(), "article.epub")

@@ -205,6 +205,12 @@ func copyCoverZipEntry(w *zip.Writer, src *zip.File) error {
 // written and validated in a temporary file before it is atomically renamed
 // into place. The original is removed after a successful conversion.
 func toKepub(epubPath, kepubPath string) (string, error) {
+	return toKepubWithRename(epubPath, kepubPath, os.Rename)
+}
+
+// toKepubWithRename converts the EPUB at epubPath to kepubPath, installing the
+// converted file via renameFile. It is the testable core of toKepub.
+func toKepubWithRename(epubPath, kepubPath string, renameFile func(oldPath, newPath string) error) (string, error) {
 	r, err := zip.OpenReader(epubPath)
 	if err != nil {
 		return "", err
@@ -236,7 +242,7 @@ func toKepub(epubPath, kepubPath string) (string, error) {
 		removeWithWarning(epubPath)
 		return "", fmt.Errorf("validate converted KEPUB: %w", err)
 	}
-	if err := os.Rename(tmpPath, kepubPath); err != nil {
+	if err := renameFile(tmpPath, kepubPath); err != nil {
 		return "", err
 	}
 	if err := syncDirectory(filepath.Dir(kepubPath)); err != nil {
