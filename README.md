@@ -43,6 +43,9 @@ Readeck articles matching the configured filters as KEPUBs.
 
 It then triggers a Nickel library rescan via a simulated USB event.
 
+Only one Kobodeck instance runs at a time; a second start (such as two network
+events in quick succession) exits immediately without syncing.
+
 Press **Connect** to rescan immediately, or **Cancel** -
 the files are already downloaded either way.
 
@@ -164,7 +167,8 @@ image or the favicon as the cover.
 
 Kobodeck downloads the source EPUB to a temporary file in `Output.Path`. It
 converts into another same-directory temporary file, syncs and validates that
-KEPUB, then atomically renames it into place. A failed or interrupted conversion
+KEPUB, then atomically renames it into place. The installed KEPUB is timestamped
+with the article's Readeck update time. A failed or interrupted conversion
 therefore does not replace an existing KEPUB, and an invalid installed KEPUB is
 redownloaded instead of being treated as complete. The temporary source EPUB is
 removed after both successful and failed conversions, so it is not retained for
