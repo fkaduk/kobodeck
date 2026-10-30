@@ -82,7 +82,8 @@ To install or upgrade
    `KoboRoot.tgz`
 
 Logs are written beside the configuration file, with one timestamped file per
-run. The 10 most recent run logs are retained.
+run. Older runs are pruned to keep the most recent `Log.RetainedFiles`
+(1-100, required in the config).
 
 ### Output directory and deletion
 
