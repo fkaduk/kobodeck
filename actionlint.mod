@@ -1,6 +1,6 @@
 module github.com/fkaduk/kobodeck/actionlint
 
-go 1.26.0
+go 1.27.3
 
 tool github.com/rhysd/actionlint/cmd/actionlint
 
