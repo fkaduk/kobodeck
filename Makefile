@@ -88,8 +88,8 @@ lint:
 		--env NPM_CONFIG_UPDATE_NOTIFIER=false \
 		--volume "$(CURDIR):/workspace:ro" \
 		--workdir /workspace \
-		node:22-alpine \
-		npx --yes markdownlint-cli@0.49.1 README.md
+		node:26-alpine \
+		npx --yes markdownlint-cli@0.50.0 README.md
 	docker run --rm \
 		--volume "$(CURDIR):/workspace:ro" \
 		--workdir /workspace \
@@ -102,7 +102,7 @@ fmt:
 		--user "$$(id -u):$$(id -g)" \
 		--volume "$(CURDIR):/workspace" \
 		--workdir /workspace \
-		mvdan/shfmt:v3.13.1 \
+		mvdan/shfmt:v3.14.1 \
 		-w vm_test.sh vm_test_guest.sh
 
 fmt-check:
@@ -110,7 +110,7 @@ fmt-check:
 	docker run --rm \
 		--volume "$(CURDIR):/workspace:ro" \
 		--workdir /workspace \
-		mvdan/shfmt:v3.13.1 \
+		mvdan/shfmt:v3.14.1 \
 		-d vm_test.sh vm_test_guest.sh
 
 mod-check:
