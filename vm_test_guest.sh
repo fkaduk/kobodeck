@@ -6,20 +6,37 @@ set -u
 # so it runs as PID 1 in a minimal initramfs.
 
 busybox=/bin/busybox
-log=/mnt/onboard/.adds/kobodeck/kobodeck.log
+log_pattern='/mnt/onboard/.adds/kobodeck/kobodeck-*.log'
 nickel_status=/tmp/nickel-hardware-status
 binary=/usr/local/bin/kobodeck
 rule=/etc/udev/rules.d/90-kobodeck.rules
 coverage_dir=
 coverage_counter_count=0
 
+logs_exist() {
+	for log in $log_pattern; do
+		[ -f "$log" ] && return 0
+	done
+	return 1
+}
+
+logs_contain() {
+	pattern=$1
+	for log in $log_pattern; do
+		[ -f "$log" ] || continue
+		grep -q "$pattern" "$log" && return 0
+	done
+	return 1
+}
+
 fail() {
 	echo "KOBODECK_VM_ERROR: $*"
-	if [ -f "$log" ]; then
+	for log in $log_pattern; do
+		[ -f "$log" ] || continue
 		echo "KOBODECK_VM_LOG_BEGIN"
 		cat "$log"
 		echo "KOBODECK_VM_LOG_END"
-	fi
+	done
 	poweroff -f
 	while :; do
 		sleep 3600
@@ -106,14 +123,18 @@ start_udev() {
 	ip link set wlan0 up || fail "enable wlan0"
 	mkdir -p /run/udev
 	udevd --daemon || fail "start udev"
-	[ ! -e "$log" ] || fail "Kobodeck ran before a Wi-Fi event"
+	if logs_exist; then
+		fail "Kobodeck ran before a Wi-Fi event"
+	fi
 }
 
 verify_remove_event() {
 	echo "KOBODECK_VM: verifying remove event is ignored"
 	udevadm trigger --action=remove /sys/class/net/wlan0 || fail "trigger remove event"
 	sleep 1
-	[ ! -e "$log" ] || fail "remove event unexpectedly ran Kobodeck"
+	if logs_exist; then
+		fail "remove event unexpectedly ran Kobodeck"
+	fi
 }
 
 verify_synchronization() {
@@ -122,7 +143,7 @@ verify_synchronization() {
 
 	echo "KOBODECK_VM: waiting for Kobodeck to complete"
 	waited=0
-	while ! grep -q ' completed in ' "$log" 2>/dev/null; do
+	while ! logs_contain ' completed in '; do
 		waited=$((waited + 1))
 		[ "$waited" -lt 60 ] || fail "Kobodeck did not complete"
 		sleep 1
@@ -149,10 +170,10 @@ verify_synchronization() {
 
 verify_uninstall() {
 	echo "KOBODECK_VM: triggering and verifying uninstall through udev"
-	: >/mnt/onboard/.adds/kobodeck/kobodeck.toml
+	rm /mnt/onboard/.adds/kobodeck/kobodeck.toml || fail "remove Kobodeck configuration"
 	udevadm trigger --action=add /sys/class/net/wlan0 || fail "trigger uninstall event"
 	waited=0
-	while [ -e "$binary" ] || [ -e "$rule" ] || [ -e /mnt/onboard/.adds/kobodeck ]; do
+	while [ -e "$binary" ] || [ -e "$rule" ]; do
 		waited=$((waited + 1))
 		[ "$waited" -lt 30 ] || fail "Kobodeck did not uninstall"
 		sleep 1

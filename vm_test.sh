@@ -206,7 +206,7 @@ FavouriteCollection = "VM Favourites"
 
 [Log]
 Verbose = false
-Size = 1
+RetainedFiles = 1
 
 [Output]
 Path = "/mnt/onboard/kobodeck"
