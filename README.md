@@ -72,7 +72,9 @@ To install or upgrade
 1. save the file in the `.kobo` directory of your e-reader
 1. copy and edit the configuration file [`kobodeck.toml`](kobodeck.toml)
 1. store it as `.adds/kobodeck/kobodeck.toml` on your Kobo device
-1. optionally verify your configuration with
+1. optionally verify your configuration. `--check` connects to your live
+   Readeck instance and lists the bookmarks that would be synced without
+   downloading anything:
    `kobodeck --config .adds/kobodeck/kobodeck.toml --check`
    via the binary provided in the tarball
 1. safely disconnect the reader - it should restart, install Kobodeck and remove
