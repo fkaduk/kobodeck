@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -158,5 +159,60 @@ func TestDownloadRunPreservesAllBookmarkFailures(t *testing.T) {
 	}
 	if !filesChanged {
 		t.Fatal("successful download was not reported as a filesystem change")
+	}
+}
+
+// waitForAtLeast polls until counter reaches at least want, failing after a
+// short deadline so a stuck test surfaces as a failure instead of a hang.
+func waitForAtLeast(t *testing.T, counter *atomic.Int32, want int32) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for counter.Load() < want {
+		if time.Now().After(deadline) {
+			t.Fatalf("counter did not reach %d", want)
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
+// TestDownloadRunBoundsConcurrency verifies the worker limit: with more queued
+// downloads than workers, at most workerLimit run at once.
+func TestDownloadRunBoundsConcurrency(t *testing.T) {
+	const workerLimit = 2
+	const numDownloads = 5
+	// Given
+	var active, maxActive, completed atomic.Int32
+	release := make(chan struct{})
+	run := newDownloadRun(workerLimit, numDownloads, func(readeckBookmark) (bool, error) {
+		current := active.Add(1)
+		for {
+			previous := maxActive.Load()
+			if current <= previous || maxActive.CompareAndSwap(previous, current) {
+				break
+			}
+		}
+		<-release
+		active.Add(-1)
+		completed.Add(1)
+		return false, nil
+	})
+	// group.Go blocks its caller once the worker limit is reached, so the
+	// blocking schedule loop runs in its own goroutine (mirroring how sync
+	// schedules on the main goroutine); the blocked schedules form the queue.
+	go func() {
+		for i := 0; i < numDownloads; i++ {
+			run.schedule(readeckBookmark{ID: strconv.Itoa(i)})
+		}
+	}()
+	// When
+	waitForAtLeast(t, &maxActive, workerLimit)
+	// Then: exactly workerLimit were in flight while the rest waited for a slot.
+	if got := maxActive.Load(); got != workerLimit {
+		t.Fatalf("max concurrent downloads = %d, want %d", got, workerLimit)
+	}
+	close(release)
+	waitForAtLeast(t, &completed, numDownloads)
+	if got := maxActive.Load(); got > workerLimit {
+		t.Fatalf("max concurrent downloads = %d, want <= %d", got, workerLimit)
 	}
 }
