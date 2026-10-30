@@ -74,22 +74,11 @@ func main() {
 		buildVersion, configFile, os.Getenv("ACTION"), os.Getenv("INTERFACE"))
 
 	application := newApp(cfg)
-	// TODO: can we just pass this flag down to sync and adjust this inline ?
-	if *checkFlag {
-		// Route check progress to stdout so it matches the summary runCheck prints.
-		log.SetOutput(os.Stdout)
-		err := application.runCheck(os.Stdout)
-		if err != nil {
-			log.Fatal(fmt.Errorf("check failed: %w", err))
-		}
-		return
-	}
-
 	start := time.Now()
 	defer func() {
 		log.Printf("completed in %s", time.Since(start).Truncate(time.Millisecond))
 	}()
-	err = application.sync()
+	err = application.sync(*checkFlag)
 	if err != nil {
 		log.Fatal(err)
 	}

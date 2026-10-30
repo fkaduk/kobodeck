@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"sync/atomic"
 	"time"
 
@@ -57,9 +58,14 @@ func (run *downloadRun) finish() (bool, error) {
 	return run.filesChanged.Load(), errors.Join(errors.Join(failures...), waitErr)
 }
 
-// sync runs one full sync: fetches bookmarks, downloads new books, updates
-// Readeck from local reading state, and triggers a Nickel rescan if changed.
-func (a app) sync() error {
+// sync runs a full sync (fetch, download, update Readeck, rescan); with check
+// it prints a dry-run summary instead of downloading.
+func (a app) sync(check bool) error {
+	if check {
+		// Route check progress to stdout so it matches the summary runCheck prints.
+		log.SetOutput(os.Stdout)
+		return a.runCheck(os.Stdout)
+	}
 	log.Println("connecting to", a.cfg.Server.URL)
 	time.Sleep(5 * time.Second)
 	entries, err := a.readeck.listBookmarks(a.cfg.Fetch)
