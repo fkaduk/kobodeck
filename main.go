@@ -29,6 +29,32 @@ type app struct {
 	nickelStatusPath string
 }
 
+// acquireLock acquires an exclusive non-blocking flock on path.
+// Returns an error if another instance is already running.
+func acquireLock(path string) (*os.File, error) {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("open lock file: %w", err)
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		return nil, errors.Join(errors.New("already running"), f.Close())
+	}
+	return f, nil
+}
+
+func newApp(cfg appConfig) app {
+	client := &http.Client{
+		Timeout: time.Duration(cfg.Server.Timeout) * time.Second,
+	}
+	readeck := newReadeckClient(client, cfg.Server, cfg.Log.Verbose)
+	return app{
+		cfg:              cfg,
+		readeck:          readeck,
+		nickel:           nickelDatabase{path: defaultNickelDBPath, verbose: cfg.Log.Verbose},
+		nickelStatusPath: defaultNickelStatusPath,
+	}
+}
+
 func main() {
 	flag.Parse()
 
@@ -82,30 +108,4 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-func newApp(cfg appConfig) app {
-	client := &http.Client{
-		Timeout: time.Duration(cfg.Server.Timeout) * time.Second,
-	}
-	readeck := newReadeckClient(client, cfg.Server, cfg.Log.Verbose)
-	return app{
-		cfg:              cfg,
-		readeck:          readeck,
-		nickel:           nickelDatabase{path: defaultNickelDBPath, verbose: cfg.Log.Verbose},
-		nickelStatusPath: defaultNickelStatusPath,
-	}
-}
-
-// acquireLock acquires an exclusive non-blocking flock on path.
-// Returns an error if another instance is already running.
-func acquireLock(path string) (*os.File, error) {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o600)
-	if err != nil {
-		return nil, fmt.Errorf("open lock file: %w", err)
-	}
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		return nil, errors.Join(errors.New("already running"), f.Close())
-	}
-	return f, nil
 }
