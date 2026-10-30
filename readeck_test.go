@@ -105,11 +105,13 @@ func TestGetBookmarkError(t *testing.T) {
 func TestPatchBookmark(t *testing.T) {
 	// Given
 	var gotPath, gotMethod, gotAuth, gotBody string
+	var readErr error
 	simulatedReadeckServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
 		gotMethod = r.Method
 		gotAuth = r.Header.Get("Authorization")
-		body, _ := io.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
+		readErr = err
 		gotBody = string(body)
 		w.WriteHeader(http.StatusNoContent)
 	}))
@@ -120,6 +122,9 @@ func TestPatchBookmark(t *testing.T) {
 	// Then
 	if err != nil {
 		t.Fatalf("patchBookmark: %v", err)
+	}
+	if readErr != nil {
+		t.Fatalf("read request body: %v", readErr)
 	}
 	if gotMethod != http.MethodPatch || gotPath != "/api/bookmarks/"+nativeTestBookmarkID {
 		t.Fatalf("request %s %s, want PATCH /api/bookmarks/%s", gotMethod, gotPath, nativeTestBookmarkID)
