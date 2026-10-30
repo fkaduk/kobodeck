@@ -38,8 +38,8 @@ This plugin could be useful for you if you
 
 ## How to use it
 
-When Wi-Fi is enabled, Kobodeck downloads Readeck articles
-matching the configured filters as KEPUBs.
+When a network interface (Wi-Fi or Ethernet) connects, Kobodeck downloads
+Readeck articles matching the configured filters as KEPUBs.
 
 It then triggers a Nickel library rescan via a simulated USB event.
 
@@ -99,7 +99,7 @@ contains unrelated books.
 
 ## Uninstall
 
-Delete the file `.adds/kobodeck/kobodeck.toml` and connect to Wi-Fi.
+Delete the file `.adds/kobodeck/kobodeck.toml` and connect to Wi-Fi or Ethernet.
 Kobodeck will remove the installed files,
 without deleting downloaded articles,
 and exit.
