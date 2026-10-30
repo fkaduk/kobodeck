@@ -131,21 +131,25 @@ func updateReadeckFromKobo(
 		}
 	}
 	if status == bookRead && bookmarkKnown {
+		result.archivedInReadeck = bookmark.IsArchived
 		fields := make(map[string]any)
-		action := "read"
+		var actions []string
 		if bookmark.ReadProgress != 100 {
 			fields["read_progress"] = 100
+			actions = append(actions, "read")
 		}
-		if cfg.Sync.Archive {
+		archiveRequested := cfg.Sync.Archive && !bookmark.IsArchived
+		if archiveRequested {
 			fields["is_archived"] = true
-			action += " and archived"
+			actions = append(actions, "archived")
 		}
 		if len(fields) > 0 {
+			action := strings.Join(actions, " and ")
 			log.Printf("marking entry %s as %s", book.id, action)
 			if err := readeck.patchBookmark(book.id, fields); err != nil {
 				log.Printf("failed to mark entry %s as %s: %v", book.id, action, err)
-				updateErr = errors.Join(updateErr, fmt.Errorf("mark read: %w", err))
-			} else if cfg.Sync.Archive {
+				updateErr = errors.Join(updateErr, fmt.Errorf("mark %s: %w", action, err))
+			} else if archiveRequested {
 				result.archivedInReadeck = true
 			}
 		}
