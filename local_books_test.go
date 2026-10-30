@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -139,6 +140,13 @@ func requireAPICalls(t *testing.T, got localBookSyncResult, patches, gets int) {
 	}
 }
 
+func requirePatchFields(t *testing.T, got, want map[string]any) {
+	t.Helper()
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("PATCH fields = %v, want %v", got, want)
+	}
+}
+
 func requireLocalFile(t *testing.T, got localBookSyncResult, wantFile bool) {
 	t.Helper()
 	if wantFile && got.removed {
@@ -195,6 +203,7 @@ func TestUpdateReadeckMarksFinishedBookmarkReadArchivedAndFavourited(t *testing.
 	// Then
 	requireReadeckState(t, got.state, 100, true, true)
 	requireAPICalls(t, got, 2, 0)
+	requirePatchFields(t, localBooks.readeck.patches[0], map[string]any{"is_archived": true, "read_progress": 100})
 	requireLocalFile(t, got, true)
 }
 
@@ -209,6 +218,67 @@ func TestUpdateReadeckMarksFinishedBookmarkReadWithoutArchiving(t *testing.T) {
 	requireReadeckState(t, got.state, 100, false, false)
 	requireAPICalls(t, got, 1, 0)
 	requireLocalFile(t, got, true)
+}
+
+func TestUpdateReadeckDoesNotPatchFinishedArchivedBookmark(t *testing.T) {
+	// Given
+	localBooks := newLocalBookSyncTest(t)
+	localBooks.bookWasFetched()
+	localBooks.archiveReadBooks()
+	localBooks.remoteBookmark(readeckBookmark{ReadProgress: 100, IsArchived: true})
+	// When
+	got := localBooks.run(bookRead)
+	// Then
+	requireReadeckState(t, got.state, 100, true, false)
+	requireAPICalls(t, got, 0, 0)
+	requireLocalFile(t, got, true)
+}
+
+func TestUpdateReadeckOnlyArchivesFinishedUnarchivedBookmark(t *testing.T) {
+	// Given
+	localBooks := newLocalBookSyncTest(t)
+	localBooks.bookWasFetched()
+	localBooks.archiveReadBooks()
+	localBooks.remoteBookmark(readeckBookmark{ReadProgress: 100})
+	// When
+	got := localBooks.run(bookRead)
+	// Then
+	requireReadeckState(t, got.state, 100, true, false)
+	requireAPICalls(t, got, 1, 0)
+	requirePatchFields(t, localBooks.readeck.patches[0], map[string]any{"is_archived": true})
+	requireLocalFile(t, got, true)
+}
+
+func TestUpdateReadeckOnlyMarksFinishedArchivedBookmarkRead(t *testing.T) {
+	// Given
+	localBooks := newLocalBookSyncTest(t)
+	localBooks.bookWasFetched()
+	localBooks.archiveReadBooks()
+	localBooks.remoteBookmark(readeckBookmark{IsArchived: true})
+	// When
+	got := localBooks.run(bookRead)
+	// Then
+	requireReadeckState(t, got.state, 100, true, false)
+	requireAPICalls(t, got, 1, 0)
+	requirePatchFields(t, localBooks.readeck.patches[0], map[string]any{"read_progress": 100})
+	requireLocalFile(t, got, true)
+}
+
+func TestUpdateReadeckAlreadyArchivedStateAllowsConfiguredCleanup(t *testing.T) {
+	// Given
+	localBooks := newLocalBookSyncTest(t)
+	localBooks.bookWasFetched()
+	localBooks.archiveReadBooks()
+	localBooks.deleteStaleFiles()
+	localBooks.remoteBookmark(readeckBookmark{ReadProgress: 100, IsArchived: true})
+	// When
+	got := localBooks.run(bookRead)
+	// Then
+	requireAPICalls(t, got, 0, 0)
+	requireLocalFile(t, got, false)
+	if !got.filesChanged {
+		t.Fatal("deleted archived bookmark was not reported as a filesystem change")
+	}
 }
 
 func TestUpdateReadeckMarksFinishedBookOutsideFetchedFeedRead(t *testing.T) {
@@ -318,6 +388,40 @@ func TestSyncLocalBooksPreservesLocalBookWhenMarkReadFails(t *testing.T) {
 	if filesChanged {
 		t.Fatal("retained book was reported as a filesystem change")
 	}
+	if _, err := os.Stat(localBooks.book.path); err != nil {
+		t.Fatalf("local retry input was not preserved: %v", err)
+	}
+}
+
+func TestSyncLocalBooksPreservesLocalBookWhenArchiveFails(t *testing.T) {
+	// Given
+	localBooks := newLocalBookSyncTest(t)
+	localBooks.bookWasFetched()
+	localBooks.archiveReadBooks()
+	localBooks.deleteStaleFiles()
+	localBooks.nickel.status = bookRead
+	localBooks.remoteBookmark(readeckBookmark{ReadProgress: 100})
+	remoteErr := errors.New("archive failed")
+	localBooks.readeck.patchErr = remoteErr
+	keepLocal := map[string]bool{nativeTestBookmarkID: true}
+	bookmarks := map[string]readeckBookmark{nativeTestBookmarkID: localBooks.readeck.bookmark}
+	// When
+	filesChanged, err := syncLocalBooks(
+		&localBooks.readeck,
+		localBooks.nickel,
+		localBooks.cfg,
+		keepLocal,
+		bookmarks,
+		true,
+	)
+	// Then
+	if !errors.Is(err, remoteErr) {
+		t.Fatalf("local book sync error = %v, want archive error", err)
+	}
+	if filesChanged {
+		t.Fatal("retained book was reported as a filesystem change")
+	}
+	requirePatchFields(t, localBooks.readeck.patches[0], map[string]any{"is_archived": true})
 	if _, err := os.Stat(localBooks.book.path); err != nil {
 		t.Fatalf("local retry input was not preserved: %v", err)
 	}
