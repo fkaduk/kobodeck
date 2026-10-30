@@ -76,7 +76,8 @@ To install or upgrade
    Readeck instance and lists the bookmarks that would be synced without
    downloading anything:
    `kobodeck --config .adds/kobodeck/kobodeck.toml --check`
-   via the binary provided in the tarball
+   with a host build (`make build`) - the binary in the tarball is the ARM
+   device build
 1. safely disconnect the reader - it should restart, install Kobodeck and remove
    `KoboRoot.tgz`
 
