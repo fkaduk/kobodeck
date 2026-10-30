@@ -1,6 +1,6 @@
 module github.com/fkaduk/kobodeck
 
-go 1.26.10
+go 1.27.3
 
 require (
 	github.com/BurntSushi/toml v1.6.0
@@ -10,7 +10,7 @@ require (
 )
 
 require (
-	github.com/beevik/etree v1.1.0 // indirect
+	github.com/beevik/etree v1.8.1 // indirect
 	github.com/dustin/go-humanize v1.1.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/kr/smartypants v0.1.0 // indirect
@@ -20,8 +20,8 @@ require (
 	github.com/pgaskin/kepubify/_/html v0.0.0-20211223234002-6ee2cc632cdc // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	golang.org/x/sys v0.49.0 // indirect
-	golang.org/x/text v0.39.0 // indirect
-	modernc.org/libc v1.79.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
+	modernc.org/libc v1.79.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 )
