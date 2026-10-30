@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -47,6 +48,113 @@ func TestListBookmarksPaginatesFiltersAndAppliesLimit(t *testing.T) {
 	}
 	if strings.Join(offsets, ",") != "0,100" {
 		t.Fatalf("requested offsets %v, want [0 100]", offsets)
+	}
+}
+
+// TestGetBookmark verifies the single-bookmark fetch: request method, path,
+// auth, and the decoded fields.
+func TestGetBookmark(t *testing.T) {
+	// Given
+	var gotPath, gotMethod, gotAuth string
+	simulatedReadeckServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotMethod = r.Method
+		gotAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(readeckBookmark{ID: nativeTestBookmarkID, Title: "Some article", ReadProgress: 42, IsMarked: true}); err != nil {
+			t.Errorf("encode bookmark: %v", err)
+		}
+	}))
+	t.Cleanup(simulatedReadeckServer.Close)
+	client := newReadeckClient(simulatedReadeckServer.Client(), serverConfig{URL: simulatedReadeckServer.URL, Token: "test-token"}, false)
+	// When
+	bookmark, err := client.getBookmark(nativeTestBookmarkID)
+	// Then
+	if err != nil {
+		t.Fatalf("getBookmark: %v", err)
+	}
+	if gotMethod != http.MethodGet || gotPath != "/api/bookmarks/"+nativeTestBookmarkID {
+		t.Fatalf("request %s %s, want GET /api/bookmarks/%s", gotMethod, gotPath, nativeTestBookmarkID)
+	}
+	if gotAuth != "Bearer test-token" {
+		t.Fatalf("Authorization = %q, want Bearer test-token", gotAuth)
+	}
+	if bookmark.ID != nativeTestBookmarkID || bookmark.Title != "Some article" || bookmark.ReadProgress != 42 || !bookmark.IsMarked {
+		t.Fatalf("getBookmark = %+v", bookmark)
+	}
+}
+
+// TestGetBookmarkError verifies a non-2xx response surfaces as an error.
+func TestGetBookmarkError(t *testing.T) {
+	// Given
+	simulatedReadeckServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "not found", http.StatusNotFound)
+	}))
+	t.Cleanup(simulatedReadeckServer.Close)
+	client := newReadeckClient(simulatedReadeckServer.Client(), serverConfig{URL: simulatedReadeckServer.URL, Token: "test-token"}, false)
+	// When
+	_, err := client.getBookmark(nativeTestBookmarkID)
+	// Then
+	if err == nil || !strings.Contains(err.Error(), "404") {
+		t.Fatalf("getBookmark error = %v, want a 404 error", err)
+	}
+}
+
+// TestPatchBookmark verifies only the provided fields are sent to Readeck via
+// PATCH, with the correct method, path, and auth.
+func TestPatchBookmark(t *testing.T) {
+	// Given
+	var gotPath, gotMethod, gotAuth, gotBody string
+	simulatedReadeckServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotMethod = r.Method
+		gotAuth = r.Header.Get("Authorization")
+		body, _ := io.ReadAll(r.Body)
+		gotBody = string(body)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(simulatedReadeckServer.Close)
+	client := newReadeckClient(simulatedReadeckServer.Client(), serverConfig{URL: simulatedReadeckServer.URL, Token: "test-token"}, false)
+	// When
+	err := client.patchBookmark(nativeTestBookmarkID, map[string]any{"read_progress": 100, "is_archived": true})
+	// Then
+	if err != nil {
+		t.Fatalf("patchBookmark: %v", err)
+	}
+	if gotMethod != http.MethodPatch || gotPath != "/api/bookmarks/"+nativeTestBookmarkID {
+		t.Fatalf("request %s %s, want PATCH /api/bookmarks/%s", gotMethod, gotPath, nativeTestBookmarkID)
+	}
+	if gotAuth != "Bearer test-token" {
+		t.Fatalf("Authorization = %q, want Bearer test-token", gotAuth)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal([]byte(gotBody), &decoded); err != nil {
+		t.Fatalf("decode patch body %q: %v", gotBody, err)
+	}
+	if got, want := decoded["read_progress"], float64(100); got != want {
+		t.Fatalf("patch body read_progress = %v, want %v", got, want)
+	}
+	if got, want := decoded["is_archived"], true; got != want {
+		t.Fatalf("patch body is_archived = %v, want %v", got, want)
+	}
+	if len(decoded) != 2 {
+		t.Fatalf("patch body has %d fields, want exactly read_progress and is_archived", len(decoded))
+	}
+}
+
+// TestPatchBookmarkError verifies a non-2xx response surfaces as an error.
+func TestPatchBookmarkError(t *testing.T) {
+	// Given
+	simulatedReadeckServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "server error", http.StatusInternalServerError)
+	}))
+	t.Cleanup(simulatedReadeckServer.Close)
+	client := newReadeckClient(simulatedReadeckServer.Client(), serverConfig{URL: simulatedReadeckServer.URL, Token: "test-token"}, false)
+	// When
+	err := client.patchBookmark(nativeTestBookmarkID, map[string]any{"read_progress": 100})
+	// Then
+	if err == nil || !strings.Contains(err.Error(), "500") {
+		t.Fatalf("patchBookmark error = %v, want a 500 error", err)
 	}
 }
 
